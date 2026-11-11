@@ -27,7 +27,6 @@ hatch check       # lint, format, and type check
 
 ## Conventions
 
-- Never create git commits unless the user explicitly asks.
 - Nothing outside `mime-py/` may depend on Python.
 - Python 3.12+, ruff, line length 120, single quotes.
 - Every language feature gets a design note in `design/` before it gets an implementation.
