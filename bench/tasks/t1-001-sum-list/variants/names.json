@@ -1,0 +1,6 @@
+{
+  "comment": "Rename maps from the honest words. none = opaque labels; misleading = a shuffle, so every name belongs to a different definition.",
+  "words": ["total", "product", "count", "largest"],
+  "none": {"total": "w3", "product": "w1", "count": "w4", "largest": "w2"},
+  "misleading": {"total": "count", "product": "total", "count": "largest", "largest": "product"}
+}

@@ -1,0 +1,6 @@
+{
+  "comment": "Rename maps from the honest words. none = opaque labels; misleading = pairwise swaps, so each name lies (the descent counter is called count_ascents, the zero test is called is_positive).",
+  "words": ["count_descents", "count_ascents", "is_zero", "is_positive"],
+  "none": {"count_descents": "w2", "count_ascents": "w4", "is_zero": "w1", "is_positive": "w3"},
+  "misleading": {"count_descents": "count_ascents", "count_ascents": "count_descents", "is_zero": "is_positive", "is_positive": "is_zero"}
+}

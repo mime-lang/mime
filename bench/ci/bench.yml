@@ -1,0 +1,31 @@
+# INACTIVE: GitHub Actions is off for this repo until the owner says otherwise.
+# GitHub runs only files in .github/workflows/. To turn this on, move it there:
+#   git mv bench/ci/bench.yml .github/workflows/bench.yml
+
+name: bench
+
+on:
+  push:
+    paths: ['bench/**', '.github/workflows/bench.yml']
+  pull_request:
+    paths: ['bench/**', '.github/workflows/bench.yml']
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      # The sandbox for model code. Ubuntu 24.04 blocks unprivileged user namespaces through AppArmor by default.
+      - run: |
+          sudo apt-get update && sudo apt-get install -y bubblewrap
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+      # Task format, references, mutants, name-style renaming, verbatim repair diagnostics, archived results.
+      - run: python3 bench/harness/validate.py --require-node
+      # The harness itself on mock models (no API is called), plus sandbox escape probes.
+      - run: python3 bench/harness/smoke.py --require-node --require-sandbox

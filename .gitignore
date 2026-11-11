@@ -24,3 +24,7 @@ mime-out/
 
 # Claude Code local settings
 .claude/settings.local.json
+
+# Benchmark mock runs (they test the harness, not models)
+bench/results/*-mock/
+bench/results/*-mock-*/

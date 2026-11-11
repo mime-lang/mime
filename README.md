@@ -87,6 +87,8 @@ The thesis is an empirical claim, so mime will be measured. The evaluation plan 
 - **The key ablation:** run the same mime tasks with meaningful words and with consistently scrambled words. If the thesis holds, scrambling should cost an agent little in mime. In a conventional language it should cost much more.
 - **Hygiene:** several models and providers, raw outputs archived, harder tasks added whenever a baseline saturates, and negative results published.
 
+The benchmark lives in [`bench/`](bench/). Its methodology card says what it measures, what it does not, and the known caveats.
+
 ## Roadmap
 
 - [ ] Core design doc: words, declarations, modules, primitives, types

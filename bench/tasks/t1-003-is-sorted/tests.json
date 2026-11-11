@@ -1,0 +1,18 @@
+{
+  "task": "t1-003-is-sorted",
+  "tier": 1,
+  "entry": "solve",
+  "signature": {"params": ["list<i64>"], "returns": "bool"},
+  "cases": [
+    {"args": [[1, 2, 3]], "expected": true, "example": true},
+    {"args": [[3, 2, 1]], "expected": false, "example": true},
+    {"args": [[]], "expected": true},
+    {"args": [[1]], "expected": true},
+    {"args": [[1, 1, 2]], "expected": true},
+    {"args": [[2, 2, 2]], "expected": true},
+    {"args": [[1, 3, 2, 4]], "expected": false},
+    {"args": [[-5, -1, 0, 7]], "expected": true},
+    {"args": [[1, 2, 3, 0]], "expected": false},
+    {"args": [[2, 1, 3, 4]], "expected": false}
+  ]
+}

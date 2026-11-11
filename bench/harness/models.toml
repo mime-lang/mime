@@ -1,0 +1,51 @@
+# Benchmark settings and model list.
+#
+# The project owner picks the real models (at least one small, cheap one: rule 5) and approves
+# any API spend. A real run also needs --allow-spend.
+#
+# Sampling: current Claude models reject temperature/top_p/top_k and take no seed, so samples
+# vary through the provider's default sampling. What a model thinks is fixed by `effort`.
+
+[settings]
+samples = 10                  # per cell (task x language x model x mode)
+k = 5                         # pass@k
+max_attempts = 3              # self-repair and agentic; zero-shot always makes 1 call
+budget_tokens = 60000         # per sample: spec + input + output, across all attempts
+base_seed = 1                 # sample i uses seed base_seed + i
+timeout_seconds = 10          # per program run
+skill_file = 'spec/SKILL.md'  # relative to the repo root; mime prompts include it. Missing until the spec exists.
+agentic_failing_cases = 3     # failing cases shown per retry in agentic mode
+sandbox = 'bwrap'             # where model code runs: bwrap (required for real runs) or none (own code only)
+
+[[model]]
+id = 'mock-reference'
+provider = 'mock'
+behavior = 'reference'
+size = 'mock'
+
+[[model]]
+id = 'mock-constant'
+provider = 'mock'
+behavior = 'constant'
+size = 'mock'
+
+[[model]]
+id = 'mock-flaky'
+provider = 'mock'
+behavior = 'flaky'
+size = 'mock'
+
+[[model]]
+id = 'mock-name-truster'
+provider = 'mock'
+behavior = 'name-truster'
+size = 'mock'
+
+# --- real models -----------------------------------------------------------
+
+[[model]]
+id = 'claude-haiku-5-5'
+provider = 'anthropic'
+size = 'small'
+effort = 'medium'             # set explicitly; tokens until passing depends on it
+max_tokens = 16000            # thinking counts toward this cap

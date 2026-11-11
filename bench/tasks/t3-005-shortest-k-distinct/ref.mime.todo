@@ -1,0 +1,3 @@
+; TODO(mime): write this reference once the grammar exists (see the README roadmap).
+; Signature: solve(list<i64>, i64) -> i64
+; Until then the harness runs this task on the Python and TypeScript baselines only.
