@@ -1,0 +1,30 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "mime-lang"
+dynamic = ["version"]
+description = "A programming language for AI agents, where a word means only what the program says it means."
+readme = "README.md"
+requires-python = ">=3.12"
+license = "Apache-2.0 WITH LLVM-exception"
+dependencies = []
+
+[project.scripts]
+mime = "mime.cli:main"
+
+[tool.hatch.version]
+path = "src/mime/__about__.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/mime"]
+
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.format]
+quote-style = "single"
+
+[tool.pytest.ini_options]
+python_files = ["*_test.py"]
