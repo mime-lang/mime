@@ -1,0 +1,10 @@
+[
+  {
+    "role": "system",
+    "content": "You write programs in Python. Reply with exactly one fenced code block that holds your complete answer, and nothing else.\n\n"
+  },
+  {
+    "role": "user",
+    "content": "# Sum of a list\n\nWrite a function `solve(list<i64>) -> i64`.\n\nIt takes one argument, a list of integers, and returns the sum of its elements. The sum of an empty list is 0.\n\n## Signature\n\nIn Python, write it as:\n\n```\ndef solve(a0: list[int]) -> int\n```\n\n## Examples\n\n- `solve([1, 2, 3])` returns `6`\n- `solve([])` returns `0`\n\nReply with the complete program.\n"
+  }
+]

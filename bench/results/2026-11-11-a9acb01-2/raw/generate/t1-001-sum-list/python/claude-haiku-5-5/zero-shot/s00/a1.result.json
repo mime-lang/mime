@@ -1,0 +1,13 @@
+{
+  "status": "pass",
+  "message": "8 of 8 tests passed",
+  "passed": 8,
+  "total": 8,
+  "failures": [],
+  "stop_reason": "end_turn",
+  "usage": {
+    "input_tokens": 192,
+    "output_tokens": 32,
+    "spec_tokens": 0
+  }
+}

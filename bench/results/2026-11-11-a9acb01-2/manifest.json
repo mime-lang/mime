@@ -1,0 +1,90 @@
+{
+  "schema": 1,
+  "run_id": "2026-11-11-a9acb01-2",
+  "date": "2026-11-11T23:42:10+00:00",
+  "argv": [
+    "--allow-spend",
+    "--track",
+    "generate",
+    "--lang",
+    "python",
+    "--mode",
+    "zero-shot",
+    "--samples",
+    "1",
+    "--task",
+    "t1-001-sum-list"
+  ],
+  "git": {
+    "commit": "a9acb01ead80d25a76fcdd7a0a9bbb8951ce3b57",
+    "short": "a9acb01",
+    "dirty": false
+  },
+  "compiler": {
+    "commit": "a9acb01ead80d25a76fcdd7a0a9bbb8951ce3b57",
+    "dirty": false,
+    "available": false
+  },
+  "skill_file": {
+    "path": "spec/SKILL.md",
+    "sha256": null,
+    "tokens": 0
+  },
+  "tasks_sha256": "6b3c7b6a0ceef2fc4fe5a260e2a31ad777e5e4c445c1d006188e21f964093a5b",
+  "harness_sha256": "b481987a4159d9ab0a68f55a59857ef441abe348b069ab109a76bc9601caba14",
+  "runtimes": {
+    "python": "3.14.4",
+    "node": null,
+    "mime": null
+  },
+  "sandbox": {
+    "backend": "bwrap",
+    "network": "none",
+    "version": "bubblewrap 0.11.1",
+    "mounts": "ro /usr + runtime, rw /work (this run only), tmpfs /tmp; no home, empty env",
+    "limits": {
+      "file_bytes": 16777216,
+      "tmpfs_bytes": 67108864,
+      "python_address_space": 2147483648,
+      "node_heap_mb": 512
+    }
+  },
+  "tokenizer": "provider-reported usage",
+  "settings": {
+    "samples": 10,
+    "k": 5,
+    "max_attempts": 3,
+    "budget_tokens": 60000,
+    "base_seed": 1,
+    "timeout_seconds": 10,
+    "skill_file": "spec/SKILL.md",
+    "agentic_failing_cases": 3,
+    "sandbox": "bwrap"
+  },
+  "models": [
+    {
+      "id": "claude-haiku-5-5",
+      "provider": "anthropic",
+      "size": "small",
+      "effort": "medium",
+      "max_tokens": 16000,
+      "sampling": "provider default: the API rejects temperature, top_p and top_k, and has no seed parameter"
+    }
+  ],
+  "seed_sent_to_provider": false,
+  "tracks": [
+    "generate"
+  ],
+  "modes": [
+    "zero-shot"
+  ],
+  "languages": [
+    "python"
+  ],
+  "notes": [],
+  "status": "complete",
+  "samples": 1,
+  "rows": 1,
+  "skipped": {},
+  "finished": "2026-11-11T23:42:11+00:00"
+}
