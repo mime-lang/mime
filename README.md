@@ -12,6 +12,14 @@ mime makes a different bet: **a program should carry its own meaning, and that m
 
 Humans are not expected to read or write mime. They work through an agent, which writes the code and explains it.
 
+## Why "mime"
+
+A mime tells a story without words. The audience understands a wall, a rope or a heavy box from shape and movement alone, with no vocabulary to lean on.
+
+mime the language aims for the same thing. Its words are only labels, and the meaning is carried by form: declarations, the shapes of types, and how values flow from one step to the next.
+
+(The name has nothing to do with MIME media types.)
+
 ## Words, the way mathematicians use them
 
 mime borrows its discipline from mathematical writing. A mathematician does not assume the reader knows what "group" or "compact" means. They **define** the word first, and from then on they **use only words that are already defined**. The word itself is just a label. All of its meaning sits in the definition.
