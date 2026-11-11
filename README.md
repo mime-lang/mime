@@ -14,7 +14,14 @@ Humans are not expected to read or write mime. They work through an agent, which
 
 ## Why "mime"
 
+<p align="center">
+  <img src="assets/mime.webp" width="480" alt="A mime in a beret, striped shirt and suspenders leans far back on a braced leg, teeth clenched, both gloved fists closed around an invisible rope"><br>
+  <sub>AI-generated image.</sub>
+</p>
+
 A mime tells a story without words. The audience understands a wall, a rope or a heavy box from shape and movement alone, with no vocabulary to lean on.
+
+There is no rope in the picture above, and no word says "rope". You still see one, and even feel how heavy it is, from the body leaning far back on a braced leg, the clenched teeth, and two fists closed around nothing along one straight line. The meaning comes from form, not from an object or a word.
 
 mime the language aims for the same thing. Its words are only labels, and the meaning is carried by form: declarations, the shapes of types, and how values flow from one step to the next.
 
