@@ -108,6 +108,60 @@ def check_anthropic_adapter(errors: list[str]) -> None:
             )
 
 
+def check_failures(errors: list[str]) -> None:
+    """Missing credentials must stop a run cleanly, and any crash must mark the run aborted."""
+
+    class NoKey:
+        def create(self, **kw: object) -> None:
+            raise TypeError('Could not resolve authentication method')
+
+    adapter = models.AnthropicModel('claude-haiku-5-5', 'medium', client=_Obj(messages=NoKey()))
+    task = run.taskset.load_tasks(['t1-001-sum-list'])[0]
+    orc = models.Oracle('python', task.spec, task.ref('python'))
+    try:
+        adapter.complete([{'role': 'user', 'content': 'x'}], seed=1, attempt=1, oracle=orc)
+        errors.append('adapter: a request without credentials must raise ProviderError')
+    except models.ProviderError:
+        pass
+    with tempfile.TemporaryDirectory(prefix='mime-bench-crash-') as tmp:
+        out = Path(tmp) / 'crash-mock'
+        real = run.run_sample
+
+        def boom(*a: object, **kw: object) -> dict:
+            raise RuntimeError('simulated crash')
+
+        run.run_sample = boom
+        try:
+            run.main(
+                [
+                    '--mock',
+                    '--model',
+                    'mock-reference',
+                    '--track',
+                    'generate',
+                    '--lang',
+                    'python',
+                    '--mode',
+                    'zero-shot',
+                    '--samples',
+                    '1',
+                    '--out',
+                    str(out),
+                ]
+            )
+            errors.append('run: a crash must propagate')
+        except RuntimeError:
+            pass
+        finally:
+            run.run_sample = real
+        man = json.loads((out / 'manifest.json').read_text())
+        check(
+            man['status'] == 'aborted' and 'simulated crash' in man.get('error', ''),
+            f'run: a crash must mark the manifest aborted, got {man["status"]}',
+            errors,
+        )
+
+
 def _probe(body: str) -> str:
     """A Python solve() that returns 1 if the probe got through, else 0."""
     return 'def solve():\n' + ''.join(f'    {line}\n' for line in body.strip().splitlines())
@@ -290,6 +344,7 @@ def main(argv: list[str] | None = None) -> int:
         check(run.main([]) == 2, 'a real run without --allow-spend must be refused', errors)
 
     check_anthropic_adapter(errors)
+    check_failures(errors)
     sandbox_note = check_sandbox(errors, args.require_sandbox)
 
     for e in errors:

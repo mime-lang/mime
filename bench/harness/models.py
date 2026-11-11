@@ -128,6 +128,16 @@ class AnthropicModel:
             raise ProviderError('the `anthropic` package is not installed (pip install anthropic)') from e
         self.client = anthropic.Anthropic(max_retries=4)
 
+    def describe(self) -> dict:
+        """SDK version and endpoint, for the manifest. Call after connect()."""
+        try:
+            import anthropic
+
+            sdk = anthropic.__version__
+        except ImportError:
+            sdk = None
+        return {'sdk': f'anthropic {sdk}' if sdk else None, 'endpoint': str(getattr(self.client, 'base_url', ''))}
+
     def complete(self, messages: list[dict], *, seed: int, attempt: int, oracle: Oracle) -> Completion:
         try:
             import anthropic
@@ -151,6 +161,8 @@ class AnthropicModel:
             )
         except api_error as e:
             raise ProviderError(f'{self.id}: {type(e).__name__}: {e}') from e
+        except Exception as e:  # e.g. no credentials: the SDK raises TypeError before any request
+            raise ProviderError(f'{self.id}: the request could not be sent: {type(e).__name__}: {e}') from e
         u = resp.usage
         input_tokens = u.input_tokens + (u.cache_creation_input_tokens or 0) + (u.cache_read_input_tokens or 0)
         text = ''.join(b.text for b in resp.content if b.type == 'text')

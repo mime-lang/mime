@@ -269,5 +269,6 @@ def git_info() -> dict:
             return None
 
     commit = git('rev-parse', 'HEAD')
-    status = git('status', '--porcelain')
+    # Results and reports are outputs, not the code that ran: earlier runs must not block the next one.
+    status = git('status', '--porcelain', '--', '.', ':(exclude)bench/results', ':(exclude)bench/reports')
     return {'commit': commit, 'short': commit[:7] if commit else 'nogit', 'dirty': bool(status)}

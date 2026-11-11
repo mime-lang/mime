@@ -228,7 +228,7 @@ def run_dir(args: argparse.Namespace, git: dict, mock: bool) -> Path:
     return path
 
 
-def manifest(args, settings, chosen, skill, git, notes, out: Path) -> dict:
+def manifest(args, settings, chosen, skill, git, notes, out: Path, adapters: dict) -> dict:
     return {
         'schema': 1,
         'run_id': out.name,
@@ -245,7 +245,10 @@ def manifest(args, settings, chosen, skill, git, notes, out: Path) -> dict:
         'sandbox': execute.sandbox_info(settings['sandbox']),
         'tokenizer': TOKENIZER if all(m['provider'] == 'mock' for m in chosen) else 'provider-reported usage',
         'settings': settings,
-        'models': [{**m, 'sampling': models.SAMPLING[m['provider']]} for m in chosen],
+        'models': [
+            {**m, 'sampling': models.SAMPLING[m['provider']], **getattr(adapters[m['id']], 'describe', dict)()}
+            for m in chosen
+        ],
         'seed_sent_to_provider': False,
         'tracks': args.track,
         'modes': args.mode,
@@ -426,10 +429,22 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     out = run_dir(args, git, args.mock)
+    man = manifest(args, settings, pool, skill, git, notes, out, adapters)  # before the folder exists
     out.mkdir(parents=True, exist_ok=False)
-    man = manifest(args, settings, pool, skill, git, notes, out)
     (out / 'manifest.json').write_text(json.dumps(man, indent=2) + '\n')
+    try:
+        return run_jobs(jobs, samples, settings, skill, adapters, notes, out, man)
+    except BaseException as e:  # a bug or Ctrl-C: keep what was written, and say the run does not count
+        if man.get('status') == 'running':
+            man.update(status='aborted', error=f'{type(e).__name__}: {e}')
+            (out / 'manifest.json').write_text(json.dumps(man, indent=2) + '\n')
+            print(f'\nAborted ({type(e).__name__}); {out} is marked "aborted" and does not count.')
+        raise
 
+
+def run_jobs(
+    jobs: list[Job], samples: int, settings: dict, skill: dict, adapters: dict, notes: list[str], out: Path, man: dict
+) -> int:
     skipped: dict[str, int] = {}
     rows = 0
     with (out / 'scores.jsonl').open('w') as scores:
