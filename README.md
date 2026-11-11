@@ -94,4 +94,4 @@ hatch run mime --version
 
 ## License
 
-Apache-2.0 with LLVM exception. See [LICENSE](LICENSE).
+`SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception`. See [LICENSE](LICENSE).
