@@ -2,7 +2,7 @@ import argparse
 import sys
 from pathlib import Path
 
-from mime import diag, tools
+from mime import diag, printer, tools
 from mime.__about__ import __version__
 from mime.compiler import ToolError, analyze, domain_word, run
 from mime.diag import FatalError
@@ -42,6 +42,17 @@ def _parser() -> argparse.ArgumentParser:
     p.add_argument('file')
     p.add_argument('--positions', action='store_true', help='add the line and column of each use')
     p.add_argument('word', nargs='?', help=word)
+
+    p = sub.add_parser('fmt', help='rewrite a program in its one layout, keeping its words and English')
+    p.add_argument('file')
+
+    p = sub.add_parser('canon', help='print the canonical form: the one layout, every word renamed $w0, $w1, ...')
+    p.add_argument('file')
+
+    p = sub.add_parser('rename', help='rename one word everywhere and rewrite the file')
+    p.add_argument('file')
+    p.add_argument('word', nargs='?', help="the word to rename, in single quotes: '$number'")
+    p.add_argument('new', nargs='?', help="its new spelling, in single quotes: '$count'")
     return parser
 
 
@@ -87,6 +98,39 @@ def _query(args: argparse.Namespace) -> int:
     return OK
 
 
+def _form(args: argparse.Namespace) -> int:
+    """`fmt`, `canon` and `rename`, which need only a program that parses (design/step-5.md)."""
+    if args.command == 'rename':
+        old = _check_word_arg('rename', args.word)
+        if args.new is None or args.new == '':
+            msg = f'mime rename needs a new word: mime rename FILE OLD NEW; {SHELL_HINT}'
+            raise ToolError(msg)
+        new = domain_word(args.new)
+    source = _read(args.file)
+    try:
+        module = parse(source)
+    except FatalError as e:
+        sys.stderr.write(diag.to_json([e.diagnostic]))
+        return PROGRAM_ERRORS
+    if args.command == 'canon':
+        sys.stdout.write(printer.canon(module))
+    elif args.command == 'fmt':
+        _write(args.file, printer.layout(module))
+    else:
+        renamed = printer.rename(source, old, new)
+        _write(args.file, renamed)
+        sys.stdout.write(tools.uses_json(tools.uses(parse(renamed), new)))
+    return OK
+
+
+def _write(path: str, text: str) -> None:
+    try:
+        Path(path).write_text(text, encoding='utf-8')
+    except OSError as e:
+        msg = f'cannot write {path}: {e}'
+        raise ToolError(msg) from None
+
+
 def _read(path: str) -> str:
     try:
         return Path(path).read_text(encoding='utf-8')
@@ -104,6 +148,8 @@ def main(argv: list[str] | None = None) -> int:
     try:
         if args.command in ('show', 'uses'):
             return _query(args)
+        if args.command in ('fmt', 'canon', 'rename'):
+            return _form(args)
         if args.command == 'run':
             _check_run_args(args.word)
         program, diagnostics = analyze(_read(args.file))

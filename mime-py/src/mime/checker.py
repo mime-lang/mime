@@ -166,15 +166,18 @@ class _Checker:
         word = d.word.text
         head: Where = {'entry': word, 'key': 'type'}
         inputs: dict[str, Value] = {}
-        meant: set[str] = set()  # data words a misspelled input most likely means; the body may read them quietly
+        meant: set[str] = set()  # rejected inputs, and the data words they most likely mean; read quietly
         for x in d.inputs:
             if x.text in inputs:
                 self.report('duplicate-word', f'`${x.text}` is listed twice', x.span, 'list each input once', **head)
             elif self.data_word(x, word, position, head, 'an input'):
                 inputs[x.text] = x
-            elif x.text not in self.index:
-                earlier = [w for w, i in self.index.items() if i < position and self.kinds[w] == 'data']
-                meant.update(difflib.get_close_matches(x.text, earlier, n=1))
+            else:
+                # The input is already reported, so the body reading it, as written or as meant, is not reported again.
+                meant.add(x.text)
+                if x.text not in self.index:
+                    earlier = [w for w, i in self.index.items() if i < position and self.kinds[w] == 'data']
+                    meant.update(difflib.get_close_matches(x.text, earlier, n=1))
         if d.output.kind == Tok.WORD:
             self.data_word(d.output, word, position, head, 'the output')
         elif d.output.text in LATER_TYPES:

@@ -50,10 +50,9 @@ $same   = {description = "the number it is given", takes = $number, returns = $n
   operations, ending in `ret`. `description`, `sort`, `takes`, `returns`, `input` and `let … in` are replaced.
 - **Note:** the one step that changes the form of earlier programs (layout.md section 8).
 
-### 5. Renaming and canonical form
+### 5. Renaming and canonical form (done; see [step-5.md](step-5.md))
 
-- **New:** `mime canon`.
-- **Also:** `mime rename FILE '$old' '$new'`, which rewrites a word and its references (see tools.md).
+- **New:** `mime canon`, `mime fmt`, and `mime rename FILE '$old' '$new'`.
 - **Done when:** the test suite renames every word in every test program and checks that behavior and canonical form
   are unchanged. This is mime's thesis turned into a test, so it comes early.
 

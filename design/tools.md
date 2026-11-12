@@ -1,6 +1,7 @@
 # Tools
 
-> Status: settled. Adds `mime show` and `mime uses`; `mime rename` is planned with [roadmap](roadmap.md) step 5.
+> Status: settled. Adds `mime show` and `mime uses`. `mime fmt`, `mime canon` and `mime rename` came with
+> [roadmap](roadmap.md) step 5 ([step-5.md](step-5.md)).
 
 An agent working on a program does more than check and run it: it reads one entry, finds where a word is used,
 and renames a word. With general text tools (`grep`, `sed`, `jq`), each of these is a little wrong for mime:
@@ -80,6 +81,4 @@ $ mime uses prog.mime '$number'
 
 ## 5. Out of scope
 
-- `mime rename FILE '$old' '$new'`, which rewrites a word and every reference to it. It comes with step 5
-  (`mime canon`), which rewrites references anyway.
-- When step 3 adds local words, `uses` will include their uses.
+- `mime rename` is described in [step-5.md](step-5.md).

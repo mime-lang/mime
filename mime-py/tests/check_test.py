@@ -149,6 +149,18 @@ def test_an_input_declared_later_is_one_mistake() -> None:
     assert {d.hint for d in diagnostics} == {'move the entry for `$late` above `$f`'}
 
 
+@pytest.mark.parametrize(
+    'lines',
+    ['$r = add i64 $number, 1\nret $r', 'ret $numbr', '$r = add i64 $numbr, $number\nret $r'],
+)
+def test_a_misspelled_input_is_one_mistake_however_the_body_reads_it(lines: str) -> None:
+    assert kinds(NUMBER + define('{$numbr} -> $number', lines)) == ['undeclared-word']
+
+
+def test_a_function_as_an_input_is_one_mistake() -> None:
+    assert kinds(NUMBER + SAME + define('{$same} -> $number', 'ret $same')) == ['bad-value']
+
+
 def test_a_misspelled_input_is_one_mistake() -> None:
     (d,) = analyze(NUMBER + define('{$numbr} -> $number', '$r = add i64 $number, 1\nret $r'))[1]
     assert (d.kind, d.text, d.hint) == ('undeclared-word', '$numbr', 'did you mean `$number`?')

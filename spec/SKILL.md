@@ -75,7 +75,8 @@ Inside an `abstract`, `$word` is a **checked reference**. The English around it 
 - Every `$` in an abstract starts a reference. Write `\$` for a dollar sign: `"costs \$5"`.
 - A reference follows the same name rule as in code: `"$number's"` and `"($number)"` are fine, but `"$numberX"` and
   `"$number-ish"` are errors, not `$number` followed by text.
-- References are optional.
+- References are optional, but **mark every mention of a word with `$`**, even in passing: `"like $double"`, not
+  `"like double"`. An unmarked mention is plain English: it is not checked, and renaming does not change it.
 
 ## Commands
 
@@ -85,9 +86,12 @@ mime run prog.mime '$affine' 5       # run $affine on 5: one decimal integer per
 mime llvm prog.mime                  # print the LLVM IR
 mime show prog.mime '$affine'        # print the entry for $affine, exactly as written
 mime uses prog.mime '$number'        # list every reference to $number, as a JSON array
+mime rename prog.mime '$a' '$b'      # rename $a to $b everywhere, abstracts included; rewrites the file
+mime fmt prog.mime                   # rewrite the file in its one layout
+mime canon prog.mime                 # print the canonical form: every word renamed $w0, $w1, ...
 ```
 
-Use `show` and `uses` instead of `grep` or `sed`: they follow mime's rules, so `\$number` in an abstract is not a
+Use `show`, `uses` and `rename` instead of `grep` or `sed`: they follow mime's rules, so `\$number` in an abstract is not a
 use, and each use names its `entry` and `key`. Both work on a program with checker errors. `show` prints a
 function's whole definition, from `define` through its abstract.
 

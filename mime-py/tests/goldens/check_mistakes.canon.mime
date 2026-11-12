@@ -1,0 +1,15 @@
+$w0 = {type = i32, abstract = "a whole number"}
+$w1 = {abstract = "how many", type = i64}
+$w2 = {sort = i64, abstract = "x"}
+$w0 = {type = i64, abstract = ""}
+$w3 = {type = {$w4, $w5}, abstract = "two numbers"}
+
+define $w6 {$w7, $w1} -> $w8 {
+  ret $w1
+}
+abstract = "x"
+
+define $w8 {$w6} -> $w0 {
+  ret 1
+}
+abstract = "x"

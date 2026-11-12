@@ -262,11 +262,12 @@ layer is designed.
 
 ## 10. Renaming and canonical form
 
-- **Renaming invariant.** Consistently renaming domain words, including the references inside descriptions, never
+- **Renaming invariant.** Consistently renaming domain words, including the references inside abstracts, never
   changes what a program means. Language words are never renamed.
-- **Canonical form.** Replace every domain word by a fixed name in declaration order (`$w0`, `$w1`, …) and drop
-  the connecting English of descriptions. Two programs are the same up to renaming when their canonical forms are
-  equal.
+- **Canonical form.** Replace every domain word by a fixed name in order of first occurrence (`$w0`, `$w1`, …),
+  with each body's results numbered apart, and print the one layout of `mime fmt`. Abstracts keep their English,
+  with their references renamed ([step-5.md](step-5.md)). Two programs are the same up to renaming when their
+  canonical forms are equal.
 - `mime canon` prints the canonical form. It tests the renaming invariant, checks "one meaning, one form", and
   produces the scrambled-words ablation.
 

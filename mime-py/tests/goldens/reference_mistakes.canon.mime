@@ -1,0 +1,12 @@
+$w0 = {type = i64, abstract = "a whole number that costs $5"}
+
+define $w1 {$w0} -> $w0 {
+  $w2 = add i64 $w0, $w0
+  ret $w2
+}
+abstract = "the $w3 it is given, a $numberX, the $w4, see $w1 and $w5"
+
+define $w5 {$w0} -> $w0 {
+  ret $w0
+}
+abstract = "the \"next\" one, costs \$5"
