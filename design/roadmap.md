@@ -46,6 +46,7 @@ $same   = {description = "the number it is given", takes = $number, returns = $n
 ### 4. Renaming and canonical form
 
 - **New:** `mime canon`.
+- **Also:** `mime rename FILE '$old' '$new'`, which rewrites a word and its references (see tools.md).
 - **Done when:** the test suite renames every word in every test program and checks that behavior and canonical form
   are unchanged. This is mime's thesis turned into a test, so it comes early.
 

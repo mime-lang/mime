@@ -7,7 +7,7 @@ Checks:
   tasks     folder names, tests.json schema, task.md signature, references pass, mutants fail
   variants  the three name styles are one program up to renaming; each style's reference passes
   edit      after.* pass the tests and before.* fail at least one
-  repair    every stored diagnostic.json matches live `mime check --json` output, verbatim
+  repair    every stored diagnostic.json matches live `mime check` output, verbatim
   results   every scored sample has its raw prompt, output and result files
 """
 
@@ -243,7 +243,7 @@ def check_repairs(c: Checker, mime_bin: str | None) -> None:
         if not (d / 'broken.mime').is_file() or not (d / 'diagnostic.json').is_file():
             continue
         live = subprocess.run(
-            [mime_bin, 'check', '--json', 'broken.mime'], check=False, cwd=d, capture_output=True, text=True
+            [mime_bin, 'check', 'broken.mime'], check=False, cwd=d, capture_output=True, text=True
         )
         try:
             stored = json.loads((d / 'diagnostic.json').read_text())
@@ -252,10 +252,10 @@ def check_repairs(c: Checker, mime_bin: str | None) -> None:
             c.err(where, f'diagnostic is not JSON: {e}')
             continue
         if stored != current:
-            c.err(where, 'diagnostic.json no longer matches live `mime check --json broken.mime`; recapture and review')
+            c.err(where, 'diagnostic.json no longer matches live `mime check broken.mime`; recapture and review')
         if (d / 'expected.mime').is_file():
             ok = subprocess.run(
-                [mime_bin, 'check', '--json', 'expected.mime'], check=False, cwd=d, capture_output=True, text=True
+                [mime_bin, 'check', 'expected.mime'], check=False, cwd=d, capture_output=True, text=True
             )
             if ok.returncode != 0:
                 c.err(where, 'expected.mime does not check clean')

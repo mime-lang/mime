@@ -4,7 +4,7 @@ import difflib
 from dataclasses import dataclass
 
 from mime.diag import Diagnostic
-from mime.lexer import Ref, Tok
+from mime.lexer import Span, Tok
 from mime.parser import Entry, Field, Module, Value
 from mime.words import FUNCTION_KEYS, INPUT, KEYS, LANGUAGE_WORDS, SORT_KEYS, SORTS
 
@@ -37,14 +37,27 @@ def _value_text(v: Value) -> str:
 
 class _Checker:
     def __init__(self, module: Module) -> None:
+        self.source = module.source
         self.entries = module.entries
         self.diags: list[Diagnostic] = []
         self.index: dict[str, int] = {}  # word -> index of its first entry
         self.kinds: dict[str, str | None] = {}  # word -> 'sort', 'function', or None when unclear
         self.fields: dict[str, dict[str, Field]] = {}  # word -> valid key -> first field with it
 
-    def report(self, kind: str, message: str, at: Entry | Field | Value | Ref, hint: str | None = None) -> None:
-        self.diags.append(Diagnostic(kind, message, at.line, at.column, hint))
+    def report(
+        self,
+        kind: str,
+        message: str,
+        at: Span,
+        hint: str | None = None,
+        *,
+        entry: str,
+        key: str | None = None,
+        missing: bool = False,
+    ) -> None:
+        """Report a mistake at `at`, in the entry for `entry` and the field `key`. Something `missing` has no text."""
+        text = None if missing else self.source[at.start : at.end]
+        self.diags.append(Diagnostic(kind, message, at.line, at.column, hint, f'${entry}', key, text))
 
     def run(self) -> Program | None:
         # Index every word first, so a reference can tell a later entry from a missing one.
@@ -57,9 +70,12 @@ class _Checker:
             if self.index[e.word] == i:
                 self.kinds[e.word], self.fields[e.word] = kind, valid
             else:
-                first = self.entries[self.index[e.word]]
                 self.report(
-                    'duplicate-word', f'`${e.word}` already has an entry', e, f'the first entry is on line {first.line}'
+                    'duplicate-word',
+                    f'`${e.word}` already has an entry',
+                    e.span,
+                    'a word has one entry; merge the two or rename one',
+                    entry=e.word,
                 )
         for i, (e, valid) in enumerate(zip(self.entries, valid_by_entry, strict=True)):
             if 'description' in valid:
@@ -68,7 +84,7 @@ class _Checker:
             if self.kinds[word] == 'function':
                 for key in ('takes', 'returns'):
                     if key in self.fields[word]:
-                        self.reference(word, i, self.fields[word][key].value)
+                        self.reference(word, i, key, self.fields[word][key].value)
         self.diags.sort(key=lambda d: (d.line, d.column))
         if self.diags:
             return None
@@ -81,29 +97,42 @@ class _Checker:
         valid: dict[str, Field] = {}
         for f in e.fields:
             if f.key in valid:
-                self.report('duplicate-key', f'`{f.key}` appears twice in the entry for `${e.word}`', f)
+                self.report(
+                    'duplicate-key',
+                    f'`{f.key}` appears twice in the entry for `${e.word}`',
+                    f.span,
+                    entry=e.word,
+                    key=f.key,
+                )
             elif f.key not in KEYS:
                 hint = (
                     'did you mean `sort`?'
                     if f.key == 'type'
                     else (f'a {kind} entry has the keys {_keys(expected)}' if kind else BOTH_KINDS)
                 )
-                self.report('unknown-key', f'`{f.key}` is not a key', f, hint)
+                self.report('unknown-key', f'`{f.key}` is not a key', f.span, hint, entry=e.word, key=f.key)
             elif kind and f.key not in expected:
                 self.report(
                     'unknown-key',
                     f'`{f.key}` is not a key of a {kind} entry',
-                    f,
+                    f.span,
                     f'a {kind} entry has the keys {_keys(expected)}',
+                    entry=e.word,
+                    key=f.key,
                 )
             else:
                 valid[f.key] = f
-                self.value(f)
+                self.value(e.word, f)
         if kind is None:
             if len(valid) < len(e.fields):
                 return None, valid  # an unknown key was already reported, often the reason the kind is unclear
             self.report(
-                'missing-key', f'the entry for `${e.word}` is neither a sort entry nor a function entry', e, BOTH_KINDS
+                'missing-key',
+                f'the entry for `${e.word}` is neither a sort entry nor a function entry',
+                e.span,
+                BOTH_KINDS,
+                entry=e.word,
+                missing=True,
             )
             return None, valid
         missing = [k for k in expected if k not in valid]
@@ -111,8 +140,10 @@ class _Checker:
             self.report(
                 'missing-key',
                 f'the entry for `${e.word}` is missing {_keys(tuple(missing))}',
-                e,
+                e.span,
                 f'a {kind} entry has the keys {_keys(expected)}',
+                entry=e.word,
+                missing=True,
             )
         order = list(valid)
         want = [k for k in expected if k in valid]
@@ -121,32 +152,41 @@ class _Checker:
             self.report(
                 'key-order',
                 f'the keys of `${e.word}` are out of order',
-                first_wrong,
+                first_wrong.span,
                 f'write them in this order: {_keys(expected)}',
+                entry=e.word,
+                key=first_wrong.key,
             )
         return kind, valid
 
-    def value(self, f: Field) -> None:
+    def value(self, word: str, f: Field) -> None:
         v = f.value
+        at = {'entry': word, 'key': f.key}
         if v.kind == Tok.NAME and v.text not in LANGUAGE_WORDS and f.key in ('takes', 'returns'):
-            self.report('unknown-language-word', f'`{v.text}` is not a language word', v, f'did you mean `${v.text}`?')
+            self.report(
+                'unknown-language-word',
+                f'`{v.text}` is not a language word',
+                v.span,
+                f'did you mean `${v.text}`?',
+                **at,
+            )
             return
         if f.key == 'description':
             if v.kind != Tok.STRING:
-                self.report('bad-value', '`description` takes a string', v, 'write the meaning in `"…"`')
+                self.report('bad-value', '`description` takes a string', v.span, 'write the meaning in `"…"`', **at)
             elif not v.text.strip():
-                self.report('bad-value', 'a description cannot be empty', v, 'say what the word means')
+                self.report('bad-value', 'a description cannot be empty', v.span, 'say what the word means', **at)
         elif f.key == 'sort':
             if v.kind != Tok.NAME or v.text not in SORTS:
                 later = v.kind == Tok.NAME and v.text in LATER_SORTS
                 hint = f'`{v.text}` arrives in a later step; ' if later else ''
                 self.report(
-                    'bad-value', f'`{_value_text(v)}` is not a sort', v, hint + 'the only sort in step 1 is `i64`'
+                    'bad-value', f'`{_value_text(v)}` is not a sort', v.span, hint + 'the only sort is `i64`', **at
                 )
         elif f.key in ('takes', 'returns') and v.kind != Tok.WORD:
-            self.report('bad-value', f'`{f.key}` names a word', v, 'name a sort entry, such as `$number`')
+            self.report('bad-value', f'`{f.key}` names a word', v.span, 'name a sort entry, such as `$number`', **at)
         elif f.key == 'body' and (v.kind != Tok.NAME or v.text != INPUT):
-            self.report('bad-value', f'`{_value_text(v)}` is not a body', v, 'the only body in step 1 is `input`')
+            self.report('bad-value', f'`{_value_text(v)}` is not a body', v.span, 'the only body is `input`', **at)
 
     def suggest(self, typo: str, owner: str, owner_index: int) -> str | None:
         """A close word the reference could mean, preferring words it may already refer to."""
@@ -164,60 +204,76 @@ class _Checker:
         """Check the `$` references inside a description (design/step-2.md)."""
         if v.kind != Tok.STRING:
             return
+        at = {'entry': owner, 'key': 'description'}
         for r in v.refs:
             if r.word is None:
                 self.report(
                     'bad-reference',
                     '`$` in a description must start a reference to a word',
-                    r,
+                    r.span,
                     'write `\\$` for a dollar sign',
+                    **at,
                 )
             elif r.stray is not None:
                 self.report(
                     'bad-reference',
                     f'`${r.word}` is followed by `{r.stray}`, which cannot appear in a name',
-                    r,
+                    r.span,
                     'a name is lowercase letters, digits or `_`; put a space or punctuation other than `-` after it',
+                    **at,
                 )
             elif r.word not in self.index:
                 self.report(
-                    'undeclared-word', f'no entry declares `${r.word}`', r, self.suggest(r.word, owner, owner_index)
+                    'undeclared-word',
+                    f'no entry declares `${r.word}`',
+                    r.span,
+                    self.suggest(r.word, owner, owner_index),
+                    **at,
                 )
             elif r.word == owner and self.index[owner] == owner_index:
                 self.report(
                     'forward-reference',
                     f'the description of `${owner}` refers to `${owner}` itself',
-                    r,
+                    r.span,
                     f'a description may refer only to earlier entries; describe `${owner}` by its parts',
+                    **at,
                 )
             elif self.index[r.word] > owner_index:
                 self.report(
                     'forward-reference',
                     f'`${r.word}` is declared after `${owner}`',
-                    r,
+                    r.span,
                     f'a description may refer only to earlier entries; move the entry for `${r.word}` above `${owner}`',
+                    **at,
                 )
 
-    def reference(self, owner: str, owner_index: int, v: Value) -> None:
+    def reference(self, owner: str, owner_index: int, key: str, v: Value) -> None:
         if v.kind != Tok.WORD:
             return
+        at = {'entry': owner, 'key': key}
         if v.text not in self.index:
             self.report(
-                'undeclared-word', f'no entry declares `${v.text}`', v, self.suggest(v.text, owner, owner_index)
+                'undeclared-word',
+                f'no entry declares `${v.text}`',
+                v.span,
+                self.suggest(v.text, owner, owner_index),
+                **at,
             )
         elif self.index[v.text] >= owner_index:
             self.report(
                 'forward-reference',
                 f'`${v.text}` is declared after `${owner}`',
-                v,
+                v.span,
                 f'move the entry for `${v.text}` above `${owner}`',
+                **at,
             )
         elif self.kinds[v.text] == 'function':
             self.report(
                 'not-a-sort',
                 f'`${v.text}` is a function entry, not a sort entry',
-                v,
+                v.span,
                 'name a sort entry, such as `$number`',
+                **at,
             )
 
     def program(self) -> Program:

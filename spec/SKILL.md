@@ -50,12 +50,32 @@ $same   = {description = "the $number it is given", takes = $number, returns = $
 ## Commands
 
 ```
-mime check prog.mime          # report every mistake; add --json for a JSON array
+mime check prog.mime          # report every mistake, as a JSON array
 mime run prog.mime '$same' 7  # run $same on 7
 mime llvm prog.mime           # print the LLVM IR
+mime show prog.mime '$same'   # print the entry for $same, exactly as written
+mime uses prog.mime '$number' # list every reference to $number, as a JSON array
 ```
+
+Use `show` and `uses` instead of `grep` or `sed`: they follow mime's rules, so `\$number` in a description is not
+a use, and each use names its `entry` and `key`. Both work on a program with checker errors.
 
 On the command line, write the word as in the source and in **single quotes**: `'$same'`. Without them, a shell
 expands `$same` as a variable before mime sees it.
 
-Each diagnostic has a `kind`, a `message`, a 1-based `line` and `column`, and usually a `hint` that names the fix.
+Each diagnostic has a `kind`, the `entry` and `key` it is in, the exact source `text` at fault, a `message`, and
+usually a `hint` that names the fix. A field that does not apply is `null`. To fix a mistake, find `text` inside
+that entry's field and replace it.
+
+```json
+[
+  {
+    "kind": "undeclared-word",
+    "entry": "$same",
+    "key": "takes",
+    "text": "$numbr",
+    "message": "no entry declares `$numbr`",
+    "hint": "did you mean `$number`?"
+  }
+]
+```

@@ -91,7 +91,7 @@ def test_hints_point_at_the_fix() -> None:
     (d,) = analyze(NUMBER + '$same = {description = "x", takes = $numbr, returns = $number, body = input}')[1]
     assert d.hint == 'did you mean `$number`?'
     (d,) = analyze('$number = {description = "x", sort = i32}')[1]
-    assert d.hint == '`i32` arrives in a later step; the only sort in step 1 is `i64`'
+    assert d.hint == '`i32` arrives in a later step; the only sort is `i64`'
 
 
 def test_a_typo_hint_prefers_earlier_words() -> None:

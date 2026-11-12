@@ -8,6 +8,7 @@ mime is a language for AI agents to read and write. You, the agent, are its prim
 - Declare before use. Definitions refer only to earlier words or core primitives.
 - Consistent renaming must never change meaning. Do not add features that break this, such as reflection on names or string-to-word lookup.
 - Prefer one canonical form per computation over convenient alternatives.
+- Every operation an agent needs on a mime program is a `mime` command, not a general text tool. See [design/tools.md](design/tools.md).
 
 ## Repository
 
@@ -15,7 +16,7 @@ mime is a language for AI agents to read and write. You, the agent, are its prim
   - `mime-py/src/mime/`: toolchain source
   - `mime-py/tests/`: tests, named `*_test.py`
   - `mime-py/tests/goldens/`: golden programs. Each `NAME.mime` has an approved `NAME.ll` (what `mime llvm` prints)
-    or `NAME.check.json` (what `mime check --json` prints, indented). On a mismatch the test prints a diff and writes
+    or `NAME.check.json` (what `mime check` prints). On a mismatch the test prints a diff and writes
     `NAME.….received`; check it, then move it over the approved file to accept it.
 - `design/`: design documents that outlive the bootstrap (`docs/` is reserved for a future GitHub Pages site)
 - `bench/`: the benchmark that tests mime's bet. Read [bench/README.md](bench/README.md) (the methodology card) before you change anything there.

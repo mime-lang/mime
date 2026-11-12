@@ -29,29 +29,36 @@ def broken(tmp_path: Path) -> Path:
 
 def test_check_clean(prog: Path, capsys: pytest.CaptureFixture[str]) -> None:
     assert main(['check', str(prog)]) == 0
-    assert capsys.readouterr().out == ''
-
-
-def test_check_reports_text(broken: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    assert main(['check', str(broken)]) == 1
-    assert capsys.readouterr().out == (
-        f'{broken}:2:79: undeclared-word: no entry declares `$numbr`\n  hint: did you mean `$number`?\n'
-    )
-
-
-def test_check_reports_json(broken: Path, prog: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    assert main(['check', '--json', str(broken)]) == 1
-    assert json.loads(capsys.readouterr().out) == [
-        {
-            'kind': 'undeclared-word',
-            'message': 'no entry declares `$numbr`',
-            'line': 2,
-            'column': 79,
-            'hint': 'did you mean `$number`?',
-        }
-    ]
-    assert main(['check', '--json', str(prog)]) == 0
     assert capsys.readouterr().out == '[]\n'
+
+
+UNDECLARED = {
+    'kind': 'undeclared-word',
+    'entry': '$same',
+    'key': 'returns',
+    'text': '$numbr',
+    'message': 'no entry declares `$numbr`',
+    'hint': 'did you mean `$number`?',
+}
+
+
+def test_check_reports_json(broken: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    assert main(['check', str(broken)]) == 1
+    out = capsys.readouterr().out
+    assert json.loads(out) == [UNDECLARED]
+    assert out.startswith('[\n  {\n    "kind": ')  # indented, one field per line
+
+
+def test_positions_are_added_on_request(broken: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    assert main(['check', '--positions', str(broken)]) == 1
+    assert json.loads(capsys.readouterr().out) == [UNDECLARED | {'line': 2, 'column': 79}]
+
+
+def test_llvm_and_run_report_the_same_json(broken: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    assert main(['llvm', str(broken)]) == 1
+    assert json.loads(capsys.readouterr().err) == [UNDECLARED]
+    assert main(['run', '--positions', str(broken), '$same', '7']) == 1
+    assert json.loads(capsys.readouterr().err) == [UNDECLARED | {'line': 2, 'column': 79}]
 
 
 def test_llvm(prog: Path, capsys: pytest.CaptureFixture[str]) -> None:

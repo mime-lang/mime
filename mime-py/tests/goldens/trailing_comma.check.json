@@ -1,9 +1,10 @@
 [
   {
     "kind": "trailing-comma",
+    "entry": "$number",
+    "key": null,
+    "text": ",",
     "message": "a trailing comma is not allowed",
-    "line": 1,
-    "column": 54,
     "hint": "remove the `,`"
   }
 ]

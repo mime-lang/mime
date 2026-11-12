@@ -1,7 +1,7 @@
 """Golden tests: each `goldens/NAME.mime` has its approved output next to it.
 
 A program that checks clean approves `NAME.ll`, what `mime llvm` prints. A program with mistakes approves
-`NAME.check.json`, what `mime check --json` prints, indented to be read. Only one of the two is kept for a golden; the other is deleted.
+`NAME.check.json`, what `mime check` prints. Only one of the two is kept for a golden; the other is deleted.
 
 On a mismatch, approvaltests writes `NAME.ll.received` (or `NAME.check.json.received`) beside the approved file and the
 test fails. Read the difference, then rename the received file over the approved one to accept it.
@@ -40,11 +40,11 @@ class ApprovalNamer(Namer):
 
 
 def outputs(source: Path) -> tuple[str, str | None, str | None]:
-    """The file name, the LLVM IR if the program checks clean, and its diagnostics as JSON if it does not."""
+    """The file name, the LLVM IR if the program checks clean, and `mime check`'s JSON if it does not."""
     program, diagnostics = analyze(source.read_text(encoding='utf-8'))
     if program is not None:
         return source.name, lower(program), None
-    return source.name, None, diag.to_json(diagnostics, indent=2)
+    return source.name, None, diag.to_json(diagnostics)
 
 
 @pytest.mark.parametrize('name', sorted(p.stem for p in GOLDENS.glob('*.mime')))

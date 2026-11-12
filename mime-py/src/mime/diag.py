@@ -1,7 +1,7 @@
-"""Diagnostics: what the toolchain tells an agent about a program's mistakes."""
+"""Diagnostics: what the toolchain tells an agent about a program's mistakes (design/diagnostics.md)."""
 
 import json
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 
 
 @dataclass(frozen=True)
@@ -11,6 +11,13 @@ class Diagnostic:
     line: int
     column: int
     hint: str | None = None
+    entry: str | None = None  # the entry's word with its `$`, as in the source
+    key: str | None = None
+    text: str | None = None  # the exact source text at fault
+
+
+# The fields every diagnostic prints, in order; `--positions` adds `line` and `column` after them.
+FIELDS = ('kind', 'entry', 'key', 'text', 'message', 'hint')
 
 
 class FatalError(Exception):
@@ -21,15 +28,12 @@ class FatalError(Exception):
         self.diagnostic = diagnostic
 
 
-def to_text(path: str, diagnostics: list[Diagnostic]) -> str:
-    lines = []
+def to_json(diagnostics: list[Diagnostic], *, positions: bool = False) -> str:
+    """The one output form: a JSON array, indented by two spaces."""
+    rows = []
     for d in diagnostics:
-        lines.append(f'{path}:{d.line}:{d.column}: {d.kind}: {d.message}')
-        if d.hint:
-            lines.append(f'  hint: {d.hint}')
-    return ''.join(line + '\n' for line in lines)
-
-
-def to_json(diagnostics: list[Diagnostic], indent: int | None = None) -> str:
-    """One line by default, as `mime check --json` prints it; `indent` spreads it out for a person to read."""
-    return json.dumps([asdict(d) for d in diagnostics], indent=indent, ensure_ascii=False) + '\n'
+        row: dict[str, str | int | None] = {f: getattr(d, f) for f in FIELDS}
+        if positions:
+            row |= {'line': d.line, 'column': d.column}
+        rows.append(row)
+    return json.dumps(rows, indent=2, ensure_ascii=False) + '\n'

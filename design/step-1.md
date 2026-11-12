@@ -100,6 +100,9 @@ mime run prog.mime '$same' 7
 
 ## 5. Diagnostics
 
+> Superseded: [diagnostics.md](diagnostics.md) replaces this output format. Diagnostics are JSON only, with `entry`,
+> `key` and `text` fields, and line and column only with `--positions`. The original text follows.
+
 `mime check` prints one line per diagnostic: `prog.mime:2:52: undeclared-word: no entry declares $numbr`, then the
 hint, if any, on the next line. `mime check --json` prints a JSON array instead (`[]` when clean):
 

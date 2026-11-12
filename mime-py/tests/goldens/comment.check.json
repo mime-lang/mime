@@ -1,9 +1,10 @@
 [
   {
     "kind": "comment",
+    "entry": null,
+    "key": null,
+    "text": "// the identity",
     "message": "comments are not part of mime",
-    "line": 2,
-    "column": 1,
     "hint": "mime has no comments; put the English in a `description`"
   }
 ]
