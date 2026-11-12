@@ -17,6 +17,9 @@ htmlcov/
 mime-out/
 *.o
 
+# Golden mismatches, written by approvaltests
+*.received
+
 # Editors and OS
 .vscode/
 .idea/

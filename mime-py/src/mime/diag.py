@@ -30,5 +30,6 @@ def to_text(path: str, diagnostics: list[Diagnostic]) -> str:
     return ''.join(line + '\n' for line in lines)
 
 
-def to_json(diagnostics: list[Diagnostic]) -> str:
-    return json.dumps([asdict(d) for d in diagnostics]) + '\n'
+def to_json(diagnostics: list[Diagnostic], indent: int | None = None) -> str:
+    """One line by default, as `mime check --json` prints it; `indent` spreads it out for a person to read."""
+    return json.dumps([asdict(d) for d in diagnostics], indent=indent, ensure_ascii=False) + '\n'

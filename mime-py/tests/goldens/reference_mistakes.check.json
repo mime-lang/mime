@@ -1,0 +1,37 @@
+[
+  {
+    "kind": "bad-reference",
+    "message": "`$` in a description must start a reference to a word",
+    "line": 1,
+    "column": 53,
+    "hint": "write `\\$` for a dollar sign"
+  },
+  {
+    "kind": "undeclared-word",
+    "message": "no entry declares `$numbr`",
+    "line": 3,
+    "column": 22,
+    "hint": "did you mean `$number`?"
+  },
+  {
+    "kind": "bad-reference",
+    "message": "`$number` is followed by `X`, which cannot appear in a name",
+    "line": 3,
+    "column": 44,
+    "hint": "a name is lowercase letters, digits or `_`; put a space or punctuation other than `-` after it"
+  },
+  {
+    "kind": "forward-reference",
+    "message": "the description of `$same` refers to `$same` itself",
+    "line": 3,
+    "column": 58,
+    "hint": "a description may refer only to earlier entries; describe `$same` by its parts"
+  },
+  {
+    "kind": "forward-reference",
+    "message": "`$later` is declared after `$same`",
+    "line": 3,
+    "column": 68,
+    "hint": "a description may refer only to earlier entries; move the entry for `$later` above `$same`"
+  }
+]

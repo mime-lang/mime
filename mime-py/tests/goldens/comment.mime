@@ -1,0 +1,3 @@
+$number = {description = "a whole number", sort = i64}
+// the identity
+$same = {description = "the $number it is given", takes = $number, returns = $number, body = input}

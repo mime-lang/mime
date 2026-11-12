@@ -1,0 +1,9 @@
+[
+  {
+    "kind": "nested-entry",
+    "message": "entries do not nest, so `$first` cannot be declared inside another entry",
+    "line": 3,
+    "column": 3,
+    "hint": "declare `$first` as its own entry before this one"
+  }
+]

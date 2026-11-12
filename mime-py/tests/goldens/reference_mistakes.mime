@@ -1,0 +1,8 @@
+$number = {description = "a whole number that costs $5", sort = i64}
+$same = {
+  description = "the $numbr it is given, a $numberX, see $same and $later",
+  takes = $number,
+  returns = $number,
+  body = input
+}
+$later = {description = "the \"next\" one, costs \$5", sort = i64}

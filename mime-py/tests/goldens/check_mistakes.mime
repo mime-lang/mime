@@ -1,0 +1,5 @@
+$number = {description = "a whole number", sort = i32}
+$same = {body = input, description = "x", takes = $numbr, returns = number}
+$twice = {description = "x", takes = $same, returns = $later, body = input}
+$later = {description = "x", type = i64}
+$number = {description = "", sort = i64}

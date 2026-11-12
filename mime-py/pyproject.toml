@@ -20,6 +20,12 @@ path = "src/mime/__about__.py"
 [tool.hatch.build.targets.wheel]
 packages = ["src/mime"]
 
+[tool.hatch.envs.hatch-test]
+extra-dependencies = ["approvaltests"]
+
+[tool.hatch.envs.hatch-check-types]
+extra-dependencies = ["approvaltests"]
+
 [tool.ruff]
 line-length = 120
 

@@ -1,0 +1,65 @@
+[
+  {
+    "kind": "bad-value",
+    "message": "`i32` is not a sort",
+    "line": 1,
+    "column": 51,
+    "hint": "`i32` arrives in a later step; the only sort in step 1 is `i64`"
+  },
+  {
+    "kind": "key-order",
+    "message": "the keys of `$same` are out of order",
+    "line": 2,
+    "column": 10,
+    "hint": "write them in this order: `description`, `takes`, `returns`, `body`"
+  },
+  {
+    "kind": "undeclared-word",
+    "message": "no entry declares `$numbr`",
+    "line": 2,
+    "column": 51,
+    "hint": "did you mean `$number`?"
+  },
+  {
+    "kind": "unknown-language-word",
+    "message": "`number` is not a language word",
+    "line": 2,
+    "column": 69,
+    "hint": "did you mean `$number`?"
+  },
+  {
+    "kind": "not-a-sort",
+    "message": "`$same` is a function entry, not a sort entry",
+    "line": 3,
+    "column": 38,
+    "hint": "name a sort entry, such as `$number`"
+  },
+  {
+    "kind": "forward-reference",
+    "message": "`$later` is declared after `$twice`",
+    "line": 3,
+    "column": 55,
+    "hint": "move the entry for `$later` above `$twice`"
+  },
+  {
+    "kind": "unknown-key",
+    "message": "`type` is not a key",
+    "line": 4,
+    "column": 30,
+    "hint": "did you mean `sort`?"
+  },
+  {
+    "kind": "duplicate-word",
+    "message": "`$number` already has an entry",
+    "line": 5,
+    "column": 1,
+    "hint": "the first entry is on line 1"
+  },
+  {
+    "kind": "bad-value",
+    "message": "a description cannot be empty",
+    "line": 5,
+    "column": 26,
+    "hint": "say what the word means"
+  }
+]

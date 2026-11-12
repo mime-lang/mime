@@ -1,0 +1,1 @@
+$number = {description = "a whole number", sort = i64,}
