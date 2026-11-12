@@ -75,8 +75,9 @@ description = "the greatest common divisor of $pair.$a and $pair.$b"
 Descriptions sit on a spectrum:
 
 ```
-free text  ──▶  text with checked references  ──▶  formal spec
-(can lie freely)     (mime is here)                (no English at all)
+free text            ──▶  text with checked references  ──▶  formal spec
+(nothing is checked)      (every reference is checked)       (every claim is checked)
+                          (mime is here)
 ```
 
 Rules:

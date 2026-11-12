@@ -29,22 +29,26 @@ mime the language aims for the same thing. Its words are only labels, and the me
 
 ## Words, the way mathematicians use them
 
-mime borrows its discipline from mathematical writing. A mathematician does not assume the reader knows what "group" or "compact" means. They **define** the word first, and from then on they **use only words that are already defined**. The word itself is just a label. All of its meaning sits in the definition.
+mime borrows its discipline from mathematical writing. A mathematical text uses two kinds of words.
 
-A mime module works the same way:
+- **Logical words.** "Let", "suppose", "for every", "there exists" and "hence" are ordinary English. Nobody defines them, and every reader already shares their meaning. They give the text its flow and its logic.
+- **Defined terms.** When a new concept appears, the mathematician gives it a name and a definition. Sometimes the name is a new word ("homeomorphism"). Often it is an everyday word with a new meaning ("group", "ring", "field", "compact"). Either way, the name is just a label. A ring has nothing to do with jewelry. All of its meaning sits in the definition, and the text uses a term only after defining it.
 
-1. **Declare before use.** Every word a module uses is declared in that module, imported from another module that declares it, or is one of the small set of core primitives.
-2. **A definition only uses earlier words.** A word is defined in terms of words that already exist, so a module reads as a chain of definitions with no forward references and no undefined terms.
-3. **Names carry no meaning.** Consistently renaming a word throughout a program (for example `twice` → `w7f3`) must never change what the program means. The checker treats words as opaque labels.
+mime has the same two layers. The logical words are mime's **language words**: bare tokens such as `let`, `add`, `i64` and `description`, fixed by the spec and never renamed. Every other word is a defined term, written with a `$` (`$pair`, `$gcd`), and the lexer alone tells the two apart. A mime module treats its `$` words the way a mathematician treats defined terms:
+
+1. **Declare before use.** Every `$` word a module uses is declared in that module or imported, by name, from another module that declares it.
+2. **Meaning points backward.** A word's description mentions only words declared before it, so a module read top to bottom is a chain of definitions with no undefined terms. Bodies are freer: a body may call later words and itself, so recursion needs no extra construct.
+3. **Names carry no meaning.** Consistently renaming a word throughout a program (for example `$twice` → `$w7f3`) must never change what the program means. The checker treats words as opaque labels.
 4. **One meaning, one form.** Where possible, the same computation is written exactly one way. Two agents solving the same problem should produce the same program, up to renaming.
 
-Words may look like English, because that helps agents and humans talk about them. The language never relies on that, though, and rule 3 can be checked mechanically.
+Words may look like English, because that helps agents and humans talk about them. The language never relies on that, though, and rule 3 can be checked mechanically: `mime canon` replaces every `$` word with a fixed name, and two programs that differ only in naming get the same canonical form.
 
-Every word also gets a short description, the way a mathematician adds a sentence of intuition after a definition. A description is not free text, though. It may mention only words that are already declared, and the checker verifies each mention and renames it along with the program:
+Every word also gets a short description, the way a mathematician adds a sentence of intuition after a definition. A description is not free text, though. Its `$` mentions may name only words that are already declared, and the checker verifies each mention and renames it along with the program:
 
 ```
-free text  ──▶  text with checked references  ──▶  formal spec
-(can lie freely)     (mime is here)                (no English at all)
+free text            ──▶  text with checked references  ──▶  formal spec
+(nothing is checked)      (every reference is checked)       (every claim is checked)
+                          (mime is here)
 ```
 
 The English that connects those mentions never changes what a program means. It is there to help an agent find its way, and the benchmark tests what happens when it is removed or made to lie.
