@@ -38,4 +38,5 @@ python3 bench/harness/smoke.py        # the harness itself, on mock models
 - Nothing outside `mime-py/` may depend on Python. One exception: `bench/` uses Python, because it runs Python baselines. Its harness uses only the standard library, except that a real model run imports the provider's SDK (`anthropic`).
 - Python 3.12+, ruff, line length 120, single quotes.
 - Every language feature gets a design note in `design/` before it gets an implementation.
+- Every design decision says whether it is easy for a model to read and write: which familiar pattern it leans on, what is new, and how a model's mistakes surface. See [design/core.md](design/core.md).
 - GitHub Actions is off until the owner says otherwise. Do not add or move files into `.github/workflows/`. The benchmark workflow waits in `bench/ci/bench.yml`.

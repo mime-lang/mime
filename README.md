@@ -40,6 +40,15 @@ A mime module works the same way:
 
 Words may look like English, because that helps agents and humans talk about them. The language never relies on that, though, and rule 3 can be checked mechanically.
 
+Every word also gets a short description, the way a mathematician adds a sentence of intuition after a definition. A description is not free text, though. It may mention only words that are already declared, and the checker verifies each mention and renames it along with the program:
+
+```
+free text  ──▶  text with checked references  ──▶  formal spec
+(can lie freely)     (mime is here)                (no English at all)
+```
+
+The English that connects those mentions never changes what a program means. It is there to help an agent find its way, and the benchmark tests what happens when it is removed or made to lie.
+
 ## What it looks like
 
 The surface is a flat, explicit, LLVM-IR-like text syntax in [A-normal form](https://en.wikipedia.org/wiki/A-normal_form) / SSA: every intermediate value gets its own name, every operation takes only names, and control flow is explicit. Nothing is nested or implicit, and there is no sugar. This style was inspired by [oymo](https://github.com/tapl-org/tapl/tree/main/oymo-py).
