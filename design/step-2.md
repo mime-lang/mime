@@ -59,5 +59,5 @@ which gets a "did you mean" hint, and a bare `$5`, which gets the escape hint.
 
 ## 5. Out of scope
 
-Renaming references along with their words is step 4 (`mime canon`). This step records each reference's position so
-that step 4 can rewrite it.
+Renaming references along with their words is step 5 (`mime canon`). This step records each reference's position so
+that step 5 can rewrite it.

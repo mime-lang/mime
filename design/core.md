@@ -3,6 +3,11 @@
 > Status: draft. The syntax in the examples is illustrative and is fixed by the grammar doc. It follows
 > oymo's struct style (`{key = value}`, `let … in …`), with mime's `$` rule applied. This doc sets the direction.
 > Each part is settled for real by its step in the [roadmap](roadmap.md).
+>
+> **[layout.md](layout.md) supersedes parts of this doc.** Data words are `{type, abstract}` (not `description`
+> and `sort`). A function is one `define $f {$inputs} -> $output { … }` with its abstract after the body (not
+> `takes`/`returns`), its inputs are declared words, and bodies are LLVM-style lines (§5, §6, §9). Where the two disagree, layout.md wins; this doc is updated
+> section by section as the steps land.
 
 ## How decisions are judged
 
@@ -271,9 +276,10 @@ layer is designed.
 
 1. **Locals and descriptions.** Settled in [step-3.md](step-3.md): never. A local names an intermediate value, like
    a bound variable in a proof.
-2. **Input reference.** Is `input` the right language word for the single parameter, and how does it work inside
-   nested regions?
-3. **Header format.** Is a header written by hand, generated, or both, as in oymo?
+2. **Input reference.** Settled in [layout.md](layout.md): `input` is retired. A function's inputs are the words of
+   its type, `define $f {$a, $b} -> $r`, and every block sees them.
+3. **Header format.** Settled in [layout.md](layout.md): there is no header file. The declarations and abstracts are
+   the module's interface.
 4. **Checking layer.** How TAPL-style layers apply to mime.
 5. **Opaque structs in headers.** Lowering an importer needs the sort of an opaque struct, but its field words are
    not exported. Does the header show the struct's sort with its fields hidden, or only the compiled module carry it?

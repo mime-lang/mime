@@ -43,24 +43,32 @@ $same   = {description = "the number it is given", takes = $number, returns = $n
   wrapping overflow.
 - **Decide:** open question 1 (do locals get descriptions?).
 
-### 4. Renaming and canonical form
+### 4. Module layout and LLVM-style bodies
+
+- **New:** the layout of [layout.md](layout.md): data words `{type, abstract}`, then definitions
+  `define $f {$inputs} -> $output { … }` followed by their `abstract`. A body is LLVM-style lines with typed
+  operations, ending in `ret`. `description`, `sort`, `takes`, `returns`, `input` and `let … in` are replaced.
+- **Note:** the one step that changes the form of earlier programs (layout.md section 8).
+
+### 5. Renaming and canonical form
 
 - **New:** `mime canon`.
 - **Also:** `mime rename FILE '$old' '$new'`, which rewrites a word and its references (see tools.md).
 - **Done when:** the test suite renames every word in every test program and checks that behavior and canonical form
   are unchanged. This is mime's thesis turned into a test, so it comes early.
 
-### 5. Calls and recursion
+### 6. Calls and recursion
 
-- **New:** `call`, bodies as a fixed point (a function may call itself and later functions).
+- **New:** `call`, and recursion.
+- **Decide:** how a function refers to itself and to a later function, as mutual recursion needs: forward
+  declarations, or definitions as a fixed point. Definitions are ordered, like everything else, until this step.
 - **Also:** `mime run` takes one argument written as a mime call, replacing `'$same' 7` (see step-1.md, section 4).
 
-### 6. Comparisons and branches
+### 7. Comparisons and branches
 
-- **New:** `icmp` with predicates, `i1`, control flow as regions.
-- **Decide:** the region syntax, and open question 2 (how `input` works inside regions).
+- **New:** `icmp` with predicates, `i1`, and the blocks and `br` of layout.md section 5.
 
-### 7. Division and remainder
+### 8. Division and remainder
 
 - **New:** `sdiv`, `udiv`, `srem`, `urem`.
 - **Decide:** what division by zero means. One operation has exactly one meaning, so it cannot be left undefined.
@@ -68,31 +76,33 @@ $same   = {description = "the number it is given", takes = $number, returns = $n
 **Milestone: first benchmark run.** Integer tasks such as gcd can now be written in mime, so the benchmark's mime
 cells stop being `unavailable` and the scrambled-words ablation can run on them.
 
-### 8. Structs
+### 9. Structs
 
-- **New:** `sort = {$first, $second}`, field access `input.$first`, building a struct value.
-- **Decide:** the syntax for building a struct value.
+- **New:** `type = {$first, $second}`, reading a field, building a struct value.
+- **Decide:** the syntax for both, and how a data word refers to itself, as a list does (`$list` holding a `$list`).
+  That needs the same answer as step 6's forward references, and it needs indirection, which mime does not have
+  yet.
 
-### 9. Integer widths
+### 10. Integer widths
 
 - **New:** `i8`, `i16`, `i32`, and conversions between widths.
 
-### 10. Modules
+### 11. Modules
 
 - **New:** several files, `import` and export, renaming at import, headers.
 - **Decide:** open question 3 (header format).
 
-### 11. Opaque structs
+### 12. Opaque structs
 
 - **New:** a struct exported without its fields.
 - **Decide:** open question 5 (where an importer's compiler finds the struct's size).
 
-### 12. Types
+### 13. Types
 
 - **New:** the type checker: structural types made nominal by words.
 - **Decide:** open question 4 (the checking layer).
 
-### 13. Unions
+### 14. Unions
 
 - **New:** set-theoretic unions (`A | B`) and the checks that cover every case.
 

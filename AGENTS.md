@@ -4,7 +4,7 @@ mime is a language for AI agents to read and write. You, the agent, are its prim
 
 ## Ground rules of the language
 
-- A word means only what its declaration says. Never infer meaning from how a word is spelled.
+- A word means only what its type and definition say; where its definition is not in view, its abstract stands in for it ([design/layout.md](design/layout.md)). Never infer meaning from how a word is spelled.
 - Declare before use. Definitions refer only to earlier words or core primitives.
 - Consistent renaming must never change meaning. Do not add features that break this, such as reflection on names or string-to-word lookup.
 - Prefer one canonical form per computation over convenient alternatives.

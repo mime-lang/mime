@@ -1,6 +1,6 @@
 # Tools
 
-> Status: settled. Adds `mime show` and `mime uses`; `mime rename` is planned with [roadmap](roadmap.md) step 4.
+> Status: settled. Adds `mime show` and `mime uses`; `mime rename` is planned with [roadmap](roadmap.md) step 5.
 
 An agent working on a program does more than check and run it: it reads one entry, finds where a word is used,
 and renames a word. With general text tools (`grep`, `sed`, `jq`), each of these is a little wrong for mime:
@@ -37,6 +37,8 @@ $same = {description = "the $number it is given", takes = $number, returns = $nu
   entry is often how an agent starts to fix one.
 - When a word has two entries (`duplicate-word`), both are printed, in order, with a blank line between them.
 - A word with no entry is a command-line error, with a "did you mean" hint.
+- From step 4 ([layout.md](layout.md)), a function word's entry is its definition, from `define` through its
+  `abstract`, so `show` prints all of it: type, body and abstract in one place.
 
 ## 3. `mime uses FILE '$word'`
 
@@ -77,6 +79,6 @@ $ mime uses prog.mime '$number'
 
 ## 5. Out of scope
 
-- `mime rename FILE '$old' '$new'`, which rewrites a word and every reference to it. It comes with step 4
+- `mime rename FILE '$old' '$new'`, which rewrites a word and every reference to it. It comes with step 5
   (`mime canon`), which rewrites references anyway.
 - When step 3 adds local words, `uses` will include their uses.

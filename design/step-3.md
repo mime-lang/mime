@@ -58,7 +58,7 @@ A local is the word a `let` binds: `$double` above.
   so a word in a body always has exactly one binding.
 - **A local is used after it is bound.** An operand or the final atom may name only a local bound earlier in the
   same body. A body reads `input`, its earlier locals, and integers. It does not read module words yet. Calls
-  arrive in step 5.
+  arrive in step 6.
 - **Every local is used.** A `let` whose local nothing reads is an error, `unused-local`. Dead code would be a second
   form of the same computation, and an unused local is most often a sign that the body returns the wrong name.
 - A local is a domain word, so the renaming invariant covers it. A description cannot refer to a local, because a
