@@ -17,6 +17,10 @@ class Tok(Enum):
     EQUALS = '`=`'
     COMMA = '`,`'
     INT = 'integer'
+    ARROW = '`->`'
+    LPAREN = '`(`'
+    RPAREN = '`)`'
+    COLON = '`:`'
     END = 'end of file'
 
 
@@ -51,12 +55,23 @@ class Token:
     refs: tuple[Ref, ...] = ()  # for a string, every unescaped `$` in it, in order
 
 
-PUNCTUATION = {'{': Tok.LBRACE, '}': Tok.RBRACE, '=': Tok.EQUALS, ',': Tok.COMMA}
+# `(`, `)` and `:` are not in the grammar yet; they are tokens so the parser can give the hint that fits where they are.
+PUNCTUATION = {
+    '{': Tok.LBRACE,
+    '}': Tok.RBRACE,
+    '=': Tok.EQUALS,
+    ',': Tok.COMMA,
+    '(': Tok.LPAREN,
+    ')': Tok.RPAREN,
+    ':': Tok.COLON,
+}
 ESCAPES = {'"': '"', '\\': '\\', '$': '$'}
 NAME_HINT = 'a name is a lowercase letter followed by lowercase letters, digits or `_`'
-COMMENT_HINT = 'mime has no comments; put the English in a `description`'
-ARITHMETIC_HINT = 'arithmetic is written as an operation: `add {i64, a, b}`, `sub {…}` or `mul {…}`'
-ARITHMETIC = frozenset('+-*/%()')
+COMMENT_HINT = 'mime has no comments; put the English in an `abstract`'
+ARITHMETIC_HINT = 'arithmetic is written as an operation: `$x = add i64 $a, $b`, with `sub` or `mul` alike'
+ARITHMETIC = frozenset('+-*/')
+SIGIL_HINT = 'words are written `$x`; mime has no `%` or `@`'
+ARROW_HINT = 'write `->`'
 
 
 def _digit(c: str) -> bool:
@@ -109,6 +124,8 @@ def tokens(source: str) -> Iterator[Token]:
             i, line, col = i + 1, line + 1, 1
         elif c in ' \t\r':
             i, col = i + 1, col + 1
+        elif source.startswith('=>', i):
+            fail('syntax', 'unexpected `=>`', ARROW_HINT, i, i + 2)
         elif c in PUNCTUATION:
             yield Token(PUNCTUATION[c], c, Span(line, col, i, i + 1))
             i, col = i + 1, col + 1
@@ -123,6 +140,13 @@ def tokens(source: str) -> Iterator[Token]:
             yield Token(Tok.WORD, source[i + 1 : j], Span(line, col, i, j))
             col += j - i
             i = j
+        elif source.startswith('->', i):
+            yield Token(Tok.ARROW, '->', Span(line, col, i, i + 2))
+            i, col = i + 2, col + 2
+        elif c in {'%', '@'}:
+            fail('syntax', f'unexpected character `{c}`', SIGIL_HINT, i, _run_end(source, i + 1))
+        elif c == '→':
+            fail('syntax', 'unexpected character `→`', ARROW_HINT + '; source is ASCII', i, i + 1)
         elif _digit(c) or (c == '-' and i + 1 < len(source) and _digit(source[i + 1])):
             j = i + 1 if c == '-' else i
             k = j

@@ -1,14 +1,14 @@
-"""Checked references in descriptions (design/step-2.md)."""
+"""Checked references in abstracts (design/step-2.md, with the keys of step-4.md)."""
 
 import pytest
 
 from mime.compiler import analyze
 
-NUMBER = '$number = {description = "a whole number", sort = i64}\n'
+NUMBER = '$number = {type = i64, abstract = "a whole number"}\n'
 
 
-def same(description: str) -> str:
-    return f'$same = {{description = "{description}", takes = $number, returns = $number, body = input}}\n'
+def same(abstract: str, word: str = '$same') -> str:
+    return f'define {word} {{$number}} -> $number {{\n  ret $number\n}}\nabstract = "{abstract}"\n'
 
 
 def kinds(source: str) -> list[str]:
@@ -16,7 +16,7 @@ def kinds(source: str) -> list[str]:
 
 
 @pytest.mark.parametrize(
-    'description',
+    'abstract',
     [
         'the $number it is given',
         'a $number, unchanged',
@@ -28,13 +28,12 @@ def kinds(source: str) -> list[str]:
         'no references at all',
     ],
 )
-def test_valid_references(description: str) -> None:
-    assert kinds(NUMBER + same(description)) == []
+def test_valid_references(abstract: str) -> None:
+    assert kinds(NUMBER + same(abstract)) == []
 
 
-def test_a_reference_may_name_a_function_entry() -> None:
-    twice = '$again = {description = "like $same", takes = $number, returns = $number, body = input}\n'
-    assert kinds(NUMBER + same('x') + twice) == []
+def test_an_abstract_may_name_an_earlier_definition() -> None:
+    assert kinds(NUMBER + same('x') + same('like $same', '$again')) == []
 
 
 @pytest.mark.parametrize(
@@ -42,10 +41,12 @@ def test_a_reference_may_name_a_function_entry() -> None:
     [
         (NUMBER + same('the $numbr it is given'), ['undeclared-word']),
         (NUMBER + same('the $same it is'), ['forward-reference']),
+        (NUMBER + same('like $again') + same('x', '$again'), ['forward-reference']),
         (
-            '$number = {description = "less than $limit", sort = i64}\n$limit = {description = "x", sort = i64}',
+            '$number = {type = i64, abstract = "less than $limit"}\n$limit = {type = i64, abstract = "x"}',
             ['forward-reference'],
         ),
+        ('$number = {type = i64, abstract = "used by $same"}\n' + same('x'), ['forward-reference']),
         (NUMBER + same('costs $5'), ['bad-reference']),
         (NUMBER + same('costs 5$'), ['bad-reference']),
         (NUMBER + same('a $Number'), ['bad-reference']),
@@ -59,59 +60,75 @@ def test_reference_mistakes(source: str, expected: list[str]) -> None:
     assert kinds(source) == expected
 
 
-def test_only_descriptions_are_scanned() -> None:
+def test_only_abstracts_are_scanned() -> None:
     # A string in another slot is a bad value, and its `$` is not read as a reference.
-    assert kinds('$number = {description = "x", sort = "$nothing"}') == ['bad-value']
+    assert kinds('$number = {type = "$nothing", abstract = "x"}') == ['bad-value']
 
 
 def test_hints() -> None:
     (d,) = analyze(NUMBER + same('the $numbr it is given'))[1]
     assert d.hint == 'did you mean `$number`?'
     (d,) = analyze(NUMBER + same('the $same it is'))[1]
-    assert d.message == 'the description of `$same` refers to `$same` itself'
-    later = '$number = {description = "less than $limit", sort = i64}\n$limit = {description = "x", sort = i64}'
+    assert d.message == 'the abstract of `$same` refers to `$same` itself'
+    later = '$number = {type = i64, abstract = "less than $limit"}\n$limit = {type = i64, abstract = "x"}'
     (d,) = analyze(later)[1]
     assert d.message == '`$limit` is declared after `$number`'
-    assert d.hint == 'a description may refer only to earlier entries; move the entry for `$limit` above `$number`'
+    assert d.hint == 'an abstract may refer only to earlier entries; move the entry for `$limit` above `$number`'
     (d,) = analyze(NUMBER + same('costs $5'))[1]
     assert d.hint == 'write `\\$` for a dollar sign'
     (d,) = analyze(NUMBER + same('a $numberX'))[1]
     assert d.message == '`$number` is followed by `X`, which cannot appear in a name'
 
 
+def test_an_abstract_that_names_a_result() -> None:
+    source = NUMBER + (
+        'define $f {$number} -> $number {\n  $double = add i64 $number, $number\n  ret $double\n}\n'
+        'abstract = "the $double of it"\n'
+    )
+    (d,) = analyze(source)[1]
+    assert (d.kind, d.key, d.text) == ('undeclared-word', 'abstract', '$double')
+    assert d.hint == '`$double` is a result in the body of `$f`; an abstract refers only to entries'
+
+
 def test_a_glued_character_is_read_as_in_code() -> None:
-    # In code, `$numberX` is a syntax error; in a description it is the same mistake, not `$number` then `X`.
-    assert kinds('$numberX = {description = "x", sort = i64}') == ['syntax']
+    # In code, `$numberX` is a syntax error; in an abstract it is the same mistake, not `$number` then `X`.
+    assert kinds('$numberX = {type = i64, abstract = "x"}') == ['syntax']
     assert kinds(NUMBER + same('a $numberX')) == ['bad-reference']
 
 
-def test_renaming_every_word_keeps_references_valid() -> None:
-    source = (
-        NUMBER
-        + same('the $number it is given')
-        + ('$again = {description = "like $same, on a $number", takes = $number, returns = $number, body = input}\n')
-    )
-    renamed = source.replace('$number', '$w0').replace('$same', '$w1').replace('$again', '$w2')
-    assert kinds(source) == []
-    assert kinds(renamed) == []
-    broken = source.replace('$same,', '$again,')
-    assert kinds(broken) == ['forward-reference']
-    assert kinds(broken.replace('$number', '$w0').replace('$same', '$w1').replace('$again', '$w2')) == [
-        'forward-reference'
-    ]
-
-
 def test_a_typo_for_a_later_word_says_to_move_it() -> None:
-    source = '$number = {description = "less than $limt", sort = i64}\n$limit = {description = "x", sort = i64}'
+    source = '$number = {type = i64, abstract = "less than $limt"}\n$limit = {type = i64, abstract = "x"}'
     (d,) = analyze(source)[1]
     assert d.hint == 'did you mean `$limit`? It is declared later, so also move its entry above `$number`'
 
 
 def test_the_position_is_the_dollar_sign_in_the_source() -> None:
     # `\"` counts as two columns, as it does in the source text.
-    (d,) = analyze('$number = {description = "a \\"whole\\" $numbr", sort = i64}')[1]
-    assert (d.line, d.column) == (1, 39)
+    (d,) = analyze('$number = {type = i64, abstract = "a \\"whole\\" $numbr"}')[1]
+    assert (d.line, d.column) == (1, 48)
 
 
 def test_references_in_a_duplicate_entry_are_still_checked() -> None:
-    assert kinds(NUMBER + '$number = {description = "a $missing", sort = i64}') == ['duplicate-word', 'undeclared-word']
+    assert kinds(NUMBER + '$number = {type = i64, abstract = "a $missing"}') == ['duplicate-word', 'undeclared-word']
+
+
+def test_renaming_every_word_keeps_references_valid() -> None:
+    source = NUMBER + same('the $number it is given') + same('like $same, on a $number', '$again')
+
+    def rename(s: str) -> str:
+        return s.replace('$number', '$w0').replace('$same', '$w1').replace('$again', '$w2')
+
+    assert kinds(source) == []
+    assert kinds(rename(source)) == []
+    broken = source.replace('like $same,', 'like $again,')
+    assert kinds(broken) == ['forward-reference']
+    assert kinds(rename(broken)) == ['forward-reference']
+
+
+def test_a_data_word_may_refer_to_an_earlier_function() -> None:
+    assert kinds(NUMBER + same('x') + '$count = {type = i64, abstract = "how often $same runs"}') == []
+
+
+def test_a_reference_to_a_later_function_says_to_move_it() -> None:
+    (d,) = analyze('$number = {type = i64, abstract = "used by $same"}\n' + same('x'))[1]
+    assert d.hint == 'an abstract may refer only to earlier entries; move the entry for `$same` above `$number`'

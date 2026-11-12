@@ -5,6 +5,6 @@
     "key": "body",
     "text": "mul",
     "message": "`mul` is an operation inside an operand",
-    "hint": "bind the inner operation with its own `let`, and use its local here"
+    "hint": "give the inner operation its own line, and use its result here"
   }
 ]

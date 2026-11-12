@@ -5,6 +5,6 @@
     "key": null,
     "text": "// the identity",
     "message": "comments are not part of mime",
-    "hint": "mime has no comments; put the English in a `description`"
+    "hint": "mime has no comments; put the English in an `abstract`"
   }
 ]

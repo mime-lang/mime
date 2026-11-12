@@ -1,0 +1,10 @@
+[
+  {
+    "kind": "syntax",
+    "entry": "$same",
+    "key": "type",
+    "text": "(",
+    "message": "a function's inputs are a struct of words",
+    "hint": "write the type: `define $f {$a, $b} -> $r {…}`"
+  }
+]

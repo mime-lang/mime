@@ -1,0 +1,6 @@
+$number = {type = i64, abstract = "a whole number"}
+
+define $a {$number} -> $number {
+  let $r = add {i64, $number, 1} in $r
+}
+abstract = "x"

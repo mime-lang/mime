@@ -1,0 +1,10 @@
+[
+  {
+    "kind": "syntax",
+    "entry": "$a",
+    "key": "body",
+    "text": "let",
+    "message": "`let` is not a language word",
+    "hint": "write `$x = add i64 $a, $b`"
+  }
+]

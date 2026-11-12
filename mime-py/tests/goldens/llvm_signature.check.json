@@ -1,0 +1,10 @@
+[
+  {
+    "kind": "syntax",
+    "entry": "$add",
+    "key": "body",
+    "text": "%r",
+    "message": "unexpected character `%`",
+    "hint": "words are written `$x`; mime has no `%` or `@`"
+  }
+]

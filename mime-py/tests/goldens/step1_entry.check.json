@@ -1,0 +1,18 @@
+[
+  {
+    "kind": "unknown-key",
+    "entry": "$number",
+    "key": "description",
+    "text": "description",
+    "message": "`description` is not a key",
+    "hint": "renamed: write `abstract`"
+  },
+  {
+    "kind": "unknown-key",
+    "entry": "$number",
+    "key": "sort",
+    "text": "sort",
+    "message": "`sort` is not a key",
+    "hint": "renamed: write `type`"
+  }
+]

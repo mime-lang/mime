@@ -2,58 +2,26 @@
   {
     "kind": "bad-value",
     "entry": "$number",
-    "key": "sort",
+    "key": "type",
     "text": "i32",
-    "message": "`i32` is not a sort",
-    "hint": "`i32` arrives in a later step; the only sort is `i64`"
+    "message": "`i32` arrives in a later step",
+    "hint": "the only type is `i64`"
   },
   {
     "kind": "key-order",
-    "entry": "$same",
-    "key": "body",
-    "text": "body",
-    "message": "the keys of `$same` are out of order",
-    "hint": "write them in this order: `description`, `takes`, `returns`, `body`"
-  },
-  {
-    "kind": "undeclared-word",
-    "entry": "$same",
-    "key": "takes",
-    "text": "$numbr",
-    "message": "no entry declares `$numbr`",
-    "hint": "did you mean `$number`?"
-  },
-  {
-    "kind": "unknown-language-word",
-    "entry": "$same",
-    "key": "returns",
-    "text": "number",
-    "message": "`number` is not a language word",
-    "hint": "did you mean `$number`?"
-  },
-  {
-    "kind": "not-a-sort",
-    "entry": "$twice",
-    "key": "takes",
-    "text": "$same",
-    "message": "`$same` is a function entry, not a sort entry",
-    "hint": "name a sort entry, such as `$number`"
-  },
-  {
-    "kind": "forward-reference",
-    "entry": "$twice",
-    "key": "returns",
-    "text": "$later",
-    "message": "`$later` is declared after `$twice`",
-    "hint": "move the entry for `$later` above `$twice`"
+    "entry": "$count",
+    "key": "abstract",
+    "text": "abstract",
+    "message": "the keys of `$count` are out of order",
+    "hint": "write them in this order: `type`, `abstract`"
   },
   {
     "kind": "unknown-key",
     "entry": "$later",
-    "key": "type",
-    "text": "type",
-    "message": "`type` is not a key",
-    "hint": "did you mean `sort`?"
+    "key": "sort",
+    "text": "sort",
+    "message": "`sort` is not a key",
+    "hint": "renamed: write `type`"
   },
   {
     "kind": "duplicate-word",
@@ -66,9 +34,41 @@
   {
     "kind": "bad-value",
     "entry": "$number",
-    "key": "description",
+    "key": "abstract",
     "text": "\"\"",
-    "message": "a description cannot be empty",
+    "message": "an abstract cannot be empty",
     "hint": "say what the word means"
+  },
+  {
+    "kind": "bad-value",
+    "entry": "$pair",
+    "key": "type",
+    "text": "{$first, $second}",
+    "message": "struct types arrive in step 9",
+    "hint": "the only type is `i64`"
+  },
+  {
+    "kind": "undeclared-word",
+    "entry": "$f",
+    "key": "type",
+    "text": "$numbr",
+    "message": "no entry declares `$numbr`",
+    "hint": "did you mean `$number`?"
+  },
+  {
+    "kind": "bad-value",
+    "entry": "$f",
+    "key": "type",
+    "text": "$same",
+    "message": "`$same` is a function, so it cannot be the output",
+    "hint": "the output is a data word, declared with `{type = …, abstract = \"…\"}`"
+  },
+  {
+    "kind": "bad-value",
+    "entry": "$same",
+    "key": "type",
+    "text": "$f",
+    "message": "`$f` is a function, so it cannot be an input",
+    "hint": "an input is a data word, declared with `{type = …, abstract = \"…\"}`"
   }
 ]

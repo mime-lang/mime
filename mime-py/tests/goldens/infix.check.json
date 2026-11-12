@@ -5,6 +5,6 @@
     "key": "body",
     "text": "+",
     "message": "unexpected character `+`",
-    "hint": "arithmetic is written as an operation: `add {i64, a, b}`, `sub {…}` or `mul {…}`"
+    "hint": "arithmetic is written as an operation: `$x = add i64 $a, $b`, with `sub` or `mul` alike"
   }
 ]

@@ -1,2 +1,6 @@
-$number = {description = "a whole number", sort = i64}
-$a = {description = "x", takes = $number, returns = $number, body = input + 1}
+$number = {type = i64, abstract = "a whole number"}
+
+define $a {$number} -> $number {
+  ret $number + 1
+}
+abstract = "x"

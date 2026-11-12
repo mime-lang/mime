@@ -1,0 +1,10 @@
+[
+  {
+    "kind": "unknown-key",
+    "entry": "$same",
+    "key": "body",
+    "text": "body",
+    "message": "`body` is not a key",
+    "hint": "a function is written as a `define`: `define $f {$a} -> $r {…}`"
+  }
+]

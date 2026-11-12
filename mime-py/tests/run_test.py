@@ -7,8 +7,8 @@ import pytest
 from mime.cli import main
 
 PROGRAM = (
-    '$number = {description = "a whole number", sort = i64}\n'
-    '$same   = {description = "the number it is given", takes = $number, returns = $number, body = input}\n'
+    '$number = {type = i64, abstract = "a whole number"}\n'
+    'define $same {$number} -> $number {\n  ret $number\n}\nabstract = "the $number it is given"\n'
 )
 needs_clang = pytest.mark.skipif(shutil.which('clang') is None, reason='mime run needs clang')
 
@@ -23,7 +23,7 @@ def prog(tmp_path: Path) -> Path:
 @pytest.fixture
 def broken(tmp_path: Path) -> Path:
     p = tmp_path / 'broken.mime'
-    p.write_text(PROGRAM.replace('returns = $number', 'returns = $numbr'))
+    p.write_text(PROGRAM.replace('-> $number', '-> $numbr'))
     return p
 
 
@@ -35,7 +35,7 @@ def test_check_clean(prog: Path, capsys: pytest.CaptureFixture[str]) -> None:
 UNDECLARED = {
     'kind': 'undeclared-word',
     'entry': '$same',
-    'key': 'returns',
+    'key': 'type',
     'text': '$numbr',
     'message': 'no entry declares `$numbr`',
     'hint': 'did you mean `$number`?',
@@ -51,19 +51,19 @@ def test_check_reports_json(broken: Path, capsys: pytest.CaptureFixture[str]) ->
 
 def test_positions_are_added_on_request(broken: Path, capsys: pytest.CaptureFixture[str]) -> None:
     assert main(['check', '--positions', str(broken)]) == 1
-    assert json.loads(capsys.readouterr().out) == [UNDECLARED | {'line': 2, 'column': 79}]
+    assert json.loads(capsys.readouterr().out) == [UNDECLARED | {'line': 2, 'column': 27}]
 
 
 def test_llvm_and_run_report_the_same_json(broken: Path, capsys: pytest.CaptureFixture[str]) -> None:
     assert main(['llvm', str(broken)]) == 1
     assert json.loads(capsys.readouterr().err) == [UNDECLARED]
     assert main(['run', '--positions', str(broken), '$same', '7']) == 1
-    assert json.loads(capsys.readouterr().err) == [UNDECLARED | {'line': 2, 'column': 79}]
+    assert json.loads(capsys.readouterr().err) == [UNDECLARED | {'line': 2, 'column': 27}]
 
 
 def test_llvm(prog: Path, capsys: pytest.CaptureFixture[str]) -> None:
     assert main(['llvm', str(prog)]) == 0
-    assert capsys.readouterr().out == 'define i64 @"$same"(i64 %input) {\n  ret i64 %input\n}\n'
+    assert capsys.readouterr().out == 'define i64 @"$same"(i64 %"$number") {\n  ret i64 %"$number"\n}\n'
 
 
 def test_llvm_refuses_a_broken_program(broken: Path, capsys: pytest.CaptureFixture[str]) -> None:
@@ -91,14 +91,15 @@ def test_run_a_renamed_program(tmp_path: Path, capsys: pytest.CaptureFixture[str
 @pytest.mark.parametrize(
     ('args', 'message'),
     [
-        (['$nothere', '7'], 'no function entry declares `$nothere`'),
+        (['$nothere', '7'], 'no definition defines `$nothere`'),
         (['same', '7'], "write the word as in the source, with its `$` and in single quotes: '$same'"),
-        (['7'], '`7` looks like the input, so the word is missing; if you wrote $name without single quotes'),
-        (['-7'], '`-7` looks like the input, so the word is missing'),
+        (['7'], '`7` looks like an input, so the word is missing; if you wrote $name without single quotes'),
+        (['-7'], '`-7` looks like an input, so the word is missing'),
         (['', '7'], 'the word is empty; if you wrote $name without single quotes'),
-        (['$same'], 'mime run needs an input after `$same`'),
-        ([], 'mime run needs a word and an input'),
-        (['$number', '7'], 'no function entry declares `$number`'),
+        (['$same'], '`$same` takes 1 input (`$number`), but 0 were given'),
+        (['$same', '1', '2'], '`$same` takes 1 input (`$number`), but 2 were given'),
+        ([], 'mime run needs a word'),
+        (['$number', '7'], 'no definition defines `$number`'),
         (['$same', 'seven'], 'is not a decimal integer'),
         (['$same', str(2**63)], 'does not fit in an i64'),
     ],

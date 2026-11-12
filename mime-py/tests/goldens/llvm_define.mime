@@ -1,0 +1,6 @@
+$number = {type = i64, abstract = "a whole number"}
+
+define $same($number) -> $number {
+  ret $number
+}
+abstract = "x"

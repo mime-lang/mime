@@ -1,21 +1,27 @@
+"""Declarations and definitions (design/step-4.md)."""
+
 import pytest
 
 from mime.compiler import analyze
 
-NUMBER = '$number = {description = "a whole number", sort = i64}\n'
-SAME = '$same = {description = "the number it is given", takes = $number, returns = $number, body = input}\n'
+NUMBER = '$number = {type = i64, abstract = "a whole number"}\n'
+SAME = 'define $same {$number} -> $number {\n  ret $number\n}\nabstract = "the $number it is given"\n'
 
 
 def kinds(source: str) -> list[str]:
     return [d.kind for d in analyze(source)[1]]
 
 
-def test_the_step_1_program_is_clean() -> None:
+def define(head: str, body: str = 'ret $number', word: str = '$f') -> str:
+    return f'define {word} {head} {{\n  {body}\n}}\nabstract = "x"\n'
+
+
+def test_the_step_4_program_is_clean() -> None:
     program, diagnostics = analyze(NUMBER + SAME)
     assert diagnostics == []
     assert program is not None
-    assert program.sorts == {'number': 'i64'}
-    assert [f.word for f in program.functions] == ['same']
+    assert program.types == {'number': 'i64'}
+    assert [(f.word, f.inputs, f.output) for f in program.functions] == [('same', ('number',), 'number')]
 
 
 def test_an_empty_module_is_clean() -> None:
@@ -23,57 +29,71 @@ def test_an_empty_module_is_clean() -> None:
 
 
 def test_whitespace_and_line_breaks_do_not_matter() -> None:
-    source = '$number = {\n  description = "a whole number",\n\tsort = i64\n}\n'
+    source = '$number = {\n  type = i64,\n\tabstract = "a whole number"\n}\ndefine $same {$number}->$number{ret $number}abstract="x"'
     assert kinds(source) == []
 
 
 def test_escapes_are_allowed_in_strings() -> None:
-    assert kinds('$number = {description = "costs \\$5, a \\"price\\" with a \\\\", sort = i64}') == []
+    assert kinds('$number = {type = i64, abstract = "costs \\$5, a \\"price\\" with a \\\\"}') == []
 
 
 @pytest.mark.parametrize(
     ('source', 'expected'),
     [
         # syntax: the parser stops at the first one
-        ('$number = description = "x"}', ['syntax']),
-        ('$number = {description = "never closed, sort = i64}', ['syntax']),
-        ('$number = {description = "bad \\n escape", sort = i64}', ['syntax']),
-        ('$Number = {description = "x", sort = i64}', ['syntax']),
-        ('$number = {description = "x" sort = i64}', ['syntax']),
-        ('$number = {description = "x", sort = i64},' + SAME, ['syntax']),
-        ('$number = {description = "x", sort = i64,}', ['trailing-comma']),
+        ('$number = type = i64}', ['syntax']),
+        ('$number = {type = i64, abstract = "never closed}', ['syntax']),
+        ('$number = {type = i64, abstract = "bad \\n escape"}', ['syntax']),
+        ('$Number = {type = i64, abstract = "x"}', ['syntax']),
+        ('$number = {type = i64 abstract = "x"}', ['syntax']),
+        ('$number = {type = i64, abstract = "x"},' + SAME, ['syntax']),
+        ('$number = {type = i64, abstract = "x",}', ['trailing-comma']),
         ('; a note\n' + NUMBER, ['comment']),
         ('// a note\n' + NUMBER, ['comment']),
         ('# a note\n' + NUMBER, ['comment']),
-        ('$pair = {description = "x", $first = {description = "y", sort = i64}}', ['nested-entry']),
-        ('$pair = {description = "x", sort = {description = "y", sort = i64}}', ['nested-entry']),
-        ('number = {description = "x", sort = i64}', ['unknown-language-word']),
+        ('$pair = {abstract = "x", $first = {type = i64, abstract = "y"}}', ['nested-entry']),
+        ('$pair = {type = {type = i64}, abstract = "x"}', ['nested-entry']),
+        ('number = {type = i64, abstract = "x"}', ['unknown-language-word']),
+        ('$f = {type = {$number} -> $number}', ['syntax']),
+        ('$f = {description = "x", takes = $n, returns = $n, body = input}', ['unknown-key']),
+        (NUMBER + SAME + '$late = {type = i64, abstract = "x"}', []),
+        (define('{$late} -> $late', 'ret $late') + '$late = {type = i64, abstract = "x"}', ['forward-reference'] * 2),
+        (NUMBER + 'define $f($number) -> $number {ret $number} abstract = "x"', ['syntax']),
+        (NUMBER + 'define i64 {$number} -> $number {ret $number} abstract = "x"', ['syntax']),
+        (NUMBER + 'define $f {$number} $number {ret $number} abstract = "x"', ['syntax']),
+        (NUMBER + 'define $f {$number}: $number {ret $number} abstract = "x"', ['syntax']),
+        (NUMBER + 'define $f {$number} => $number {ret $number} abstract = "x"', ['syntax']),
+        (NUMBER + 'define $f {$number} -> $number -> $number {ret $number} abstract = "x"', ['syntax']),
+        (NUMBER + 'define $f {$number} -> $number {}  abstract = "x"', ['syntax']),
+        (NUMBER + 'define $f {$number} -> $number {ret $number}', ['syntax']),
+        (NUMBER + 'define $f {$number} -> $number {ret $number} abstract = x', ['syntax']),
+        (NUMBER + 'define $f {i64} -> $number {ret 1} abstract = "x"', ['syntax']),
+        (NUMBER + 'define $f {$number,} -> $number {ret $number} abstract = "x"', ['trailing-comma']),
         # checks: the checker reports every one
-        (
-            NUMBER + '$same = {description = "x", takes = number, returns = $number, body = input}',
-            ['unknown-language-word'],
-        ),
-        ('$number = {description = "x", type = i64}', ['unknown-key']),
-        ('$number = {description = "x", sort = i64, body = input}', ['unknown-key']),
-        ('$number = {description = "x"}', ['missing-key']),
+        ('$number = {type = i64}', ['missing-key']),
         ('$number = {}', ['missing-key']),
-        (NUMBER + '$same = {description = "x", takes = $number, body = input}', ['missing-key']),
-        ('$number = {sort = i64, description = "x"}', ['key-order']),
-        ('$number = {description = "x", description = "y", sort = i64}', ['duplicate-key']),
+        ('$number = {abstract = "x", type = i64}', ['key-order']),
+        ('$number = {type = i64, abstract = "x", abstract = "y"}', ['duplicate-key']),
+        ('$number = {sort = i64, abstract = "x"}', ['unknown-key']),
+        ('$number = {type = i64, description = "x"}', ['unknown-key']),
+        ('$number = {type = i64, abstract = "x", takes = $number}', ['unknown-key']),
         (NUMBER + NUMBER, ['duplicate-word']),
-        (NUMBER + '$same = {description = "x", takes = $numbr, returns = $number, body = input}', ['undeclared-word']),
-        (SAME + NUMBER, ['forward-reference', 'forward-reference']),
-        (
-            NUMBER + SAME + '$twice = {description = "x", takes = $same, returns = $number, body = input}',
-            ['not-a-sort'],
-        ),
-        ('$number = {description = "costs $5", sort = i64}', ['bad-reference']),
-        ('$number = {description = "", sort = i64}', ['bad-value']),
-        ('$number = {description = number, sort = i64}', ['bad-value']),
-        ('$number = {description = "x", sort = i32}', ['bad-value']),
-        ('$number = {description = "x", sort = $number}', ['bad-value']),
-        (NUMBER + '$same = {description = "x", takes = i64, returns = $number, body = input}', ['bad-value']),
-        (NUMBER + '$same = {description = "x", takes = $number, returns = $number, body = $number}', ['not-a-value']),
+        (NUMBER + SAME + SAME, ['duplicate-word']),
+        (NUMBER + SAME.replace('$same', '$number'), ['duplicate-word']),
+        ('$number = {type = i64, abstract = ""}', ['bad-value']),
+        ('$number = {type = i64, abstract = number}', ['bad-value']),
+        ('$number = {type = i32, abstract = "x"}', ['bad-value']),
+        ('$number = {type = $number, abstract = "x"}', ['bad-value']),
+        ('$pair = {type = {$a, $b}, abstract = "x"}', ['bad-value']),
+        ('$number = {type = 5, abstract = "x"}', ['bad-value']),
+        (NUMBER + define('{$numbr} -> $number'), ['undeclared-word']),
+        (NUMBER + define('{$number, $number} -> $number'), ['duplicate-word']),
+        (NUMBER + define('{$number} -> $numbr'), ['undeclared-word']),
+        (NUMBER + define('{$number} -> i32'), ['bad-value']),
+        (NUMBER + define('{$number} -> nope'), ['unknown-language-word']),
+        (NUMBER + SAME + define('{$same} -> $number', 'ret 1'), ['bad-value']),
+        (NUMBER + SAME + define('{$number} -> $same'), ['bad-value']),
+        (NUMBER + define('{$number} -> $number', 'ret 1'), ['unused-local']),
     ],
 )
 def test_each_mistake_has_its_kind(source: str, expected: list[str]) -> None:
@@ -81,43 +101,67 @@ def test_each_mistake_has_its_kind(source: str, expected: list[str]) -> None:
 
 
 def test_the_checker_reports_every_mistake_in_order() -> None:
-    source = '$same = {body = input, description = "x", takes = $numbr, returns = number}\n$n = {description = ""}\n'
-    assert kinds(source) == ['key-order', 'undeclared-word', 'unknown-language-word', 'missing-key', 'bad-value']
+    source = '$same = {abstract = "x", type = i32}\n$n = {type = i64, abstract = ""}\n'
+    assert kinds(source) == ['key-order', 'bad-value', 'bad-value']
 
 
 def test_hints_point_at_the_fix() -> None:
-    by_kind = {d.kind: d for d in analyze('$number = {description = "x", type = i64}')[1]}
-    assert by_kind['unknown-key'].hint == 'did you mean `sort`?'
-    (d,) = analyze(NUMBER + '$same = {description = "x", takes = $numbr, returns = $number, body = input}')[1]
-    assert d.hint == 'did you mean `$number`?'
-    (d,) = analyze('$number = {description = "x", sort = i32}')[1]
-    assert d.hint == '`i32` arrives in a later step; the only sort is `i64`'
+    def hint(source: str) -> str:
+        (d,) = analyze(source)[1]
+        assert d.hint is not None
+        return d.hint
 
-
-def test_a_typo_hint_prefers_earlier_words() -> None:
-    earlier = '$numbers = {description = "x", sort = i64}\n'
-    later = '$number = {description = "x", sort = i64}\n'
-    typo = '$same = {description = "x", takes = $numbe, returns = $numbers, body = input}\n'
-    (d,) = analyze(earlier + typo + later)[1]
-    assert d.hint == 'did you mean `$numbers`?'
-
-
-def test_a_typo_hint_for_a_later_word_says_to_move_it() -> None:
-    typo = '$same = {description = "x", takes = $numbr, returns = $numbr, body = input}\n'
-    hints = {d.hint for d in analyze(typo + NUMBER)[1]}
-    assert hints == {'did you mean `$number`? It is declared later, so also move its entry above `$same`'}
+    assert hint('$number = {sort = i64, abstract = "x"}') == 'renamed: write `type`'
+    assert hint('$number = {type = i64, description = "x"}') == 'renamed: write `abstract`'
+    assert hint(NUMBER + define('{$numbr} -> $number', 'ret 1')) == 'did you mean `$number`?'
+    assert hint('$number = {type = i32, abstract = "x"}') == 'the only type is `i64`'
+    assert hint('$f = {type = {$n} -> $n}').startswith('write the type: `define $f')
+    assert hint(NUMBER + 'define $f($number) -> $number {ret $number} abstract = "x"').startswith('write the type')
+    assert hint(NUMBER + define('{$number} -> $number', 'ret 1')) == 'remove `$number` from the type, or use it'
 
 
 def test_positions_are_one_based_lines_and_columns() -> None:
-    (d,) = analyze(NUMBER + '$same = {description = "x", takes = $numbr, returns = $number, body = input}')[1]
-    assert (d.line, d.column) == (2, 37)
-    (d,) = analyze('$number = {description = "costs $5", sort = i64}')[1]
-    assert (d.line, d.column) == (1, 33)
+    (d,) = analyze(NUMBER + define('{$numbr} -> $number', 'ret 1'))[1]
+    assert (d.line, d.column) == (2, 12)
+    (d,) = analyze('$number = {type = i64, abstract = "costs $5"}')[1]
+    assert (d.line, d.column) == (1, 42)
 
 
 def test_renaming_every_word_keeps_a_program_clean() -> None:
-    renamed = NUMBER.replace('$number', '$w0') + SAME.replace('$number', '$w0').replace('$same', '$w1')
+    renamed = (NUMBER + SAME).replace('$number', '$w0').replace('$same', '$w1')
     program, diagnostics = analyze(renamed)
     assert diagnostics == []
     assert program is not None
     assert [f.word for f in program.functions] == ['w1']
+
+
+def test_data_words_and_definitions_interleave() -> None:
+    # Every entry refers only to earlier entries, whatever its kind (design/layout.md section 1).
+    source = NUMBER + SAME + '$count = {type = i64, abstract = "how many, like $same"}\n'
+    source += define('{$count} -> $count', 'ret $count', '$tally')
+    assert kinds(source) == []
+
+
+def test_an_input_declared_later_is_one_mistake() -> None:
+    source = define('{$late} -> $late', 'ret $late') + '$late = {type = i64, abstract = "x"}'
+    diagnostics = analyze(source)[1]
+    assert [d.kind for d in diagnostics] == ['forward-reference', 'forward-reference']
+    assert {d.hint for d in diagnostics} == {'move the entry for `$late` above `$f`'}
+
+
+def test_a_misspelled_input_is_one_mistake() -> None:
+    (d,) = analyze(NUMBER + define('{$numbr} -> $number', '$r = add i64 $number, 1\nret $r'))[1]
+    assert (d.kind, d.text, d.hint) == ('undeclared-word', '$numbr', 'did you mean `$number`?')
+
+
+def test_an_undeclared_word_with_no_close_match_says_how_to_declare_it() -> None:
+    (d,) = analyze(NUMBER + define('{$number} -> $total'))[1]
+    assert d.hint == 'declare it above `$f`: `$total = {type = i64, abstract = "…"}`'
+
+
+def test_the_abstract_inside_the_body() -> None:
+    (d,) = analyze(NUMBER + 'define $f {$number} -> $number { ret $number abstract = "x" }')[1]
+    assert (d.message, d.hint) == (
+        'the abstract goes after the body',
+        'close the body with `}`, then write `abstract = "…"`',
+    )

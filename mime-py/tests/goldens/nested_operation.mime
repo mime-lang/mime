@@ -1,2 +1,7 @@
-$number = {description = "a whole number", sort = i64}
-$a = {description = "x", takes = $number, returns = $number, body = let $r = add {i64, mul {i64, input, 2}, 1} in $r}
+$number = {type = i64, abstract = "a whole number"}
+
+define $a {$number} -> $number {
+  $r = add i64 mul i64 $number, 2
+  ret $r
+}
+abstract = "x"

@@ -2,15 +2,15 @@
   {
     "kind": "bad-reference",
     "entry": "$number",
-    "key": "description",
+    "key": "abstract",
     "text": "$5",
-    "message": "`$` in a description must start a reference to a word",
+    "message": "`$` in an abstract must start a reference to a word",
     "hint": "write `\\$` for a dollar sign"
   },
   {
     "kind": "undeclared-word",
     "entry": "$same",
-    "key": "description",
+    "key": "abstract",
     "text": "$numbr",
     "message": "no entry declares `$numbr`",
     "hint": "did you mean `$number`?"
@@ -18,25 +18,33 @@
   {
     "kind": "bad-reference",
     "entry": "$same",
-    "key": "description",
+    "key": "abstract",
     "text": "$numberX",
     "message": "`$number` is followed by `X`, which cannot appear in a name",
     "hint": "a name is lowercase letters, digits or `_`; put a space or punctuation other than `-` after it"
   },
   {
-    "kind": "forward-reference",
+    "kind": "undeclared-word",
     "entry": "$same",
-    "key": "description",
-    "text": "$same",
-    "message": "the description of `$same` refers to `$same` itself",
-    "hint": "a description may refer only to earlier entries; describe `$same` by its parts"
+    "key": "abstract",
+    "text": "$double",
+    "message": "no entry declares `$double`",
+    "hint": "`$double` is a result in the body of `$same`; an abstract refers only to entries"
   },
   {
     "kind": "forward-reference",
     "entry": "$same",
-    "key": "description",
+    "key": "abstract",
+    "text": "$same",
+    "message": "the abstract of `$same` refers to `$same` itself",
+    "hint": "an abstract may refer only to earlier entries; describe `$same` by its parts"
+  },
+  {
+    "kind": "forward-reference",
+    "entry": "$same",
+    "key": "abstract",
     "text": "$later",
     "message": "`$later` is declared after `$same`",
-    "hint": "a description may refer only to earlier entries; move the entry for `$later` above `$same`"
+    "hint": "an abstract may refer only to earlier entries; move the entry for `$later` above `$same`"
   }
 ]

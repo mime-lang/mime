@@ -1,2 +1,0 @@
-$number = {description = "a whole number", sort = i64}
-$a = {description = "x", takes = $number, returns = $number, body = add {i64, input, 1}}

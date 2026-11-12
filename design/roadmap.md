@@ -43,9 +43,9 @@ $same   = {description = "the number it is given", takes = $number, returns = $n
   wrapping overflow.
 - **Decide:** open question 1 (do locals get descriptions?).
 
-### 4. Module layout and LLVM-style bodies
+### 4. Module layout and LLVM-style bodies (done; see [step-4.md](step-4.md))
 
-- **New:** the layout of [layout.md](layout.md): data words `{type, abstract}`, then definitions
+- **New:** the layout of [layout.md](layout.md): data words `{type, abstract}` and definitions
   `define $f {$inputs} -> $output { … }` followed by their `abstract`. A body is LLVM-style lines with typed
   operations, ending in `ret`. `description`, `sort`, `takes`, `returns`, `input` and `let … in` are replaced.
 - **Note:** the one step that changes the form of earlier programs (layout.md section 8).

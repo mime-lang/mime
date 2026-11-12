@@ -16,21 +16,22 @@ define $affine {$number} -> $number {
 abstract = "three times the $number it is given, plus one"
 ```
 
-## 1. Four sections
+## 1. Three sections
 
-A module has four sections, always in this order:
+A module has three sections, always in this order:
 
 1. **Imports:** the words it uses from other modules.
-2. **Declarations:** the data words the module introduces, each with its type and abstract.
-3. **Definitions:** the function words, each with its type, body and abstract, in one place.
-4. **Exports:** the words other modules may import.
+2. **Entries:** every word the module introduces. A data word is a declaration (section 3), and a function word
+   is a definition, with its type, body and abstract in one place (section 4). The two kinds may come in any order.
+3. **Exports:** the words other modules may import.
 
-Declarations are **ordered**: a type or an abstract refers only to earlier words, so the declarations read top to
-bottom like a mathematical text. Definitions come after every declaration, so any data word can be used in any
-definition. How a function refers to itself or to a later function is decided with calls in step 6.
+**Every entry refers only to earlier entries,** whatever their kind: a type, an input, an output or an abstract
+names only words declared or defined above it. So a module reads top to bottom like a mathematical text, and the
+hint for a word used too early is always the same: move its entry above. How a function refers to itself or to a
+later function, as recursion needs, is decided with calls in step 6.
 
 Imports and exports arrive with modules in step 11, which fixes their syntax. Until then a module has only
-declarations and definitions, and `mime run` may run any function word.
+entries, and `mime run` may run any function word.
 
 ## 2. Meaning
 
@@ -64,8 +65,8 @@ $pair   = {type = {$first, $second}, abstract = "a $first and a $second"}
   types, because the word decides (core section 9). Type checking arrives in step 13.
 - **The words in a type are data words.** A function word there would mean a function value, which mime cannot
   express yet.
-- A word is declared once. A declaration refers only to earlier declarations, never to itself. How a data word
-  refers to itself, as a list does, is decided with structs in step 9.
+- A word is declared once. A declaration refers only to earlier entries, never to itself. How a data word refers
+  to itself, as a list does, is decided with structs in step 9.
 
 ## 4. Definitions
 
@@ -82,9 +83,9 @@ abstract = "the greatest common divisor of a $first and a $second"
 - **The inputs are the parameters.** In the body, `$first` is the value passed for `$first`. The type is written
   once and binds the parameters, so nothing is repeated, and each parameter is a declared word with its own
   abstract. That is how a function's inputs carry meaning.
-- **The abstract follows the body directly,** so it does not name its word again. It may refer to any declared word
-  and to the function's other definitions above it, but not to its own word, and not to the body's results or
-  blocks, which a reader of the abstract cannot see.
+- **The abstract follows the body directly,** so it does not name its word again. Like every entry, it refers
+  only to earlier entries. It may not refer to its own word, nor to the body's results or blocks, which a reader of
+  the abstract cannot see.
 - A function word is defined once, and it is not also declared. An abstract or a type in a declaration whose word
   is defined below gets "a function's type and abstract belong to its `define`".
 

@@ -1,0 +1,10 @@
+[
+  {
+    "kind": "syntax",
+    "entry": "$same",
+    "key": "abstract",
+    "text": null,
+    "message": "a definition ends with its abstract",
+    "hint": "write `abstract = \"…\"` right after the body"
+  }
+]

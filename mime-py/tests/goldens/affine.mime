@@ -1,10 +1,9 @@
-$number = {description = "a whole number", sort = i64}
-$affine = {
-  description = "three times the $number it is given, plus one",
-  takes = $number,
-  returns = $number,
-  body = let $double = add {i64, input, input} in
-         let $triple = add {i64, $double, input} in
-         let $result = add {i64, $triple, 1} in
-         $result
+$number = {type = i64, abstract = "a whole number"}
+
+define $affine {$number} -> $number {
+  $double = add i64 $number, $number
+  $triple = add i64 $double, $number
+  $result = add i64 $triple, 1
+  ret $result
 }
+abstract = "three times the $number it is given, plus one"

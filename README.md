@@ -34,16 +34,16 @@ mime borrows its discipline from mathematical writing. A mathematical text uses 
 - **Logical words.** "Let", "suppose", "for every", "there exists" and "hence" are ordinary English. Nobody defines them, and every reader already shares their meaning. They give the text its flow and its logic.
 - **Defined terms.** When a new concept appears, the mathematician gives it a name and a definition. Sometimes the name is a new word ("homeomorphism"). Often it is an everyday word with a new meaning ("group", "ring", "field", "compact"). Either way, the name is just a label. A ring has nothing to do with jewelry. All of its meaning sits in the definition, and the text uses a term only after defining it.
 
-mime has the same two layers. The logical words are mime's **language words**: bare tokens such as `let`, `add`, `i64` and `description`, fixed by the spec and never renamed. Every other word is a defined term, written with a `$` (`$pair`, `$gcd`), and the lexer alone tells the two apart. A mime module treats its `$` words the way a mathematician treats defined terms:
+mime has the same two layers. The logical words are mime's **language words**: bare tokens such as `define`, `add`, `i64` and `abstract`, fixed by the spec and never renamed. Every other word is a defined term, written with a `$` (`$pair`, `$gcd`), and the lexer alone tells the two apart. A mime module treats its `$` words the way a mathematician treats defined terms:
 
 1. **Declare before use.** Every `$` word a module uses is declared in that module or imported, by name, from another module that declares it.
-2. **Meaning points backward.** A word's description mentions only words declared before it, so a module read top to bottom is a chain of definitions with no undefined terms. Bodies are freer: a body may call later words and itself, so recursion needs no extra construct.
+2. **Meaning points backward.** A word's type and abstract mention only words declared before it, so a module read top to bottom is a chain of definitions with no undefined terms. Bodies are freer: a body may call later words and itself, so recursion needs no extra construct.
 3. **Names carry no meaning.** Consistently renaming a word throughout a program (for example `$twice` → `$w7f3`) must never change what the program means. The checker treats words as opaque labels.
 4. **One meaning, one form.** Where possible, the same computation is written exactly one way. Two agents solving the same problem should produce the same program, up to renaming.
 
 Words may look like English, because that helps agents and humans talk about them. The language never relies on that, though, and rule 3 can be checked mechanically: `mime canon` replaces every `$` word with a fixed name, and two programs that differ only in naming get the same canonical form.
 
-Every word also gets a short description, the way a mathematician adds a sentence of intuition after a definition. A description is not free text, though. Its `$` mentions may name only words that are already declared, and the checker verifies each mention and renames it along with the program:
+Every word also gets a short abstract, the way a mathematician adds a sentence of intuition after a definition. An abstract is not free text, though. Its `$` mentions may name only words that are already declared, and the checker verifies each mention and renames it along with the program:
 
 ```
 free text            ──▶  text with checked references  ──▶  formal spec
@@ -57,29 +57,25 @@ The English that connects those mentions never changes what a program means. It 
 
 The surface is a flat, explicit, LLVM-IR-like text syntax in [A-normal form](https://en.wikipedia.org/wiki/A-normal_form) / SSA: every intermediate value gets its own name, every operation takes only names, and control flow is explicit. Nothing is nested or implicit, and there is no sugar. This style was inspired by [oymo](https://github.com/tapl-org/tapl/tree/main/oymo-py).
 
-The sketch below shows the intended shape. It is **illustrative only**: the grammar is not designed yet.
+A program is a list of entries, each referring only to earlier ones ([design/layout.md](design/layout.md)). This one runs today:
 
 ```
-module m
+$number = {type = i64, abstract = "a whole number"}
 
-; words this module introduces, with their shapes
-word twice  : (i64) -> i64
-word quad   : (i64) -> i64
-
-; definitions use only earlier words and core primitives (i64, add, ret)
-define twice(%a : i64) -> i64 {
-  %b = add i64 %a, %a
-  ret %b
+define $affine {$number} -> $number {
+  $double = add i64 $number, $number
+  $triple = add i64 $double, $number
+  $result = add i64 $triple, 1
+  ret $result
 }
-
-define quad(%a : i64) -> i64 {
-  %b = twice %a
-  %c = twice %b
-  ret %c
-}
+abstract = "three times the $number it is given, plus one"
 ```
 
-Renaming `twice` to `w1` and `quad` to `w2` everywhere gives the same program.
+```bash
+mime run prog.mime '$affine' 5    # prints 16
+```
+
+Renaming `$number` to `$w0` and `$affine` to `$w1` everywhere gives the same program. A function's abstract comes after its body: the type is the contract, the body is the meaning, and the abstract, written last, stands in for the body wherever the body is not in view.
 
 ## Architecture (planned)
 

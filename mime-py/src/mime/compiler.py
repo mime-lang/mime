@@ -40,20 +40,30 @@ def domain_word(text: str) -> str:
     return text[1:]
 
 
-def run(program: Program, word: str, arg: str) -> str:
-    """Compile `program` with `word` as the entry point, run it on `arg`, and return what it prints."""
+def run(program: Program, word: str, args: list[str]) -> str:
+    """Compile `program` with `word` as the entry point, run it on `args`, and return what it prints."""
     word = domain_word(word)
-    if not any(f.word == word for f in program.functions):
-        msg = f'no function entry declares `${word}`'
+    f = next((f for f in program.functions if f.word == word), None)
+    if f is None:
+        msg = f'no definition defines `${word}`'
         raise ToolError(msg)
-    try:
-        n = int(arg, 10)
-    except ValueError:
-        msg = f'the input `{arg}` is not a decimal integer'
-        raise ToolError(msg) from None
-    if not I64_MIN <= n <= I64_MAX:
-        msg = f'the input {arg} does not fit in an i64'
+    if len(args) != len(f.inputs):
+        names = ', '.join(f'`${w}`' for w in f.inputs) or 'none'
+        given = '1 was' if len(args) == 1 else f'{len(args)} were'
+        plural = '' if len(f.inputs) == 1 else 's'
+        msg = f'`${word}` takes {len(f.inputs)} input{plural} ({names}), but {given} given'
         raise ToolError(msg)
+    numbers = []
+    for arg in args:
+        try:
+            n = int(arg, 10)
+        except ValueError:
+            msg = f'the input `{arg}` is not a decimal integer'
+            raise ToolError(msg) from None
+        if not I64_MIN <= n <= I64_MAX:
+            msg = f'the input {arg} does not fit in an i64'
+            raise ToolError(msg)
+        numbers.append(str(n))
     clang = shutil.which('clang')
     if clang is None:
         msg = '`clang` is not on PATH; mime run needs it to build the program'
@@ -66,7 +76,7 @@ def run(program: Program, word: str, arg: str) -> str:
         if built.returncode != 0:
             msg = f'clang failed; this is a mime bug:\n{built.stderr}'
             raise ToolError(msg)
-        ran = subprocess.run([str(exe), str(n)], capture_output=True, text=True, check=False)
+        ran = subprocess.run([str(exe), *numbers], capture_output=True, text=True, check=False)
         if ran.returncode != 0:
             msg = f'the program exited with code {ran.returncode}'
             raise ToolError(msg)

@@ -8,12 +8,17 @@ import pytest
 from mime.cli import main
 
 PROGRAM = (
-    '$number = {description = "a whole number, \\$5 at most", sort = i64}\n'
+    '$number = {type = i64, abstract = "a whole number, \\$5 at most"}\n'
     '$count = {\n'
-    '  description = "how many, as a $number",\n'
-    '  sort = i64\n'
+    '  type = i64,\n'
+    '  abstract = "how many, as a $number"\n'
     '}\n'
-    '$same = {description = "the $number it is given", takes = $number, returns = $number, body = input}\n'
+    'define $same {$number} -> $number {\n'
+    '  $twice = add i64 $number, $number\n'
+    '  $back = sub i64 $twice, $number\n'
+    '  ret $back\n'
+    '}\n'
+    'abstract = "the $number it is given"\n'
 )
 
 
@@ -28,39 +33,49 @@ def out(capsys: pytest.CaptureFixture[str]) -> str:
     return capsys.readouterr().out
 
 
-def test_show_prints_the_entry_as_written(prog: Path, capsys: pytest.CaptureFixture[str]) -> None:
+def test_show_prints_a_data_word_as_written(prog: Path, capsys: pytest.CaptureFixture[str]) -> None:
     assert main(['show', str(prog), '$count']) == 0
-    assert out(capsys) == '$count = {\n  description = "how many, as a $number",\n  sort = i64\n}\n'
+    assert out(capsys) == '$count = {\n  type = i64,\n  abstract = "how many, as a $number"\n}\n'
+
+
+def test_show_prints_a_whole_definition(prog: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    assert main(['show', str(prog), '$same']) == 0
+    text = out(capsys)
+    assert text.startswith('define $same {$number} -> $number {\n')
+    assert text.endswith('}\nabstract = "the $number it is given"\n')
 
 
 def test_show_prints_both_entries_of_a_duplicate_word(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     p = tmp_path / 'dup.mime'
-    p.write_text('$n = {description = "x", sort = i64}\n$n = {description = "y", sort = i64}\n')
+    p.write_text('$n = {type = i64, abstract = "x"}\n$n = {type = i64, abstract = "y"}\n')
     assert main(['show', str(p), '$n']) == 0
-    assert out(capsys) == '$n = {description = "x", sort = i64}\n\n$n = {description = "y", sort = i64}\n'
+    assert out(capsys) == '$n = {type = i64, abstract = "x"}\n\n$n = {type = i64, abstract = "y"}\n'
 
 
 def test_show_works_on_a_program_with_checker_errors(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     p = tmp_path / 'bad.mime'
-    p.write_text('$same = {description = "x", takes = $numbr, returns = $numbr, body = input}\n')
+    p.write_text('define $same {$numbr} -> $numbr {\n  ret $numbr\n}\nabstract = "x"\n')
     assert main(['show', str(p), '$same']) == 0
-    assert out(capsys).startswith('$same = {')
+    assert out(capsys).startswith('define $same {')
 
 
 def test_uses_lists_references_in_source_order(prog: Path, capsys: pytest.CaptureFixture[str]) -> None:
     assert main(['uses', str(prog), '$number']) == 0
     assert json.loads(out(capsys)) == [
-        {'entry': '$count', 'key': 'description', 'text': '$number'},
-        {'entry': '$same', 'key': 'description', 'text': '$number'},
-        {'entry': '$same', 'key': 'takes', 'text': '$number'},
-        {'entry': '$same', 'key': 'returns', 'text': '$number'},
+        {'entry': '$count', 'key': 'abstract', 'text': '$number'},
+        {'entry': '$same', 'key': 'type', 'text': '$number'},
+        {'entry': '$same', 'key': 'type', 'text': '$number'},
+        {'entry': '$same', 'key': 'body', 'text': '$number'},
+        {'entry': '$same', 'key': 'body', 'text': '$number'},
+        {'entry': '$same', 'key': 'body', 'text': '$number'},
+        {'entry': '$same', 'key': 'abstract', 'text': '$number'},
     ]
 
 
 def test_uses_adds_positions_on_request(prog: Path, capsys: pytest.CaptureFixture[str]) -> None:
     assert main(['uses', '--positions', str(prog), '$number']) == 0
     first = json.loads(out(capsys))[0]
-    assert (first['line'], first['column']) == (3, 33)
+    assert (first['line'], first['column']) == (4, 30)
 
 
 def test_an_unused_word_has_no_uses(prog: Path, capsys: pytest.CaptureFixture[str]) -> None:
@@ -70,16 +85,15 @@ def test_an_unused_word_has_no_uses(prog: Path, capsys: pytest.CaptureFixture[st
 
 def test_uses_finds_a_word_with_no_entry(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     p = tmp_path / 'typo.mime'
-    p.write_text('$same = {description = "a $numbr", takes = $numbr, returns = $numbr, body = input}\n')
+    p.write_text('define $same {$numbr} -> $numbr {\n  ret $numbr\n}\nabstract = "a $numbr"\n')
     assert main(['uses', str(p), '$numbr']) == 0
-    assert [u['key'] for u in json.loads(out(capsys))] == ['description', 'takes', 'returns']
+    assert [u['key'] for u in json.loads(out(capsys))] == ['type', 'type', 'body', 'abstract']
 
 
 def test_uses_skips_what_is_not_a_reference(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     p = tmp_path / 'p.mime'
     p.write_text(
-        '$number = {description = "x", sort = i64}\n'
-        '$numbers = {description = "costs \\$number, unlike $numbers", sort = i64}\n'
+        '$number = {type = i64, abstract = "x"}\n$numbers = {type = i64, abstract = "costs \\$number, unlike $numbers"}\n'
     )
     assert main(['uses', str(p), '$number']) == 0
     assert out(capsys) == '[]\n'
@@ -104,6 +118,6 @@ def test_word_mistakes(prog: Path, capsys: pytest.CaptureFixture[str], args: lis
 
 def test_a_program_that_does_not_parse(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     p = tmp_path / 'broken.mime'
-    p.write_text('$number = {description = "x", sort = i64,}\n')
+    p.write_text('$number = {type = i64, abstract = "x",}\n')
     assert main(['show', str(p), '$number']) == 1
     assert [d['kind'] for d in json.loads(capsys.readouterr().err)] == ['trailing-comma']

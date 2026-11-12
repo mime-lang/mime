@@ -1,0 +1,2 @@
+$number = {type = i64, abstract = "a whole number"}
+$same = {description = "the number it is given", takes = $number, returns = $number, body = input}

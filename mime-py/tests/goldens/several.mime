@@ -1,7 +1,0 @@
-$number = {description = "a whole number", sort = i64}
-$count = {
-  description = "how many times something happens, as a $number",
-  sort = i64
-}
-$same = {description = "the $number it is given", takes = $number, returns = $number, body = input}
-$tally = {description = "the $count it is given, like $same", takes = $count, returns = $count, body = input}

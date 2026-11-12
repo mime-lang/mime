@@ -3,6 +3,10 @@
 > Status: settled. The third step of the [roadmap](roadmap.md). A body becomes a chain of `let`s in A-normal form
 > over `add`, `sub` and `mul`, as [core.md](core.md) section 6 describes. It settles core open question 1: locals
 > get no description.
+>
+> **Superseded in step 4** by [layout.md](layout.md) and [step-4.md](step-4.md): bodies are LLVM-style lines and
+> locals are called results. Step 4 also drops the check in section 4 that an operation's sort is the function's,
+> since a function now has several inputs; type checking is step 13.
 
 ```
 $number = {description = "a whole number", sort = i64}

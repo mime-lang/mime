@@ -5,7 +5,7 @@
 An agent working on a program does more than check and run it: it reads one entry, finds where a word is used,
 and renames a word. With general text tools (`grep`, `sed`, `jq`), each of these is a little wrong for mime:
 
-- `grep '\$number'` also matches `\$number` in a description, which is an escaped dollar sign, not a reference.
+- `grep '\$number'` also matches `\$number` in an abstract, which is an escaped dollar sign, not a reference.
 - `grep` can't tell which entry and key a match is in, and `sed -n` needs line numbers.
 - A JSON filter is a query language of its own. A model can read a short list without one.
 
@@ -29,8 +29,8 @@ mime-specific job.
 Prints the entry for `$word`, from its word to its closing `}`, exactly as written, then a newline.
 
 ```
-$ mime show prog.mime '$same'
-$same = {description = "the $number it is given", takes = $number, returns = $number, body = input}
+$ mime show prog.mime '$number'
+$number = {type = i64, abstract = "a whole number"}
 ```
 
 - It needs only a program that parses. A program with checker errors can still be shown, since showing an
@@ -42,19 +42,20 @@ $same = {description = "the $number it is given", takes = $number, returns = $nu
 
 ## 3. `mime uses FILE '$word'`
 
-Prints every reference to `$word` in source order: in a `takes` or `returns` value, and in a description.
+Prints every reference to `$word` in source order: in a type, a function's inputs or output, a body, and an
+abstract.
 
 ```
 $ mime uses prog.mime '$number'
 [
   {
     "entry": "$same",
-    "key": "description",
+    "key": "type",
     "text": "$number"
   },
   {
     "entry": "$same",
-    "key": "takes",
+    "key": "body",
     "text": "$number"
   },
   ...

@@ -26,12 +26,12 @@ def _parser() -> argparse.ArgumentParser:
     p.add_argument('file')
     p.add_argument('--positions', action='store_true', help=positions)
 
-    p = sub.add_parser('run', help='run one function of a program on one input')
+    p = sub.add_parser('run', help='run one function of a program on one decimal integer per input')
     p.add_argument('file')
     p.add_argument('--positions', action='store_true', help=positions)
-    # Both are optional to argparse so that a word the shell expanded away gets a hint instead of a bare usage error.
+    # The word is optional to argparse so that a word the shell expanded away gets a hint, not a bare usage error.
     p.add_argument('word', nargs='?', help="the function to run, in single quotes so the shell keeps its `$`: '$same'")
-    p.add_argument('input', nargs='?', help='a decimal integer')
+    p.add_argument('inputs', nargs='*', help='one decimal integer per input, in the order of the type')
 
     word = "the word, in single quotes so the shell keeps its `$`: '$number'"
     p = sub.add_parser('show', help='print the entry for a word, exactly as written')
@@ -48,22 +48,17 @@ def _parser() -> argparse.ArgumentParser:
 SHELL_HINT = "if you wrote $name without single quotes, the shell expanded it as a variable; write '$name'"
 
 
-def _check_run_args(word: str | None, arg: str | None) -> None:
-    """Explain a missing argument, which most often means the shell ate a `$word`."""
+def _check_run_args(word: str | None) -> None:
+    """Explain a missing word, which most often means the shell ate a `$word`."""
     if word == '':
         msg = f'the word is empty; {SHELL_HINT}'
         raise ToolError(msg)
     if word is None:
-        msg = 'mime run needs a word and an input: mime run FILE WORD INPUT'
+        msg = 'mime run needs a word: mime run FILE WORD INPUT...'
         raise ToolError(msg)
-    if arg is None:
-        looks_like_input = word.lstrip('-').isdigit()
-        reason = (
-            f'`{word}` looks like the input, so the word is missing; {SHELL_HINT}'
-            if looks_like_input
-            else (f'mime run needs an input after `{word}`')
-        )
-        raise ToolError(reason)
+    if word.lstrip('-').isdigit():
+        msg = f'`{word}` looks like an input, so the word is missing; {SHELL_HINT}'
+        raise ToolError(msg)
 
 
 def _check_word_arg(command: str, word: str | None) -> str:
@@ -110,7 +105,7 @@ def main(argv: list[str] | None = None) -> int:
         if args.command in ('show', 'uses'):
             return _query(args)
         if args.command == 'run':
-            _check_run_args(args.word, args.input)
+            _check_run_args(args.word)
         program, diagnostics = analyze(_read(args.file))
         if args.command == 'check':
             sys.stdout.write(diag.to_json(diagnostics, positions=args.positions))
@@ -121,7 +116,7 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == 'llvm':
             sys.stdout.write(lower(program))
         else:
-            sys.stdout.write(run(program, args.word, args.input))
+            sys.stdout.write(run(program, args.word, args.inputs))
     except ToolError as e:
         sys.stderr.write(f'mime: {e}\n')
         return USAGE

@@ -1,4 +1,4 @@
 $pair = {
-  description = "two whole numbers",
-  $first = {description = "the first one", sort = i64}
+  abstract = "two whole numbers",
+  $first = {type = i64, abstract = "the first one"}
 }

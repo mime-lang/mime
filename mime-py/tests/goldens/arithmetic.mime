@@ -1,11 +1,38 @@
-$number = {description = "a whole number", sort = i64}
-$square = {description = "a $number times itself", takes = $number, returns = $number, body = let $p = mul {i64, input, input} in $p}
-$less = {description = "one less than a $number", takes = $number, returns = $number, body = let $d = sub {i64, input, 1} in $d}
-$negate = {description = "zero minus a $number", takes = $number, returns = $number, body = let $n = sub {i64, 0, input} in $n}
-$sum = {
-  description = "a $number plus a negative constant",
-  takes = $number,
-  returns = $number,
-  body = let $total = add {i64, input, -9223372036854775808} in $total
+$number = {type = i64, abstract = "a whole number"}
+$first = {type = i64, abstract = "the first of two numbers"}
+$second = {type = i64, abstract = "the second of two numbers"}
+
+define $square {$number} -> $number {
+  $p = mul i64 $number, $number
+  ret $p
 }
-$seven = {description = "always seven, whatever $number it is given", takes = $number, returns = $number, body = 7}
+abstract = "a $number times itself"
+
+define $less {$number} -> $number {
+  $d = sub i64 $number, 1
+  ret $d
+}
+abstract = "one less than a $number"
+
+define $negate {$number} -> $number {
+  $n = sub i64 0, $number
+  ret $n
+}
+abstract = "zero minus a $number"
+
+define $sum {$number} -> $number {
+  $total = add i64 $number, -9223372036854775808
+  ret $total
+}
+abstract = "a $number plus the smallest i64"
+
+define $difference {$first, $second} -> i64 {
+  $d = sub i64 $first, $second
+  ret $d
+}
+abstract = "the $first minus the $second, like $less but for any two"
+
+define $seven {} -> $number {
+  ret 7
+}
+abstract = "always seven"

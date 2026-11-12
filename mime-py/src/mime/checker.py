@@ -1,4 +1,4 @@
-"""Check a parsed module (design/step-1.md section 3, step-2.md, step-3.md). Reports every error it finds."""
+"""Check a parsed module (design/step-4.md section 3, step-2.md for references). Reports every error it finds."""
 
 import difflib
 from dataclasses import dataclass
@@ -6,35 +6,32 @@ from typing import TypedDict
 
 from mime.diag import Diagnostic
 from mime.lexer import Span, Tok
-from mime.parser import Entry, Field, Let, Module, Operation, Value
-from mime.words import FUNCTION_KEYS, INPUT, KEYS, LANGUAGE_WORDS, OPERATIONS, SORT_KEYS, SORTS
+from mime.parser import Definition, Entry, Field, Module, Struct, Value
+from mime.words import KEYS, LANGUAGE_WORDS, OPERATIONS, RETIRED, TYPES
 
-KIND_KEYS = {'sort': SORT_KEYS, 'function': FUNCTION_KEYS}
-LATER_SORTS = frozenset({'i1', 'i8', 'i16', 'i32'})
-LATER_OPERATIONS = frozenset({'sdiv', 'udiv', 'srem', 'urem', 'icmp', 'call'})
+LATER_TYPES = frozenset({'i1', 'i8', 'i16', 'i32'})
+LATER_OPERATIONS = frozenset({'sdiv', 'udiv', 'srem', 'urem', 'icmp', 'call', 'br', 'get'})
 I64_MIN, I64_MAX = -(2**63), 2**63 - 1
-OPERANDS = 3  # an operation takes its sort and two values
-OPERAND_HINT = 'an operand is `input`, a local bound earlier in this body, or an integer'
-BOTH_KINDS = 'a sort entry has `description`, `sort`; a function entry has `description`, `takes`, `returns`, `body`'
+OPERAND_HINT = 'an operand is an input of the function, a result bound earlier in this body, or an integer'
+OPERATIONS_HINT = 'the operations are `add`, `sub` and `mul`'
 
 
 @dataclass(frozen=True)
 class Function:
     word: str
-    takes: str
-    returns: str
-    sort: str  # the sort of both the input and the result; there is only `i64` so far
-    body: Value | Let
+    inputs: tuple[str, ...]
+    output: str
+    definition: Definition
 
 
 @dataclass(frozen=True)
 class Program:
-    sorts: dict[str, str]  # word -> sort, for every sort entry
+    types: dict[str, str]  # data word -> its type
     functions: tuple[Function, ...]
 
 
 class Where(TypedDict):
-    """Where a mistake is, as `report` takes it: the entry's word and the key of the field."""
+    """Where a mistake is, as `report` takes it: the word with no `$`, and the key."""
 
     entry: str
     key: str | None
@@ -51,72 +48,58 @@ def _value_text(v: Value) -> str:
 class _Checker:
     def __init__(self, module: Module) -> None:
         self.source = module.source
-        self.entries = module.entries
+        self.items = module.items
         self.diags: list[Diagnostic] = []
-        self.index: dict[str, int] = {}  # word -> index of its first entry
-        self.kinds: dict[str, str | None] = {}  # word -> 'sort', 'function', or None when unclear
-        self.fields: dict[str, dict[str, Field]] = {}  # word -> valid key -> first field with it
-        self.locals: dict[str, list[str]] = {}  # local -> the functions whose bodies bind it
+        self.index: dict[str, int] = {}  # word -> position of its first entry or definition, in source order
+        self.kinds: dict[str, str] = {}  # word -> 'data' or 'function'
+        self.fields: dict[str, dict[str, Field]] = {}  # data word -> valid key -> first field with it
+        self.locals: dict[str, list[str]] = {}  # result word -> the functions whose bodies bind it
 
-    def report(
-        self,
-        kind: str,
-        message: str,
-        at: Span,
-        hint: str | None = None,
-        *,
-        entry: str,
-        key: str | None = None,
-        missing: bool = False,
-    ) -> None:
+    def report(self, kind: str, message: str, at: Span, hint: str | None = None, *, entry: str, key: str | None = None,
+               missing: bool = False) -> None:  # fmt: skip
         """Report a mistake at `at`, in the entry for `entry` and the field `key`. Something `missing` has no text."""
         text = None if missing else self.source[at.start : at.end]
         self.diags.append(Diagnostic(kind, message, at.line, at.column, hint, f'${entry}', key, text))
 
     def run(self) -> Program | None:
-        # Index every word first, so a reference can tell a later entry from a missing one.
-        for i, e in enumerate(self.entries):
-            self.index.setdefault(e.word, i)
-        valid_by_entry = []
-        for i, e in enumerate(self.entries):
-            kind, valid = self.entry(e)
-            valid_by_entry.append(valid)
-            if self.index[e.word] == i:
-                self.kinds[e.word], self.fields[e.word] = kind, valid
-            else:
+        # Index every word first, so a reference can tell a later word from a missing one.
+        words = [
+            (x.word, x.span, 'data') if isinstance(x, Entry) else (x.word.text, x.word.span, 'function')
+            for x in self.items
+        ]
+        for i, (word, span, kind) in enumerate(words):
+            if word in self.index:
                 self.report(
                     'duplicate-word',
-                    f'`${e.word}` already has an entry',
-                    e.span,
+                    f'`${word}` already has an entry',
+                    span,
                     'a word has one entry; merge the two or rename one',
-                    entry=e.word,
+                    entry=word,
                 )
-        for e in self.entries:
-            for f in e.fields:
-                b = f.value
-                while f.key == 'body' and isinstance(b, Let):
-                    owners = self.locals.setdefault(b.local.text, [])
-                    if e.word not in owners:
-                        owners.append(e.word)
-                    b = b.rest
-        for i, (e, valid) in enumerate(zip(self.entries, valid_by_entry, strict=True)):
-            if 'description' in valid:
-                self.description(e.word, i, valid['description'].value)
-        for word, i in self.index.items():
-            if self.kinds[word] == 'function':
-                for key in ('takes', 'returns'):
-                    if key in self.fields[word]:
-                        self.reference(word, i, key, self.fields[word][key].value)
-                self.operation_sorts(word)
+            else:
+                self.index[word], self.kinds[word] = i, kind
+        for d in (x for x in self.items if isinstance(x, Definition)):
+            for line in d.lines:
+                owners = self.locals.setdefault(line.result.text, [])
+                if d.word.text not in owners:
+                    owners.append(d.word.text)
+        for i, x in enumerate(self.items):
+            if isinstance(x, Definition):
+                self.definition(x, i)
+                continue
+            valid = self.entry(x)
+            if self.index[x.word] == i:
+                self.fields[x.word] = valid
+            if 'abstract' in valid:
+                self.references(x.word, i, valid['abstract'].value)
         self.diags.sort(key=lambda d: (d.line, d.column))
         if self.diags:
             return None
         return self.program()
 
-    def entry(self, e: Entry) -> tuple[str | None, dict[str, Field]]:
-        present = {f.key for f in e.fields}
-        kind = 'sort' if 'sort' in present else 'function' if present & {'takes', 'returns', 'body'} else None
-        expected = KIND_KEYS[kind] if kind else ()
+    # Declarations
+
+    def entry(self, e: Entry) -> dict[str, Field]:
         valid: dict[str, Field] = {}
         for f in e.fields:
             if f.key in valid:
@@ -128,225 +111,211 @@ class _Checker:
                     key=f.key,
                 )
             elif f.key not in KEYS:
-                hint = (
-                    'did you mean `sort`?'
-                    if f.key == 'type'
-                    else (f'a {kind} entry has the keys {_keys(expected)}' if kind else BOTH_KINDS)
-                )
+                hint = RETIRED.get(f.key, f'a declaration has the keys {_keys(KEYS)}')
                 self.report('unknown-key', f'`{f.key}` is not a key', f.span, hint, entry=e.word, key=f.key)
-            elif kind and f.key not in expected:
-                self.report(
-                    'unknown-key',
-                    f'`{f.key}` is not a key of a {kind} entry',
-                    f.span,
-                    f'a {kind} entry has the keys {_keys(expected)}',
-                    entry=e.word,
-                    key=f.key,
-                )
             else:
                 valid[f.key] = f
                 self.value(e.word, f)
-        if kind is None:
-            if len(valid) < len(e.fields):
-                return None, valid  # an unknown key was already reported, often the reason the kind is unclear
-            self.report(
-                'missing-key',
-                f'the entry for `${e.word}` is neither a sort entry nor a function entry',
-                e.span,
-                BOTH_KINDS,
-                entry=e.word,
-                missing=True,
-            )
-            return None, valid
-        missing = [k for k in expected if k not in valid]
-        if missing:
+        missing = [k for k in KEYS if k not in valid]
+        if missing and len(valid) == len(e.fields):  # an unknown key often is the missing one, already reported
             self.report(
                 'missing-key',
                 f'the entry for `${e.word}` is missing {_keys(tuple(missing))}',
                 e.span,
-                f'a {kind} entry has the keys {_keys(expected)}',
+                f'a declaration has the keys {_keys(KEYS)}',
                 entry=e.word,
                 missing=True,
             )
         order = list(valid)
-        want = [k for k in expected if k in valid]
+        want = [k for k in KEYS if k in valid]
         if order != want:
             first_wrong = next(valid[a] for a, b in zip(order, want, strict=True) if a != b)
             self.report(
                 'key-order',
                 f'the keys of `${e.word}` are out of order',
                 first_wrong.span,
-                f'write them in this order: {_keys(expected)}',
+                f'write them in this order: {_keys(KEYS)}',
                 entry=e.word,
                 key=first_wrong.key,
             )
-        return kind, valid
+        return valid
 
     def value(self, word: str, f: Field) -> None:
         v = f.value
         at: Where = {'entry': word, 'key': f.key}
-        if f.key == 'body':
-            self.body(word, v)
-            return
-        if isinstance(v, Let):
-            self.report('bad-value', '`let` belongs in a `body`', v.span, f'`{f.key}` takes a single value', **at)
-            return
-        if v.kind == Tok.NAME and v.text not in LANGUAGE_WORDS and f.key in ('takes', 'returns'):
-            self.report(
-                'unknown-language-word',
-                f'`{v.text}` is not a language word',
-                v.span,
-                f'did you mean `${v.text}`?',
-                **at,
-            )
-            return
-        if f.key == 'description':
-            if v.kind != Tok.STRING:
-                self.report('bad-value', '`description` takes a string', v.span, 'write the meaning in `"…"`', **at)
+        if f.key == 'abstract':
+            if not isinstance(v, Value) or v.kind != Tok.STRING:
+                self.report('bad-value', '`abstract` takes a string', v.span, 'write the meaning in `"…"`', **at)
             elif not v.text.strip():
-                self.report('bad-value', 'a description cannot be empty', v.span, 'say what the word means', **at)
-        elif f.key == 'sort':
-            if v.kind != Tok.NAME or v.text not in SORTS:
-                later = v.kind == Tok.NAME and v.text in LATER_SORTS
-                hint = f'`{v.text}` arrives in a later step; ' if later else ''
-                self.report(
-                    'bad-value', f'`{_value_text(v)}` is not a sort', v.span, hint + 'the only sort is `i64`', **at
-                )
-        elif f.key in ('takes', 'returns') and v.kind != Tok.WORD:
-            self.report('bad-value', f'`{f.key}` names a word', v.span, 'name a sort entry, such as `$number`', **at)
+                self.report('bad-value', 'an abstract cannot be empty', v.span, 'say what the word means', **at)
+            return
+        if isinstance(v, Struct):
+            self.report('bad-value', 'struct types arrive in step 9', v.span, 'the only type is `i64`', **at)
+        elif v.kind == Tok.NAME and v.text in TYPES:
+            return
+        elif v.kind == Tok.NAME and v.text in LATER_TYPES:
+            self.report('bad-value', f'`{v.text}` arrives in a later step', v.span, 'the only type is `i64`', **at)
+        elif v.kind == Tok.WORD:
+            self.report('bad-value', f'`${v.text}` is not a type', v.span, 'a type is a primitive such as `i64`', **at)
+        else:
+            self.report('bad-value', f'`{_value_text(v)}` is not a type', v.span, 'the only type is `i64`', **at)
 
-    def body(self, word: str, body: Value | Let) -> None:
-        """Check a `let` chain (design/step-3.md): its locals, its operations, and that every local is used."""
-        at: Where = {'entry': word, 'key': 'body'}
-        lets = []
-        b = body
-        while isinstance(b, Let):
-            lets.append(b)
-            b = b.rest
-        # A local that clashes with a module word is reported once, at its `let`; before it, the word is the entry.
-        every_local = {x.local.text for x in lets if x.local.text not in self.index}
-        bound: dict[str, Value] = {}  # local -> the `let` word that binds it
-        used: set[str] = set()
-        for x in lets:
-            self.operation(x.operation, x.local.text, bound, every_local, used, at)
-            local = x.local
-            if local.text in self.index:
-                self.report(
-                    'duplicate-word',
-                    f'`${local.text}` already has an entry, so a local cannot use it',
-                    local.span,
-                    'pick a new word for the local',
-                    **at,
-                )
-                bound[local.text] = local  # later uses read it, so they are not reported again
-                used.add(local.text)
-            elif local.text in bound:
-                self.report(
-                    'duplicate-word',
-                    f'`${local.text}` is already bound in this body',
-                    local.span,
-                    'pick a new word for the local',
-                    **at,
-                )
-            else:
-                bound[local.text] = local
-        self.atom(b, None, bound, every_local, used, at)
-        for local, v in bound.items():
-            if local not in used:
-                self.report(
-                    'unused-local',
-                    f'nothing reads `${local}`',
-                    v.span,
-                    'use it, or remove its `let`; a body often returns the wrong local',
-                    **at,
-                )
+    # Definitions
 
-    def operation(
-        self, op: Operation, local: str, bound: dict[str, Value], every: set[str], used: set[str], at: Where
-    ) -> None:
-        name = op.name.text
-        if name not in OPERATIONS:
-            if name in LATER_OPERATIONS:
-                self.report(
-                    'bad-value',
-                    f'`{name}` arrives in a later step',
-                    op.name.span,
-                    'the operations are `add`, `sub` and `mul`',
-                    **at,
-                )
-            elif name in LANGUAGE_WORDS:
-                self.report(
-                    'bad-value',
-                    f'`{name}` is not an operation',
-                    op.name.span,
-                    'the operations are `add`, `sub` and `mul`',
-                    **at,
-                )
-            else:
-                self.report(
-                    'unknown-language-word',
-                    f'`{name}` is not a language word',
-                    op.name.span,
-                    'the operations are `add`, `sub` and `mul`',
-                    **at,
-                )
-        if len(op.operands) != OPERANDS:
+    def definition(self, d: Definition, position: int) -> None:
+        word = d.word.text
+        head: Where = {'entry': word, 'key': 'type'}
+        inputs: dict[str, Value] = {}
+        meant: set[str] = set()  # data words a misspelled input most likely means; the body may read them quietly
+        for x in d.inputs:
+            if x.text in inputs:
+                self.report('duplicate-word', f'`${x.text}` is listed twice', x.span, 'list each input once', **head)
+            elif self.data_word(x, word, position, head, 'an input'):
+                inputs[x.text] = x
+            elif x.text not in self.index:
+                earlier = [w for w, i in self.index.items() if i < position and self.kinds[w] == 'data']
+                meant.update(difflib.get_close_matches(x.text, earlier, n=1))
+        if d.output.kind == Tok.WORD:
+            self.data_word(d.output, word, position, head, 'the output')
+        elif d.output.text in LATER_TYPES:
             self.report(
                 'bad-value',
-                f'`{name}` takes a sort and two operands, not {len(op.operands)} operands',
-                op.span,
-                f'write `{name} {{i64, a, b}}`',
+                f'`{d.output.text}` arrives in a later step',
+                d.output.span,
+                'the only type is `i64`',
+                **head,
+            )
+        elif d.output.text not in TYPES:
+            kind = 'bad-value' if d.output.text in LANGUAGE_WORDS else 'unknown-language-word'
+            self.report(
+                kind, f'`{d.output.text}` is not a type', d.output.span, 'the output is a word or `i64`', **head
+            )
+        self.body(d, inputs, meant)
+        self.references(word, position, d.abstract)
+
+    def data_word(self, v: Value, owner: str, position: int, at: Where, role: str) -> bool:
+        """Check that `v` names an earlier data word; true when the body may read it as an input.
+
+        A data word declared later is reported, and the body may still read it, so the move is the only fix needed.
+        """
+        if v.text not in self.index:
+            hint = self.suggest(v.text, owner, position)
+            if hint is None:
+                hint = f'declare it above `${owner}`: `${v.text} = {{type = i64, abstract = "…"}}`'
+            self.report('undeclared-word', f'no entry declares `${v.text}`', v.span, hint, **at)
+            return False
+        if self.kinds[v.text] != 'data':
+            self.report(
+                'bad-value',
+                f'`${v.text}` is a function, so it cannot be {role}',
+                v.span,
+                f'{role} is a data word, declared with `{{type = …, abstract = "…"}}`',
                 **at,
             )
-        sort, *values = op.operands
-        if sort.kind != Tok.NAME or sort.text not in SORTS:
-            later = sort.kind == Tok.NAME and sort.text in LATER_SORTS
-            hint = 'the first operand is a sort, such as `i64`'
-            if sort.kind == Tok.WORD:
-                hint += f'; `${sort.text}` is a word, not a sort'
-            elif later:
-                hint = f'`{sort.text}` arrives in a later step; the only sort is `i64`'
-            self.report('bad-value', f'`{_value_text(sort)}` is not a sort', sort.span, hint, **at)
-        for v in values:
-            self.atom(v, local, bound, every, used, at)
+            return False
+        if self.index[v.text] > position:
+            self.report(
+                'forward-reference',
+                f'`${v.text}` is declared after `${owner}`',
+                v.span,
+                f'move the entry for `${v.text}` above `${owner}`',
+                **at,
+            )
+            return True
+        return True
+
+    def body(self, d: Definition, inputs: dict[str, Value], meant: set[str]) -> None:
+        """Check the lines of a body (design/step-4.md): operations, operands, results, and that every word is read."""
+        at: Where = {'entry': d.word.text, 'key': 'body'}
+        # A result that clashes with a module word is reported once, at its line; before it, the word is the entry.
+        every = {line.result.text for line in d.lines if line.result.text not in self.index}
+        bound: dict[str, Value] = {}  # result -> the word that binds it
+        used: set[str] = set()
+        for line in d.lines:
+            self.operation(line.operation, line.type, at)
+            for v in (line.left, line.right):
+                if v.text not in meant:
+                    self.atom(v, line.result.text, inputs, bound, every, used, at)
+            r = line.result
+            if r.text in self.index:
+                self.report(
+                    'duplicate-word',
+                    f'`${r.text}` already has an entry, so a result cannot use it',
+                    r.span,
+                    'pick a new word for the result',
+                    **at,
+                )
+                bound.setdefault(r.text, r)  # later uses read it, so they are not reported again
+                used.add(r.text)
+            elif r.text in bound:
+                self.report(
+                    'duplicate-word',
+                    f'`${r.text}` is already bound in this body',
+                    r.span,
+                    'pick a new word for the result',
+                    **at,
+                )
+            else:
+                bound[r.text] = r
+        if d.ret.text not in meant:
+            self.atom(d.ret, None, inputs, bound, every, used, at)
+        for word, v in bound.items():
+            if word not in used:
+                self.report(
+                    'unused-local',
+                    f'nothing reads `${word}`',
+                    v.span,
+                    'use it, or remove its line; a body often returns the wrong result',
+                    **at,
+                )
+        for word, v in inputs.items():
+            if word not in used:
+                self.report(
+                    'unused-local',
+                    f'nothing reads the input `${word}`',
+                    v.span,
+                    f'remove `${word}` from the type, or use it',
+                    entry=d.word.text,
+                    key='type',
+                )
+
+    def operation(self, op: Value, ty: Value, at: Where) -> None:
+        name = op.text
+        if name not in OPERATIONS:
+            if name in LATER_OPERATIONS:
+                self.report('bad-value', f'`{name}` arrives in a later step', op.span, OPERATIONS_HINT, **at)
+            elif name in LANGUAGE_WORDS:
+                self.report('bad-value', f'`{name}` is not an operation', op.span, OPERATIONS_HINT, **at)
+            else:
+                self.report('unknown-language-word', f'`{name}` is not a language word', op.span, OPERATIONS_HINT, **at)
+        if ty.text not in TYPES:
+            hint = f'`{ty.text}` arrives in a later step; ' if ty.text in LATER_TYPES else ''
+            self.report('bad-value', f'`{ty.text}` is not a type', ty.span, hint + 'the only type is `i64`', **at)
 
     def atom(
         self,
         v: Value,
-        local: str | None,
+        result: str | None,
+        inputs: dict[str, Value],
         bound: dict[str, Value],
         every: set[str],
         used: set[str],
         at: Where,
     ) -> None:
-        """Check an operand, or the final value of a body. `local` is the word the enclosing `let` binds."""
+        """Check an operand or the returned value. `result` is the word the enclosing line binds."""
         if v.kind == Tok.INT:
             if not I64_MIN <= int(v.text) <= I64_MAX:
                 self.report(
                     'bad-value', f'`{v.text}` does not fit in `i64`', v.span, 'an `i64` is from -2^63 to 2^63-1', **at
                 )
-        elif v.kind == Tok.NAME:
-            if v.text == INPUT:
-                return
-            if v.text in LANGUAGE_WORDS:
-                self.report('bad-value', f'`{v.text}` is not a value', v.span, OPERAND_HINT, **at)
-            else:
-                self.report(
-                    'unknown-language-word',
-                    f'`{v.text}` is not a language word',
-                    v.span,
-                    f'did you mean `${v.text}`?',
-                    **at,
-                )
-        elif v.kind == Tok.STRING:
-            self.report('bad-value', 'a body is not a string', v.span, OPERAND_HINT, **at)
-        elif v.text in bound:
+            return
+        if v.text in inputs or v.text in bound:
             used.add(v.text)
-        elif v.text == local:
+        elif v.text == result:
             used.add(v.text)  # reported here, not again as unused
             self.report(
                 'forward-reference',
-                f'`${v.text}` is bound by this `let`, so its own operation cannot read it',
+                f'`${v.text}` is bound by this line, so its own operation cannot read it',
                 v.span,
                 OPERAND_HINT,
                 **at,
@@ -357,51 +326,25 @@ class _Checker:
                 'forward-reference',
                 f'`${v.text}` is bound later in this body',
                 v.span,
-                f'move the `let` for `${v.text}` above this one',
+                f'move the line for `${v.text}` above this one',
                 **at,
             )
         elif v.text in self.index:
+            kind = 'function' if self.kinds[v.text] == 'function' else 'data word'
             self.report(
                 'not-a-value',
-                f'`${v.text}` is a {self.kinds[v.text] or "module"} entry, not a value',
+                f'`${v.text}` is a {kind} that is not an input of this function',
                 v.span,
-                'a body reads `input`, its earlier locals, and integers',
+                'a body reads its inputs, its earlier results, and integers; to read it, list it in the inputs',
                 **at,
             )
         else:
-            close = difflib.get_close_matches(v.text, list(bound), n=1)
+            close = difflib.get_close_matches(v.text, [*inputs, *bound], n=1)
             hint = f'did you mean `${close[0]}`?' if close else OPERAND_HINT
-            used.update(close)  # the local the typo most likely means is not reported again as unused
+            used.update(close)  # the word the typo most likely means is not reported again as unused
             self.report('undeclared-word', f'nothing binds `${v.text}`', v.span, hint, **at)
 
-    def operation_sorts(self, word: str) -> None:
-        """Every operation in a body works in the function's sort: the sort of the entry its `takes` names."""
-        fields = self.fields[word]
-        if 'takes' not in fields or 'body' not in fields:
-            return
-        takes = fields['takes'].value
-        if (
-            not isinstance(takes, Value)
-            or self.kinds.get(takes.text) != 'sort'
-            or 'sort' not in self.fields[takes.text]
-        ):
-            return  # a wrong `takes` is reported on its own
-        sort = self.fields[takes.text]['sort'].value
-        if not isinstance(sort, Value) or sort.text not in SORTS:
-            return
-        b = fields['body'].value
-        while isinstance(b, Let):
-            first = b.operation.operands[0]
-            if first.kind == Tok.NAME and first.text in SORTS and first.text != sort.text:
-                self.report(
-                    'bad-value',
-                    f'`{first.text}` is not the sort of `${word}`',
-                    first.span,
-                    f'`${word}` takes `${takes.text}`, whose sort is `{sort.text}`; write `{sort.text}`',
-                    entry=word,
-                    key='body',
-                )
-            b = b.rest
+    # References in abstracts
 
     def suggest(self, typo: str, owner: str, owner_index: int) -> str | None:
         """A close word the reference could mean, preferring words it may already refer to."""
@@ -415,16 +358,16 @@ class _Checker:
             return f'did you mean `${close[0]}`? It is declared later, so also move its entry above `${owner}`'
         return None
 
-    def description(self, owner: str, owner_index: int, v: Value | Let) -> None:
-        """Check the `$` references inside a description (design/step-2.md)."""
+    def references(self, owner: str, owner_index: int, v: Value | Struct) -> None:
+        """Check the `$` references inside an abstract (design/step-2.md)."""
         if not isinstance(v, Value) or v.kind != Tok.STRING:
             return
-        at: Where = {'entry': owner, 'key': 'description'}
+        at: Where = {'entry': owner, 'key': 'abstract'}
         for r in v.refs:
             if r.word is None:
                 self.report(
                     'bad-reference',
-                    '`$` in a description must start a reference to a word',
+                    '`$` in an abstract must start a reference to a word',
                     r.span,
                     'write `\\$` for a dollar sign',
                     **at,
@@ -440,16 +383,16 @@ class _Checker:
             elif r.word not in self.index:
                 if r.word in self.locals:
                     owners = ', '.join(f'`${w}`' for w in self.locals[r.word])
-                    hint = f'`${r.word}` is a local in the body of {owners}; a description refers only to entries'
+                    hint = f'`${r.word}` is a result in the body of {owners}; an abstract refers only to entries'
                 else:
                     hint = self.suggest(r.word, owner, owner_index)
                 self.report('undeclared-word', f'no entry declares `${r.word}`', r.span, hint, **at)
             elif r.word == owner and self.index[owner] == owner_index:
                 self.report(
                     'forward-reference',
-                    f'the description of `${owner}` refers to `${owner}` itself',
+                    f'the abstract of `${owner}` refers to `${owner}` itself',
                     r.span,
-                    f'a description may refer only to earlier entries; describe `${owner}` by its parts',
+                    f'an abstract may refer only to earlier entries; describe `${owner}` by its parts',
                     **at,
                 )
             elif self.index[r.word] > owner_index:
@@ -457,54 +400,24 @@ class _Checker:
                     'forward-reference',
                     f'`${r.word}` is declared after `${owner}`',
                     r.span,
-                    f'a description may refer only to earlier entries; move the entry for `${r.word}` above `${owner}`',
+                    f'an abstract may refer only to earlier entries; move the entry for `${r.word}` above `${owner}`',
                     **at,
                 )
 
-    def reference(self, owner: str, owner_index: int, key: str, v: Value | Let) -> None:
-        if not isinstance(v, Value) or v.kind != Tok.WORD:
-            return
-        at: Where = {'entry': owner, 'key': key}
-        if v.text not in self.index:
-            self.report(
-                'undeclared-word',
-                f'no entry declares `${v.text}`',
-                v.span,
-                self.suggest(v.text, owner, owner_index),
-                **at,
-            )
-        elif self.index[v.text] >= owner_index:
-            self.report(
-                'forward-reference',
-                f'`${v.text}` is declared after `${owner}`',
-                v.span,
-                f'move the entry for `${v.text}` above `${owner}`',
-                **at,
-            )
-        elif self.kinds[v.text] == 'function':
-            self.report(
-                'not-a-sort',
-                f'`${v.text}` is a function entry, not a sort entry',
-                v.span,
-                'name a sort entry, such as `$number`',
-                **at,
-            )
-
     def program(self) -> Program:
-        def text(word: str, key: str) -> str:
-            v = self.fields[word][key].value
+        types = {}
+        for w, fields in self.fields.items():
+            v = fields['type'].value
             if not isinstance(v, Value):
-                msg = f'`{key}` of `${word}` is not a single value in a checked program'
+                msg = f'the type of `${w}` is not a primitive in a checked program'
                 raise TypeError(msg)
-            return v.text
-
-        sorts = {w: text(w, 'sort') for w, k in self.kinds.items() if k == 'sort'}
-        functions = []
-        for w, k in self.kinds.items():
-            if k == 'function':
-                takes, returns = text(w, 'takes'), text(w, 'returns')
-                functions.append(Function(w, takes, returns, sorts[takes], self.fields[w]['body'].value))
-        return Program(sorts, tuple(functions))
+            types[w] = v.text
+        functions = tuple(
+            Function(d.word.text, tuple(x.text for x in d.inputs), d.output.text, d)
+            for d in self.items
+            if isinstance(d, Definition)
+        )
+        return Program(types, functions)
 
 
 def check(module: Module) -> tuple[Program | None, list[Diagnostic]]:
