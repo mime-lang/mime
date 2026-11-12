@@ -73,7 +73,7 @@ The parser stops at the first syntax error. The checker reports every error it f
 | `undeclared-word` | a word with no entry | |
 | `forward-reference` | `takes`/`returns` names a later entry | move the entry up |
 | `not-a-sort` | `takes`/`returns` names a function entry | |
-| `dollar-in-string` | an unescaped `$` in a string | references arrive in step 2; write `\$` for a dollar sign |
+| `dollar-in-string` | an unescaped `$` in a string (replaced by `bad-reference` in [step 2](step-2.md)) | write `\$` for a dollar sign |
 | `bad-value` | a value of the wrong form for its key, or an empty description | what the key takes |
 
 `takes` and `returns` refer backward, like descriptions: they describe the function, they are not part of its body.

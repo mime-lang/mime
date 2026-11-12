@@ -19,13 +19,10 @@ class ToolError(Exception):
 
 def analyze(source: str) -> tuple[Program | None, list[Diagnostic]]:
     try:
-        module, soft = parse(source)
+        module = parse(source)
     except FatalError as e:
         return None, [e.diagnostic]
-    program, diags = check(module)
-    if soft:
-        return None, sorted(soft + diags, key=lambda d: (d.line, d.column))
-    return program, diags
+    return check(module)
 
 
 def run(program: Program, word: str, arg: str) -> str:

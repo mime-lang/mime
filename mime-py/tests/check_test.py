@@ -67,7 +67,7 @@ def test_escapes_are_allowed_in_strings() -> None:
             NUMBER + SAME + '$twice = {description = "x", takes = $same, returns = $number, body = input}',
             ['not-a-sort'],
         ),
-        ('$number = {description = "costs $5", sort = i64}', ['dollar-in-string']),
+        ('$number = {description = "costs $5", sort = i64}', ['bad-reference']),
         ('$number = {description = "", sort = i64}', ['bad-value']),
         ('$number = {description = number, sort = i64}', ['bad-value']),
         ('$number = {description = "x", sort = i32}', ['bad-value']),

@@ -32,7 +32,7 @@ $same   = {description = "the number it is given", takes = $number, returns = $n
 - **Done when:** `mime run` on the program above prints its input, and a missing `$`, a missing `description`, an
   unknown key, and an undeclared word are each reported.
 
-### 2. Checked references in descriptions
+### 2. Checked references in descriptions (done; see [step-2.md](step-2.md))
 
 - **New:** `$` references inside a `description`, the backward-only rule, `\$`.
 - **Done when:** a forward or dangling reference in a description is reported, and plain text is never checked.

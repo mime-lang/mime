@@ -84,7 +84,8 @@ free text            ──▶  text with checked references  ──▶  formal 
 
 Rules:
 
-- A reference must name a word that is declared before this entry. A dangling or forward reference is an error.
+- A reference must name a word that is declared before this entry. A dangling or forward reference is an error,
+  and so is a reference to the entry's own word, which would make the definition circular.
 - References are renamed with the program. Renaming `$pair` updates every description that mentions it.
 - A literal dollar sign in a description is written `\$`.
 - Only a `description` slot is scanned. A string anywhere else is plain data. It is never scanned or renamed, so a

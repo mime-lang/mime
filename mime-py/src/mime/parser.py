@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 
 from mime.diag import Diagnostic, FatalError
-from mime.lexer import Tok, Token, lex
+from mime.lexer import Ref, Tok, Token, lex
 from mime.words import LANGUAGE_WORDS
 
 
@@ -13,6 +13,7 @@ class Value:
     text: str
     line: int
     column: int
+    refs: tuple[Ref, ...] = ()  # for a string, its `$` marks
 
 
 @dataclass(frozen=True)
@@ -121,10 +122,9 @@ class _Parser:
             )
         if v.kind not in (Tok.STRING, Tok.WORD, Tok.NAME):
             raise self.fail(v, f'expected a value after `{k.text} =`, found {_show(v)}')
-        return Field(k.text, Value(v.kind, v.text, v.line, v.column), k.line, k.column)
+        return Field(k.text, Value(v.kind, v.text, v.line, v.column, v.refs), k.line, k.column)
 
 
-def parse(source: str) -> tuple[Module, list[Diagnostic]]:
-    """Returns the module and the lexer's non-fatal diagnostics. Raises FatalError on a syntax error."""
-    tokens, soft = lex(source)
-    return _Parser(tokens).module(), soft
+def parse(source: str) -> Module:
+    """Raises FatalError on a syntax error."""
+    return _Parser(lex(source)).module()

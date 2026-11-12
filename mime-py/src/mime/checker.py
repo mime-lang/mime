@@ -1,10 +1,10 @@
-"""Check a parsed module against the step 1 rules (design/step-1.md, section 3). Reports every error it finds."""
+"""Check a parsed module (design/step-1.md section 3, design/step-2.md). Reports every error it finds."""
 
 import difflib
 from dataclasses import dataclass
 
 from mime.diag import Diagnostic
-from mime.lexer import Tok
+from mime.lexer import Ref, Tok
 from mime.parser import Entry, Field, Module, Value
 from mime.words import FUNCTION_KEYS, INPUT, KEYS, LANGUAGE_WORDS, SORT_KEYS, SORTS
 
@@ -43,20 +43,27 @@ class _Checker:
         self.kinds: dict[str, str | None] = {}  # word -> 'sort', 'function', or None when unclear
         self.fields: dict[str, dict[str, Field]] = {}  # word -> valid key -> first field with it
 
-    def report(self, kind: str, message: str, at: Entry | Field | Value, hint: str | None = None) -> None:
+    def report(self, kind: str, message: str, at: Entry | Field | Value | Ref, hint: str | None = None) -> None:
         self.diags.append(Diagnostic(kind, message, at.line, at.column, hint))
 
     def run(self) -> Program | None:
+        # Index every word first, so a reference can tell a later entry from a missing one.
         for i, e in enumerate(self.entries):
-            if e.word in self.index:
+            self.index.setdefault(e.word, i)
+        valid_by_entry = []
+        for i, e in enumerate(self.entries):
+            kind, valid = self.entry(e)
+            valid_by_entry.append(valid)
+            if self.index[e.word] == i:
+                self.kinds[e.word], self.fields[e.word] = kind, valid
+            else:
                 first = self.entries[self.index[e.word]]
                 self.report(
                     'duplicate-word', f'`${e.word}` already has an entry', e, f'the first entry is on line {first.line}'
                 )
-                self.entry(e)  # still check it, but nothing refers to it
-            else:
-                self.index[e.word] = i
-                self.kinds[e.word], self.fields[e.word] = self.entry(e)
+        for i, (e, valid) in enumerate(zip(self.entries, valid_by_entry, strict=True)):
+            if 'description' in valid:
+                self.description(e.word, i, valid['description'].value)
         for word, i in self.index.items():
             if self.kinds[word] == 'function':
                 for key in ('takes', 'returns'):
@@ -152,6 +159,44 @@ class _Checker:
         if close:
             return f'did you mean `${close[0]}`? It is declared later, so also move its entry above `${owner}`'
         return None
+
+    def description(self, owner: str, owner_index: int, v: Value) -> None:
+        """Check the `$` references inside a description (design/step-2.md)."""
+        if v.kind != Tok.STRING:
+            return
+        for r in v.refs:
+            if r.word is None:
+                self.report(
+                    'bad-reference',
+                    '`$` in a description must start a reference to a word',
+                    r,
+                    'write `\\$` for a dollar sign',
+                )
+            elif r.stray is not None:
+                self.report(
+                    'bad-reference',
+                    f'`${r.word}` is followed by `{r.stray}`, which cannot appear in a name',
+                    r,
+                    'a name is lowercase letters, digits or `_`; put a space or punctuation other than `-` after it',
+                )
+            elif r.word not in self.index:
+                self.report(
+                    'undeclared-word', f'no entry declares `${r.word}`', r, self.suggest(r.word, owner, owner_index)
+                )
+            elif r.word == owner and self.index[owner] == owner_index:
+                self.report(
+                    'forward-reference',
+                    f'the description of `${owner}` refers to `${owner}` itself',
+                    r,
+                    f'a description may refer only to earlier entries; describe `${owner}` by its parts',
+                )
+            elif self.index[r.word] > owner_index:
+                self.report(
+                    'forward-reference',
+                    f'`${r.word}` is declared after `${owner}`',
+                    r,
+                    f'a description may refer only to earlier entries; move the entry for `${r.word}` above `${owner}`',
+                )
 
     def reference(self, owner: str, owner_index: int, v: Value) -> None:
         if v.kind != Tok.WORD:

@@ -1,7 +1,7 @@
 # mime
 
 mime is a language where a word means only what its entry says. Its spelling carries nothing: renaming every word
-consistently never changes a program. This is the whole language as of roadmap step 1.
+consistently never changes a program. This is the whole language as of roadmap step 2.
 
 ## Words
 
@@ -29,7 +29,23 @@ $same   = {description = "the number it is given", takes = $number, returns = $n
 - Fields are separated by commas. No trailing comma. Entries are not separated by anything.
 - Entries never nest. Declare every word as its own top-level entry.
 - There are **no comments**. Put English in a `description`.
-- Strings are `"…"` on one line. Escapes: `\"`, `\\`, `\$`. A bare `$` in a string is an error for now.
+- Strings are `"…"` on one line. Escapes: `\"`, `\\`, `\$`.
+
+## References in descriptions
+
+Inside a `description`, `$word` is a **checked reference**: it must name an entry declared **earlier** in the file.
+The English around it is never read.
+
+```
+$number = {description = "a whole number", sort = i64}
+$same   = {description = "the $number it is given", takes = $number, returns = $number, body = input}
+```
+
+- A description cannot refer to its own word, or to a later entry.
+- Every `$` in a description starts a reference. Write `\$` for a dollar sign: `"costs \$5"`.
+- A reference follows the same name rule as in code: `"$number's"` and `"($number)"` are fine, but `"$numberX"` and
+  `"$number-ish"` are errors, not `$number` followed by text.
+- References are optional.
 
 ## Commands
 
