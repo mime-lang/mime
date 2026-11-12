@@ -104,17 +104,14 @@ The benchmark lives in [`bench/`](bench/). Its methodology card says what it mea
 
 ## Roadmap
 
-- [ ] Core design doc: words, declarations, modules, primitives, types
-- [ ] Grammar for the text syntax
-- [ ] Parser and checker (declare-before-use, renaming invariant)
-- [ ] Lowering to LLVM IR for a minimal subset (integers, functions, branches)
-- [ ] Agent tooling: `AGENTS.md`, a compact spec for in-context use, JSON diagnostics
-- [ ] First benchmark run and the scrambled-words ablation
-- [ ] Submit to the [agentlanguages.dev](https://agentlanguages.dev/) catalogue
+mime grows in small steps, each adding one new thing to the language from design through LLVM lowering. The steps
+are in [design/roadmap.md](design/roadmap.md).
 
 ## Development
 
 mime will be bootstrapped. The first toolchain is written in Python (3.12+, [hatch](https://hatch.pypa.io/)), and all of that code lives in [`mime-py/`](mime-py/). Once mime can compile itself, `mime-py/` is deleted. Everything that should outlive the bootstrap (design docs in [`design/`](design/), the spec, example programs, benchmarks) lives at the repo root.
+
+`mime run` also needs [clang](https://clang.llvm.org/) on `PATH`, which turns the emitted LLVM IR into an executable. Without it, `mime check` and `mime llvm` still work, and the tests that run programs are skipped.
 
 ```bash
 cd mime-py
