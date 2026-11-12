@@ -1,6 +1,8 @@
-"""Lower a checked program to textual LLVM IR (design/step-1.md, section 6)."""
+"""Lower a checked program to textual LLVM IR (design/step-1.md section 6, step-3.md section 6)."""
 
 from mime.checker import Function, Program
+from mime.lexer import Tok
+from mime.parser import Let, Value
 
 LLVM_SORT = {'i64': 'i64'}
 
@@ -9,9 +11,25 @@ def symbol(word: str) -> str:
     return f'@"${word}"'
 
 
+def _operand(v: Value) -> str:
+    if v.kind == Tok.WORD:
+        return f'%"${v.text}"'
+    if v.kind == Tok.INT:
+        return v.text
+    return '%input'
+
+
 def _function(f: Function) -> str:
     t = LLVM_SORT[f.sort]
-    return f'define {t} {symbol(f.word)}({t} %input) {{\n  ret {t} %input\n}}\n'
+    lines = [f'define {t} {symbol(f.word)}({t} %input) {{']
+    b = f.body
+    while isinstance(b, Let):
+        # No `nsw` or `nuw` flag, so overflow wraps.
+        _, x, y = b.operation.operands
+        lines.append(f'  %"${b.local.text}" = {b.operation.name.text} {t} {_operand(x)}, {_operand(y)}')
+        b = b.rest
+    lines.append(f'  ret {t} {_operand(b)}')
+    return '\n'.join([*lines, '}']) + '\n'
 
 
 def lower(program: Program) -> str:

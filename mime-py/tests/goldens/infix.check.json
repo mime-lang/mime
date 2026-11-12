@@ -1,0 +1,10 @@
+[
+  {
+    "kind": "syntax",
+    "entry": "$a",
+    "key": "body",
+    "text": "+",
+    "message": "unexpected character `+`",
+    "hint": "arithmetic is written as an operation: `add {i64, a, b}`, `sub {…}` or `mul {…}`"
+  }
+]

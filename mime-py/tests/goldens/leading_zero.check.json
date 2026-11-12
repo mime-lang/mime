@@ -1,0 +1,10 @@
+[
+  {
+    "kind": "syntax",
+    "entry": "$a",
+    "key": "body",
+    "text": "007",
+    "message": "`007` is not how an integer is written",
+    "hint": "write `7`"
+  }
+]

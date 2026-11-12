@@ -37,7 +37,7 @@ $same   = {description = "the number it is given", takes = $number, returns = $n
 - **New:** `$` references inside a `description`, the backward-only rule, `\$`.
 - **Done when:** a forward or dangling reference in a description is reported, and plain text is never checked.
 
-### 3. Arithmetic bodies
+### 3. Arithmetic bodies (done; see [step-3.md](step-3.md))
 
 - **New:** `let … in …` in A-normal form, locals as `$` words, `add`, `sub`, `mul` with the sort as first operand,
   wrapping overflow.

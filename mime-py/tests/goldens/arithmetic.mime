@@ -1,0 +1,11 @@
+$number = {description = "a whole number", sort = i64}
+$square = {description = "a $number times itself", takes = $number, returns = $number, body = let $p = mul {i64, input, input} in $p}
+$less = {description = "one less than a $number", takes = $number, returns = $number, body = let $d = sub {i64, input, 1} in $d}
+$negate = {description = "zero minus a $number", takes = $number, returns = $number, body = let $n = sub {i64, 0, input} in $n}
+$sum = {
+  description = "a $number plus a negative constant",
+  takes = $number,
+  returns = $number,
+  body = let $total = add {i64, input, -9223372036854775808} in $total
+}
+$seven = {description = "always seven, whatever $number it is given", takes = $number, returns = $number, body = 7}

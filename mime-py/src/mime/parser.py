@@ -3,8 +3,8 @@
 from dataclasses import dataclass, replace
 
 from mime.diag import Diagnostic, FatalError
-from mime.lexer import Ref, Span, Tok, Token, tokens
-from mime.words import LANGUAGE_WORDS
+from mime.lexer import ARITHMETIC_HINT, Ref, Span, Tok, Token, tokens
+from mime.words import IN, LANGUAGE_WORDS, LET
 
 
 @dataclass(frozen=True)
@@ -16,10 +16,38 @@ class Value:
 
 
 @dataclass(frozen=True)
+class Operation:
+    """`add {i64, a, b}`: an operation word and its operands, the sort first (design/step-3.md)."""
+
+    name: Value
+    operands: tuple[Value, ...]
+    span: Span  # from the operation word to its closing `}`
+
+
+@dataclass(frozen=True)
+class Let:
+    """`let $local = operation in rest`."""
+
+    local: Value
+    operation: Operation
+    rest: 'Value | Let'
+    span: Span  # the `let`
+
+
+@dataclass(frozen=True)
 class Field:
     key: str
-    value: Value
+    value: Value | Let
     span: Span  # the key
+
+
+def atoms(body: Value | Let) -> list[Value]:
+    """Every operand and the final atom of a body, in source order. The locals a `let` binds are not included."""
+    found = []
+    while isinstance(body, Let):
+        found += body.operation.operands
+        body = body.rest
+    return [*found, body]
 
 
 @dataclass(frozen=True)
@@ -42,6 +70,11 @@ def _show(t: Token) -> str:
     if t.kind == Tok.NAME:
         return f'`{t.text}`'
     return t.kind.value
+
+
+def _infix(t: Token) -> str | None:
+    """The arithmetic hint for `input -1`, where a value is followed by what reads as subtraction."""
+    return ARITHMETIC_HINT if t.kind == Tok.INT and t.text.startswith('-') else None
 
 
 class _Parser:
@@ -103,7 +136,7 @@ class _Parser:
                     close = sep
                     break
                 if sep.kind != Tok.COMMA:
-                    raise self.fail(sep, f'expected `,` or `}}` after a field, found {_show(sep)}')
+                    raise self.fail(sep, f'expected `,` or `}}` after a field, found {_show(sep)}', _infix(sep))
                 if self.peek().kind == Tok.RBRACE:
                     raise self.fail(sep, 'a trailing comma is not allowed', 'remove the `,`', kind='trailing-comma')
         else:
@@ -124,18 +157,74 @@ class _Parser:
             raise self.fail(k, f'expected a key such as `description`, found {_show(k)}')
         self.key = k.text
         self.expect(Tok.EQUALS, f'after the key `{k.text}`')
-        v = self.take()
-        if v.kind == Tok.LBRACE:
+        if self.peek().kind == Tok.LBRACE:
             raise self.fail(
-                v,
+                self.peek(),
                 'entries do not nest, so a value cannot be a `{…}`',
                 'declare the inner entry as its own entry and name its word here',
                 kind='nested-entry',
             )
-        if v.kind not in (Tok.STRING, Tok.WORD, Tok.NAME):
-            raise self.fail(v, f'expected a value after `{k.text} =`, found {_show(v)}')
+        value = self.value(f'after `{k.text} =`')
         self.key = None
-        return Field(k.text, Value(v.kind, v.text, v.span, v.refs), k.span)
+        return Field(k.text, value, k.span)
+
+    def value(self, context: str) -> Value | Let:
+        """A field's value, or the rest of a body: a `let` chain or one value."""
+        v = self.take()
+        if v.kind == Tok.NAME and v.text == LET:
+            return self.let(v)
+        if v.kind not in (Tok.STRING, Tok.WORD, Tok.NAME, Tok.INT):
+            raise self.fail(v, f'expected a value {context}, found {_show(v)}')
+        if v.kind == Tok.NAME and self.peek().kind == Tok.LBRACE:
+            raise self.fail(
+                v,
+                f'the result of `{v.text}` needs a name',
+                f'bind it with a `let`: `let $result = {v.text} {{…}} in $result`',
+            )
+        return Value(v.kind, v.text, v.span, v.refs)
+
+    def let(self, keyword: Token) -> Let:
+        local = self.take()
+        if local.kind != Tok.WORD:
+            hint = f'did you mean `${local.text}`?' if local.kind == Tok.NAME else None
+            raise self.fail(local, f'expected a local word such as `$sum` after `let`, found {_show(local)}', hint)
+        self.expect(Tok.EQUALS, f'after `let ${local.text}`')
+        operation = self.operation()
+        t = self.take()
+        if t.kind != Tok.NAME or t.text != IN:
+            raise self.fail(t, f'expected `in` after the operation, found {_show(t)}')
+        rest = self.value('after `in`')
+        return Let(Value(local.kind, local.text, local.span), operation, rest, keyword.span)
+
+    def operation(self) -> Operation:
+        name = self.take()
+        if name.kind != Tok.NAME:
+            raise self.fail(name, f'expected an operation such as `add {{i64, a, b}}`, found {_show(name)}')
+        self.expect(Tok.LBRACE, f'after `{name.text}`; its operands go in `{{…}}`')
+        operands = []
+        while True:
+            a = self.take()
+            if a.kind not in (Tok.NAME, Tok.WORD, Tok.INT):
+                raise self.fail(
+                    a, f'expected an operand, found {_show(a)}', 'an operand is `input`, a local or an integer'
+                )
+            if a.kind == Tok.NAME and self.peek().kind == Tok.LBRACE:
+                raise self.fail(
+                    a,
+                    f'`{a.text}` is an operation inside an operand',
+                    'bind the inner operation with its own `let`, and use its local here',
+                    kind='nested-operation',
+                )
+            operands.append(Value(a.kind, a.text, a.span))
+            sep = self.take()
+            if sep.kind == Tok.RBRACE:
+                break
+            if sep.kind != Tok.COMMA:
+                raise self.fail(sep, f'expected `,` or `}}` after an operand, found {_show(sep)}', _infix(sep))
+            if self.peek().kind == Tok.RBRACE:
+                raise self.fail(sep, 'a trailing comma is not allowed', 'remove the `,`', kind='trailing-comma')
+        span = Span(name.span.line, name.span.column, name.span.start, sep.span.end)
+        return Operation(Value(name.kind, name.text, name.span), tuple(operands), span)
 
 
 def parse(source: str) -> Module:

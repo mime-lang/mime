@@ -1,0 +1,10 @@
+[
+  {
+    "kind": "nested-operation",
+    "entry": "$a",
+    "key": "body",
+    "text": "mul",
+    "message": "`mul` is an operation inside an operand",
+    "hint": "bind the inner operation with its own `let`, and use its local here"
+  }
+]

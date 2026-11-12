@@ -6,7 +6,7 @@ from dataclasses import dataclass
 
 from mime.compiler import ToolError
 from mime.lexer import Span, Tok
-from mime.parser import Module
+from mime.parser import Let, Module, atoms
 
 
 @dataclass(frozen=True)
@@ -32,13 +32,13 @@ def show(module: Module, word: str) -> str:
 
 
 def uses(module: Module, word: str) -> list[Use]:
-    """Every reference to `word`, in source order: as a value, and in a description."""
+    """Every reference to `word`, in source order: as a value, in a description, and in a body."""
     found: list[Use] = []
     for e in module.entries:
         for f in e.fields:
             v = f.value
-            spans = [v.span] if v.kind == Tok.WORD and v.text == word else []
-            if f.key == 'description' and v.kind == Tok.STRING:
+            spans = [a.span for a in atoms(v) if a.kind == Tok.WORD and a.text == word]
+            if not isinstance(v, Let) and f.key == 'description' and v.kind == Tok.STRING:
                 spans += [r.span for r in v.refs if r.word == word and r.stray is None]
             found += [Use(f'${e.word}', f.key, module.source[s.start : s.end], s) for s in spans]
     if not found and all(e.word != word for e in module.entries):

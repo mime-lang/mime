@@ -1,0 +1,15 @@
+$number = {description = "a whole number", sort = i64}
+$a = {
+  description = "x",
+  takes = $number,
+  returns = $number,
+  body = let $x = div {i64, input, 2} in
+         let $y = add {$number, $x, input} in
+         let $z = sub {i64, $y} in
+         let $x = mul {i64, $later, $number} in
+         let $number = add {i64, $z, $z} in
+         let $w = add {i64, $w, 99999999999999999999} in
+         let $later = add {i64, $nope, i64} in
+         $x
+}
+$b = {description = "x", sort = let $q = add {i64, 1, 2} in $q}

@@ -1,0 +1,10 @@
+[
+  {
+    "kind": "syntax",
+    "entry": "$a",
+    "key": "body",
+    "text": "add",
+    "message": "the result of `add` needs a name",
+    "hint": "bind it with a `let`: `let $result = add {…} in $result`"
+  }
+]

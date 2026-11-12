@@ -1,0 +1,2 @@
+$number = {description = "a whole number", sort = i64}
+$a = {description = "x", takes = $number, returns = $number, body = let $r = add {i64, mul {i64, input, 2}, 1} in $r}

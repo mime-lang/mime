@@ -1,0 +1,98 @@
+[
+  {
+    "kind": "unknown-language-word",
+    "entry": "$a",
+    "key": "body",
+    "text": "div",
+    "message": "`div` is not a language word",
+    "hint": "the operations are `add`, `sub` and `mul`"
+  },
+  {
+    "kind": "bad-value",
+    "entry": "$a",
+    "key": "body",
+    "text": "$number",
+    "message": "`$number` is not a sort",
+    "hint": "the first operand is a sort, such as `i64`; `$number` is a word, not a sort"
+  },
+  {
+    "kind": "bad-value",
+    "entry": "$a",
+    "key": "body",
+    "text": "sub {i64, $y}",
+    "message": "`sub` takes a sort and two operands, not 2 operands",
+    "hint": "write `sub {i64, a, b}`"
+  },
+  {
+    "kind": "duplicate-word",
+    "entry": "$a",
+    "key": "body",
+    "text": "$x",
+    "message": "`$x` is already bound in this body",
+    "hint": "pick a new word for the local"
+  },
+  {
+    "kind": "forward-reference",
+    "entry": "$a",
+    "key": "body",
+    "text": "$later",
+    "message": "`$later` is bound later in this body",
+    "hint": "move the `let` for `$later` above this one"
+  },
+  {
+    "kind": "not-a-value",
+    "entry": "$a",
+    "key": "body",
+    "text": "$number",
+    "message": "`$number` is a sort entry, not a value",
+    "hint": "a body reads `input`, its earlier locals, and integers"
+  },
+  {
+    "kind": "duplicate-word",
+    "entry": "$a",
+    "key": "body",
+    "text": "$number",
+    "message": "`$number` already has an entry, so a local cannot use it",
+    "hint": "pick a new word for the local"
+  },
+  {
+    "kind": "forward-reference",
+    "entry": "$a",
+    "key": "body",
+    "text": "$w",
+    "message": "`$w` is bound by this `let`, so its own operation cannot read it",
+    "hint": "an operand is `input`, a local bound earlier in this body, or an integer"
+  },
+  {
+    "kind": "bad-value",
+    "entry": "$a",
+    "key": "body",
+    "text": "99999999999999999999",
+    "message": "`99999999999999999999` does not fit in `i64`",
+    "hint": "an `i64` is from -2^63 to 2^63-1"
+  },
+  {
+    "kind": "undeclared-word",
+    "entry": "$a",
+    "key": "body",
+    "text": "$nope",
+    "message": "nothing binds `$nope`",
+    "hint": "an operand is `input`, a local bound earlier in this body, or an integer"
+  },
+  {
+    "kind": "bad-value",
+    "entry": "$a",
+    "key": "body",
+    "text": "i64",
+    "message": "`i64` is not a value",
+    "hint": "an operand is `input`, a local bound earlier in this body, or an integer"
+  },
+  {
+    "kind": "bad-value",
+    "entry": "$b",
+    "key": "sort",
+    "text": "let",
+    "message": "`let` belongs in a `body`",
+    "hint": "`sort` takes a single value"
+  }
+]

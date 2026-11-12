@@ -73,7 +73,7 @@ def test_escapes_are_allowed_in_strings() -> None:
         ('$number = {description = "x", sort = i32}', ['bad-value']),
         ('$number = {description = "x", sort = $number}', ['bad-value']),
         (NUMBER + '$same = {description = "x", takes = i64, returns = $number, body = input}', ['bad-value']),
-        (NUMBER + '$same = {description = "x", takes = $number, returns = $number, body = $number}', ['bad-value']),
+        (NUMBER + '$same = {description = "x", takes = $number, returns = $number, body = $number}', ['not-a-value']),
     ],
 )
 def test_each_mistake_has_its_kind(source: str, expected: list[str]) -> None:

@@ -1,12 +1,14 @@
 # mime
 
 mime is a language where a word means only what its entry says. Its spelling carries nothing: renaming every word
-consistently never changes a program. This is the whole language as of roadmap step 2.
+consistently never changes a program. This is the whole language as of roadmap step 3.
 
 ## Words
 
-- A **domain word** is `$` plus a name: `$number`, `$same`. You declare these. Each has exactly one entry.
-- A **language word** is a bare name fixed by mime: `description`, `sort`, `takes`, `returns`, `body`, `i64`, `input`.
+- A **domain word** is `$` plus a name: `$number`, `$same`. You declare these. Each module word has exactly one
+  entry; a local is bound by a `let` (below).
+- A **language word** is a bare name fixed by mime: `description`, `sort`, `takes`, `returns`, `body`, `i64`, `input`,
+  `let`, `in`, `add`, `sub`, `mul`.
 - A name is `[a-z][a-z0-9_]*`.
 
 ## A program
@@ -22,14 +24,39 @@ $same   = {description = "the number it is given", takes = $number, returns = $n
 | Kind | Keys, in order |
 |---|---|
 | sort entry | `description` (a non-empty string), `sort` (`i64`) |
-| function entry | `description` (a non-empty string), `takes` (a sort entry's word), `returns` (a sort entry's word), `body` (`input`) |
+| function entry | `description` (a non-empty string), `takes` (a sort entry's word), `returns` (a sort entry's word), `body` (see Bodies) |
 
-- `input` is the value the function takes. It is the only body that exists so far.
 - `takes` and `returns` must name a sort entry declared **earlier** in the file.
 - Fields are separated by commas. No trailing comma. Entries are not separated by anything.
 - Entries never nest. Declare every word as its own top-level entry.
 - There are **no comments**. Put English in a `description`.
 - Strings are `"…"` on one line. Escapes: `\"`, `\\`, `\$`.
+
+## Bodies
+
+A body is a chain of `let`s that ends in one value. Each `let` names the result of one operation.
+
+```
+$affine = {
+  description = "three times the $number it is given, plus one",
+  takes = $number,
+  returns = $number,
+  body = let $double = add {i64, input, input} in
+         let $triple = add {i64, $double, input} in
+         let $result = add {i64, $triple, 1} in
+         $result
+}
+```
+
+- An operation is `add`, `sub` or `mul`, then `{sort, a, b}`. The sort comes first and is always `i64`.
+- An operand, and the final value, is `input` (the value the function takes), a local bound **earlier** in the same
+  body, or a decimal integer (`1`, `-7`; no leading zeros). `body = input` and `body = 7` are valid bodies.
+- **No nesting.** `add {i64, mul {…}, 1}` is an error: bind `mul` with its own `let` and use its local. A bare
+  `add {…}` as a body needs a `let` too.
+- No infix and no parentheses: `input + 1` and `add(i64, input, 1)` are errors.
+- A local has no description. It must be unique in its body, must not be a module word, and must be read by
+  something later. Different functions may use the same local word.
+- Overflow wraps: `add {i64, 9223372036854775807, 1}` is `-9223372036854775808`.
 
 ## References in descriptions
 

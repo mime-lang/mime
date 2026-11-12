@@ -16,6 +16,7 @@ class Tok(Enum):
     RBRACE = '`}`'
     EQUALS = '`=`'
     COMMA = '`,`'
+    INT = 'integer'
     END = 'end of file'
 
 
@@ -54,6 +55,12 @@ PUNCTUATION = {'{': Tok.LBRACE, '}': Tok.RBRACE, '=': Tok.EQUALS, ',': Tok.COMMA
 ESCAPES = {'"': '"', '\\': '\\', '$': '$'}
 NAME_HINT = 'a name is a lowercase letter followed by lowercase letters, digits or `_`'
 COMMENT_HINT = 'mime has no comments; put the English in a `description`'
+ARITHMETIC_HINT = 'arithmetic is written as an operation: `add {i64, a, b}`, `sub {…}` or `mul {…}`'
+ARITHMETIC = frozenset('+-*/%()')
+
+
+def _digit(c: str) -> bool:
+    return '0' <= c <= '9'
 
 
 def _name_start(c: str) -> bool:
@@ -90,7 +97,10 @@ def tokens(source: str) -> Iterator[Token]:
         while k < len(source) and _name_char(source[k]):
             k += 1
         if k < len(source) and _glued(source[k]):
-            fail('syntax', f'`{source[k]}` cannot appear in a name', NAME_HINT, i, _run_end(source, k), col + k - i)
+            # `input-1` is subtraction written infix, while `$my-word` is a name written in kebab case.
+            minus = source[k] == '-' and k + 1 < len(source) and _digit(source[k + 1])
+            hint = ARITHMETIC_HINT if minus else NAME_HINT
+            fail('syntax', f'`{source[k]}` cannot appear in a name', hint, i, _run_end(source, k), col + k - i)
         return k
 
     while i < len(source):
@@ -113,6 +123,21 @@ def tokens(source: str) -> Iterator[Token]:
             yield Token(Tok.WORD, source[i + 1 : j], Span(line, col, i, j))
             col += j - i
             i = j
+        elif _digit(c) or (c == '-' and i + 1 < len(source) and _digit(source[i + 1])):
+            j = i + 1 if c == '-' else i
+            k = j
+            while k < len(source) and _digit(source[k]):
+                k += 1
+            if k < len(source) and _glued(source[k]):
+                hint = ARITHMETIC_HINT if source[k] == '-' else 'an integer is written in decimal digits, such as `12`'
+                fail('syntax', f'`{source[k]}` cannot follow a number', hint, i, _run_end(source, k), col + k - i)
+            digits = source[j:k]
+            if (len(digits) > 1 and digits[0] == '0') or (c == '-' and digits == '0'):
+                number = source[i:k]
+                fail('syntax', f'`{number}` is not how an integer is written', f'write `{int(number)}`', i, k)
+            yield Token(Tok.INT, source[i:k], Span(line, col, i, k))
+            col += k - i
+            i = k
         elif _name_start(c):
             j = name_end(i)
             yield Token(Tok.NAME, source[i:j], Span(line, col, i, j))
@@ -144,7 +169,7 @@ def tokens(source: str) -> Iterator[Token]:
         elif c.isalpha():
             fail('syntax', f'`{c}` cannot start a name', NAME_HINT, i, _run_end(source, i))
         else:
-            fail('syntax', f'unexpected character `{c}`', None, i, i + 1)
+            fail('syntax', f'unexpected character `{c}`', ARITHMETIC_HINT if c in ARITHMETIC else None, i, i + 1)
 
     yield Token(Tok.END, '', Span(line, col, i, i))
 

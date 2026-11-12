@@ -55,7 +55,8 @@ $pair   = {description = "two whole numbers, $first and $second", sort = {$first
 ```
 
 - Every entry has a `description`.
-- **Words are unique in a module.** Each word has exactly one entry, at the top level. Entries do not nest.
+- **Words are unique in a module.** Each word has exactly one entry, at the top level. Entries do not nest. A local
+  bound by a `let` (§6) is unique in its body and never reuses a module word.
 - An entry's keys are all language words and a module's keys are all domain words, so the two never collide. (Oymo
   needs a rule that no symbol may be named `type`. mime does not.)
 - A word means only what its entry says. Its spelling carries nothing.
@@ -164,7 +165,8 @@ $twice = {
 }
 ```
 
-- Local names are domain words, so they carry `$` and are renameable.
+- Local names are domain words, so they carry `$` and are renameable. A local is unique in its body, is not a
+  module word, has no description, and must be used ([step-3.md](step-3.md)).
 - Following oymo, operations take their sort as an operand (`add {i64, …}`). Locals carry no annotation.
 - Control flow follows oymo's regions (a struct of blocks that see each other). The grammar doc fixes how.
 
@@ -267,8 +269,8 @@ layer is designed.
 
 ## Open questions
 
-1. **Locals and descriptions.** Do local `let` names need descriptions? Bound variables in a math proof usually get
-   none. "One form" means it must be always or never.
+1. **Locals and descriptions.** Settled in [step-3.md](step-3.md): never. A local names an intermediate value, like
+   a bound variable in a proof.
 2. **Input reference.** Is `input` the right language word for the single parameter, and how does it work inside
    nested regions?
 3. **Header format.** Is a header written by hand, generated, or both, as in oymo?

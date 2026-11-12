@@ -1,0 +1,10 @@
+$number = {description = "a whole number", sort = i64}
+$affine = {
+  description = "three times the $number it is given, plus one",
+  takes = $number,
+  returns = $number,
+  body = let $double = add {i64, input, input} in
+         let $triple = add {i64, $double, input} in
+         let $result = add {i64, $triple, 1} in
+         $result
+}
