@@ -15,9 +15,9 @@ define @f {@n, @flag} -> i64 {
 ^yes{}:
   ret 0
 }
-abstract = "x"
+abstract = "x of @n and @flag"
 
 define @g {@n} -> @flag {
   ret 1
 }
-abstract = "x"
+abstract = "x of @n"

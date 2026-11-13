@@ -9,4 +9,4 @@ define @f {@n} -> i64 {
 ^end{%result}:
   ret %result
 }
-abstract = "x"
+abstract = "x of @n"

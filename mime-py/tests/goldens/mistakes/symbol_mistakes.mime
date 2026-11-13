@@ -3,23 +3,23 @@
 define @f {@n} -> i64 {
   ret @n
 }
-abstract = "x"
+abstract = "x of @n"
 symbol = "2bad"
 
 define @g {@n} -> i64 {
   ret @n
 }
-abstract = "x"
+abstract = "x of @n"
 symbol = "main"
 
 define @h {@n} -> i64 {
   ret @n
 }
-abstract = "x"
+abstract = "x of @n"
 symbol = "dup"
 
 define @k {@n} -> i64 {
   ret @n
 }
-abstract = "x"
+abstract = "x of @n"
 symbol = "dup"

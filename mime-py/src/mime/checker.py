@@ -333,6 +333,23 @@ class _Checker:
         if d.symbol is not None:
             self.symbol(d)
         self.references(word, position, d.abstract)
+        self.mentions_inputs(d, inputs)
+
+    def mentions_inputs(self, d: Definition, inputs: dict[str, Value]) -> None:
+        """A function's abstract names every input with `@`, since it states the result in their terms (layout.md 4.1)."""
+        if d.abstract.kind != Tok.STRING:
+            return
+        named = {r.word for r in d.abstract.refs if r.word is not None and r.stray is None}
+        for w in inputs:
+            if w not in named:
+                self.report(
+                    'unmentioned-input',
+                    f'the abstract of `@{d.word.text}` does not name its input `@{w}`',
+                    d.abstract.span,
+                    f'say what the result is in terms of `@{w}`, and write it as `@{w}`',
+                    entry=d.word.text,
+                    key='abstract',
+                )
 
     def symbol(self, d: Definition) -> None:
         """`symbol = "clamp"`: a C identifier, unique in the module, and not `main`, which `mime run` defines."""

@@ -4,20 +4,21 @@ import pytest
 
 from mime.compiler import analyze
 from mime.diag import Diagnostic
+from tests.run_cases import CONTEXT
 
 NUMBER = '@number = {type = i64, abstract = "a whole number"}\n'
 SAME = 'define @same {@number} -> @number {\n  ret @number\n}\nabstract = "the @number it is given"\n'
 
 
 def mistakes(source: str) -> list[Diagnostic]:
-    """The mistakes in `source` besides `unused-word`, which these programs are not about."""
-    return [d for d in analyze(source)[1] if d.kind != 'unused-word']
+    """The mistakes in `source` besides those in `CONTEXT`, which these programs are not about."""
+    return [d for d in analyze(source)[1] if d.kind not in CONTEXT]
 
 
 def kinds(source: str) -> list[str]:
-    # These programs test other mistakes, so a data word they leave unused is not reported here; `unused-word` has
-    # tests of its own (check_test.py).
-    return [d.kind for d in analyze(source)[1] if d.kind != 'unused-word']
+    # These programs test other mistakes, so the rules about a whole program's words are not reported here; they have
+    # tests of their own (check_test.py).
+    return [d.kind for d in analyze(source)[1] if d.kind not in CONTEXT]
 
 
 def define(head: str, body: str = 'ret @number', word: str = '@f') -> str:
@@ -195,7 +196,8 @@ def test_the_abstract_inside_the_body() -> None:
 
 def test_a_data_word_nothing_refers_to_is_unused() -> None:
     (d,) = analyze(
-        '@n = {type = i64, abstract = "x"}\n@m = {type = i64, abstract = "x"}\n' + define('{@n} -> @n', 'ret @n')
+        '@n = {type = i64, abstract = "x"}\n@m = {type = i64, abstract = "x"}\n'
+        + define('{@n} -> @n', 'ret @n').replace('"x"', '"x of @n"')
     )[1]
     assert (d.kind, d.entry, d.key, d.text) == ('unused-word', '@m', None, '@m')
     assert d.hint == 'use it in a type, a body or an abstract, or remove it'
@@ -205,10 +207,24 @@ def test_a_data_word_nothing_refers_to_is_unused() -> None:
     'use',
     [
         '@other = {type = i64, abstract = "more than @m"}\n'
-        + define('{@other} -> @other', 'ret @other'),  # an abstract
+        + define('{@other} -> @other', 'ret @other').replace('"x"', '"x of @other"'),  # an abstract
         define('{} -> i64', 'ret 1').replace('abstract = "x"', 'abstract = "one, never @m"'),  # a function's abstract
-        define('{@m} -> i64', 'ret @m'),  # a type
+        define('{@m} -> i64', 'ret @m').replace('"x"', '"x of @m"'),  # a type
     ],
 )
 def test_a_reference_anywhere_uses_a_data_word(use: str) -> None:
     assert analyze('@m = {type = i64, abstract = "x"}\n' + use)[1] == []
+
+
+def test_an_abstract_names_every_input() -> None:
+    words = '@n = {type = i64, abstract = "x"}\n@m = {type = i64, abstract = "x"}\n'
+    sum_of = define('{@n, @m} -> @n', '%s = add i64 @n, @m\n  ret %s')
+    (d,) = analyze(words + sum_of.replace('"x"', '"the sum of @n and m"'))[1]  # `m` without `@` is only English
+    assert (d.kind, d.entry, d.key) == ('unmentioned-input', '@f', 'abstract')
+    assert d.message == 'the abstract of `@f` does not name its input `@m`'
+    assert d.hint == 'say what the result is in terms of `@m`, and write it as `@m`'
+    assert analyze(words + sum_of.replace('"x"', '"the sum of @n and @m"'))[1] == []
+
+
+def test_a_function_without_inputs_names_none() -> None:
+    assert analyze(define('{} -> i64', 'ret 7').replace('"x"', '"always seven"'))[1] == []

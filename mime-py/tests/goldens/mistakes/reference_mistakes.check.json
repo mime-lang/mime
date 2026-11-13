@@ -8,6 +8,14 @@
     "hint": "write `\\@` for an at sign"
   },
   {
+    "kind": "unmentioned-input",
+    "entry": "@same",
+    "key": "abstract",
+    "text": "\"the @numbr it is given, a @numberX, the @double, see @same and @later, write to help@example\"",
+    "message": "the abstract of `@same` does not name its input `@number`",
+    "hint": "say what the result is in terms of `@number`, and write it as `@number`"
+  },
+  {
     "kind": "undeclared-word",
     "entry": "@same",
     "key": "abstract",

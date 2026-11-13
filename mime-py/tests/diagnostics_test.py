@@ -4,13 +4,14 @@ import pytest
 
 from mime.compiler import analyze
 from mime.diag import Diagnostic
+from tests.run_cases import CONTEXT
 
 NUMBER = '@number = {type = i64, abstract = "a whole number"}\n'
 
 
 def mistakes(source: str) -> list[Diagnostic]:
-    """The mistakes in `source` besides `unused-word`, which these programs are not about."""
-    return [d for d in analyze(source)[1] if d.kind != 'unused-word']
+    """The mistakes in `source` besides those in `CONTEXT`, which these programs are not about."""
+    return [d for d in analyze(source)[1] if d.kind not in CONTEXT]
 
 
 def where(source: str) -> list[tuple[str | None, str | None, str | None]]:

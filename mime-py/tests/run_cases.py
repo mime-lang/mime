@@ -1,6 +1,7 @@
 """The run cases of the clean goldens, `goldens/clean/NAME.runs.json`, which every backend must pass (step-8.md section 5)."""
 
 import json
+import re
 import shutil
 from pathlib import Path
 
@@ -56,3 +57,17 @@ def outcome(program: Program, symbol: str, inputs: list[str], backend: str) -> s
 
 def matches(got: str, expected: str) -> bool:
     return got == expected if expected.endswith('\n') else expected in got
+
+
+# The rules about a whole program's words: a data word nothing refers to, and an input its function's abstract
+# leaves out. Tests of other mistakes write short programs that break these on purpose, so they leave them out.
+CONTEXT = frozenset({'unused-word', 'unmentioned-input'})
+
+
+def abstract_for(head: str) -> str:
+    """A placeholder abstract that names every input of `head`, such as `{@a, @b} -> @c`, so a test program stays clean.
+
+    Its English says nothing: the tests that use it are about bodies, not abstracts.
+    """
+    inputs = re.findall(r'@\w+', head.split('->')[0])
+    return 'abstract = "x' + (' of ' + ' and '.join(inputs) if inputs else '') + '"'

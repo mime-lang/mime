@@ -8,22 +8,29 @@ import pytest
 from mime import interp
 from mime.cli import main
 from mime.compiler import analyze, run
+from mime.diag import Diagnostic
 from mime.parser import parse
 from mime.printer import canon, layout, rename
 from mime.tools import show, uses
+from tests.run_cases import CONTEXT
 
 N = '@n = {type = i64, abstract = "a whole number"}\n'
 SAME = 'define @same {@n} -> i64 {\n  ret @n\n}\nabstract = "the @n it is given"\n'
 
 
+def mistakes(source: str) -> list[Diagnostic]:
+    """The mistakes in `source` besides those in `CONTEXT`, which these programs are not about."""
+    return [d for d in analyze(source)[1] if d.kind not in CONTEXT]
+
+
 def caller(body: str, word: str = '@f') -> str:
-    return f'define {word} {{@n}} -> i64 {{\n{body}\n}}\nabstract = "x"\n'
+    return f'define {word} {{@n}} -> i64 {{\n{body}\n}}\nabstract = "x of @n"\n'
 
 
 def kinds(source: str) -> list[str]:
-    # These programs test other mistakes, so a data word they leave unused is not reported here; `unused-word` has
-    # tests of its own (check_test.py).
-    return [d.kind for d in analyze(source)[1] if d.kind != 'unused-word']
+    # These programs test other mistakes, so the rules about a whole program's words are not reported here; they have
+    # tests of their own (check_test.py).
+    return [d.kind for d in analyze(source)[1] if d.kind not in CONTEXT]
 
 
 @pytest.mark.parametrize(
@@ -37,7 +44,7 @@ def kinds(source: str) -> list[str]:
     ],
 )
 def test_call_syntax_hints(body: str, hint: str) -> None:
-    (d,) = analyze(N + SAME + caller(body))[1]
+    (d,) = mistakes(N + SAME + caller(body))
     assert d.hint is not None
     assert hint in d.hint
 
@@ -50,7 +57,7 @@ def test_call_syntax_hints(body: str, hint: str) -> None:
     ],
 )
 def test_a_declaration_is_only_a_head(declaration: str, hint: str) -> None:
-    (d,) = analyze(N + declaration)[1]
+    (d,) = mistakes(N + declaration)
     assert d.kind == 'syntax'
     assert d.hint is not None
     assert hint in d.hint
@@ -65,7 +72,7 @@ def test_an_unread_call_is_an_unused_local() -> None:
 
 
 def test_a_call_of_a_missing_function_suggests_one() -> None:
-    (d,) = analyze(N + SAME + caller('%r = call @sme {@n = @n}\nret %r'))[1]
+    (d,) = mistakes(N + SAME + caller('%r = call @sme {@n = @n}\nret %r'))
     assert (d.kind, d.hint) == ('undeclared-word', 'did you mean `@same`?')
 
 
@@ -171,13 +178,15 @@ def test_a_self_call_follows_its_own_head_when_the_declaration_differs() -> None
     source = (
         N + '@m = {type = i64, abstract = "y"}\ndeclare @g {@n} -> i64\n' + caller('%r = call @g {@n = @n}\nret %r')
     )
-    source += 'define @g {@m} -> i64 {\n  %r = call @g {@m = @m}\n  ret %r\n}\nabstract = "x"\n'
+    source += 'define @g {@m} -> i64 {\n  %r = call @g {@m = @m}\n  ret %r\n}\nabstract = "x of @m"\n'
     assert report(source) == [('wrong-type', '`@g` is declared above as `{@n} -> i64`')]
 
 
 def test_a_declaration_below_the_caller_is_moved_not_repeated() -> None:
     source = N + caller('%r = call @g {@n = @n}\nret %r') + 'declare @g {@n} -> i64\n'
-    source += caller('%r = call @g {@n = @n}\nret %r', '@h') + 'define @g {@n} -> i64 {\n  ret @n\n}\nabstract = "x"\n'
+    source += (
+        caller('%r = call @g {@n = @n}\nret %r', '@h') + 'define @g {@n} -> i64 {\n  ret @n\n}\nabstract = "x of @n"\n'
+    )
     assert report(source) == [('forward-reference', 'move `declare @g {@n} -> i64` above `@f`')]
 
 

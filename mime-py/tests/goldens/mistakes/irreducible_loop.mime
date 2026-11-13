@@ -12,4 +12,4 @@ define @bad {@flag} -> i64 {
 ^done{%r}:
   ret %r
 }
-abstract = "counts to ten, starting the loop at either of two blocks"
+abstract = "the first number from 10 up that the loop reaches, whichever block @flag starts it at"

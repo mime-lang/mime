@@ -10,25 +10,25 @@ from mime.compiler import analyze
 from mime.diag import Diagnostic
 from mime.parser import parse
 from mime.printer import canon, keep_words
-from tests.run_cases import BACKENDS
+from tests.run_cases import BACKENDS, CONTEXT, abstract_for
 
 CLEAN = Path(__file__).parent / 'goldens' / 'clean'
 N = '@n = {type = i64, abstract = "a whole number"}\n@flag = {type = i1, abstract = "a truth value"}\n'
 
 
 def mistakes(source: str) -> list[Diagnostic]:
-    """The mistakes in `source` besides `unused-word`, which these programs are not about."""
-    return [d for d in analyze(source)[1] if d.kind != 'unused-word']
+    """The mistakes in `source` besides those in `CONTEXT`, which these programs are not about."""
+    return [d for d in analyze(source)[1] if d.kind not in CONTEXT]
 
 
 def function(body: str, head: str = '{@n} -> i64') -> str:
-    return N + f'define @f {head} {{\n{body}\n}}\nabstract = "x"\n'
+    return N + f'define @f {head} {{\n{body}\n}}\n{abstract_for(head)}\n'
 
 
 def kinds(source: str) -> list[str]:
-    # These programs test other mistakes, so a data word they leave unused is not reported here; `unused-word` has
-    # tests of its own (check_test.py).
-    return [d.kind for d in analyze(source)[1] if d.kind != 'unused-word']
+    # These programs test other mistakes, so the rules about a whole program's words are not reported here; they have
+    # tests of their own (check_test.py).
+    return [d.kind for d in analyze(source)[1] if d.kind not in CONTEXT]
 
 
 def test_an_i1_input_must_be_true_or_false(capsys: pytest.CaptureFixture[str]) -> None:

@@ -9,4 +9,4 @@ define @a {@number} -> @number {
   %later = add i64 %nope, %y
   ret %x
 }
-abstract = "x"
+abstract = "x of @number"

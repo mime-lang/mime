@@ -9,4 +9,4 @@ abstract = "the @numbr it is given, a @numberX, the @double, see @same and @late
 define @later {@number} -> @number {
   ret @number
 }
-abstract = "the \"next\" one, costs $5, at \@ 5"
+abstract = "the \"next\" @number, costs $5, at \@ 5"

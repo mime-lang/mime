@@ -4,13 +4,14 @@ import pytest
 
 from mime.compiler import analyze
 from mime.diag import Diagnostic
+from tests.run_cases import CONTEXT
 
 NUMBER = '@number = {type = i64, abstract = "a whole number"}\n'
 
 
 def mistakes(source: str) -> list[Diagnostic]:
-    """The mistakes in `source` besides `unused-word`, which these programs are not about."""
-    return [d for d in analyze(source)[1] if d.kind != 'unused-word']
+    """The mistakes in `source` besides those in `CONTEXT`, which these programs are not about."""
+    return [d for d in analyze(source)[1] if d.kind not in CONTEXT]
 
 
 def same(abstract: str, word: str = '@same') -> str:
@@ -18,9 +19,9 @@ def same(abstract: str, word: str = '@same') -> str:
 
 
 def kinds(source: str) -> list[str]:
-    # These programs test other mistakes, so a data word they leave unused is not reported here; `unused-word` has
-    # tests of its own (check_test.py).
-    return [d.kind for d in analyze(source)[1] if d.kind != 'unused-word']
+    # These programs test other mistakes, so the rules about a whole program's words are not reported here; they have
+    # tests of their own (check_test.py).
+    return [d.kind for d in analyze(source)[1] if d.kind not in CONTEXT]
 
 
 @pytest.mark.parametrize(

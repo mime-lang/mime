@@ -130,8 +130,26 @@ body is in view, the body already says how.
 | `"one more than @n"` | `"one more than @n, passed through two blocks"` | the blocks |
 | `"four times @count, minus ten"` | `"an i64 computed from @count"` | the type, and no result |
 
+**One part is checked: every input is named.** A function's abstract that does not refer to one of its inputs with
+`@` is `unmentioned-input`, once for each input it leaves out, with `key` `abstract`:
+
+| Kind | Message | Hint |
+|---|---|---|
+| `unmentioned-input` | "the abstract of `@gcd` does not name its input `@second`" | "say what the result is in terms of `@second`, and write it as `@second`" |
+
+- A result that does not depend on an input is still a contract worth stating: `"@first, whatever @second is"`.
+  But an input the body never reads is already `unused-local`, so this mostly catches an abstract that describes
+  only part of the result.
+- It follows references, never the English around them: `"twice the @number"` names `@number`; `"twice the
+  number"` does not.
+- A function with no inputs passes: `"always seven"`.
+- A score of how good an abstract is, written next to it, was rejected: its writer would grade it, it would go stale
+  with the body, and nothing could check it. What can be checked is checked here; the rest is judged by readers, and
+  by the benchmark, never stored in the program.
+
 *Easy for a model:* it is the first line of a docstring, which models write constantly: Go's "Foo returns …",
-Python's "Return the …". *How mistakes surface:* they do not, since the English is never checked. An abstract that
+Python's "Return the …". *How mistakes surface:* an input left out is `unmentioned-input`; the rest do not, since
+the English is never checked. An abstract that
 describes steps reads fine until the body changes, and then it is wrong without a diagnostic. The benchmark's
 scrambled-words cell, where the abstract is all that is left of a word's meaning, measures whether this guidance
 pays.

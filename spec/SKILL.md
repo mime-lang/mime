@@ -45,11 +45,12 @@ A **function** is `define @f {@inputs} -> @output { … }` followed by `abstract
   always its `@` word, never a `%` local, and there is no parameter list.
 - The abstract comes **after** the body, so you write it once you know what the body does.
 - **An abstract says what the function gives back, not how.** Write the result as a noun phrase in terms of the
-  inputs, naming each with `@`: `"the greatest common divisor of @first and @second"`, or `"whether @n is even"` for
-  an `i1`. Add what a caller must know at the edges: inputs it does not handle (`"never returns when @n is zero or
-  less"`), a result that wraps unexpectedly, and how deep it recurses (`"it recurses @n times"`), since a deep
-  recursion runs out of stack. Leave out the steps, the blocks, the helpers it calls (`"by @odd"`), and the type: the
-  body says those, and they change. A data word's abstract says what its values mean, not that they are `i64`.
+  inputs, naming each with `@` (an input left out is `unmentioned-input`): `"the greatest common divisor of @first
+  and @second"`, or `"whether @n is even"` for an `i1`. Add what a caller must know at the edges: inputs it does
+  not handle (`"never returns when @n is zero or less"`), a result that wraps unexpectedly, and how deep it recurses
+  (`"it recurses @n times"`), since a deep recursion runs out of stack. Leave out the steps, the blocks, the helpers
+  it calls (`"by @odd"`), and the type: the body says those, and they change. A data word's abstract says what its
+  values mean, not that they are `i64`.
 - An optional `symbol = "name"` after the abstract exports the function under that name, for C, other modules and
   `mime run` to call. It must be a C identifier and unique, and renaming never changes it. Without it, the function
   is internal. **To run a function, export it.**

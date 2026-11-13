@@ -6,17 +6,23 @@ import pytest
 
 from mime.cli import main
 from mime.compiler import analyze
+from mime.diag import Diagnostic
 from mime.lower import lower
 from mime.parser import parse
 from mime.printer import canon, rename
-from tests.run_cases import BACKENDS
+from tests.run_cases import BACKENDS, CONTEXT
 
 N = '@n = {type = i64, abstract = "a whole number"}\n'
 
 
+def mistakes(source: str) -> list[Diagnostic]:
+    """The mistakes in `source` besides those in `CONTEXT`, which these programs are not about."""
+    return [d for d in analyze(source)[1] if d.kind not in CONTEXT]
+
+
 def function(symbol: str | None, word: str = '@f') -> str:
     line = f'symbol = "{symbol}"\n' if symbol is not None else ''
-    return f'define {word} {{@n}} -> i64 {{\n  ret @n\n}}\nabstract = "x"\n{line}'
+    return f'define {word} {{@n}} -> i64 {{\n  ret @n\n}}\nabstract = "x of @n"\n{line}'
 
 
 def test_an_exported_function_takes_its_symbol() -> None:
@@ -49,7 +55,7 @@ def test_symbol_mistakes(source: str, expected: list[str]) -> None:
 
 
 def test_a_symbol_mistake_names_its_key() -> None:
-    (d,) = analyze(N + function('2bad'))[1]
+    (d,) = mistakes(N + function('2bad'))
     assert (d.entry, d.key, d.text) == ('@f', 'symbol', '"2bad"')
 
 
@@ -64,7 +70,7 @@ def test_show_prints_the_symbol(tmp_path: Path, capsys: pytest.CaptureFixture[st
     p = tmp_path / 'p.mime'
     p.write_text(N + function('next_number'))
     assert main(['show', str(p), '@f']) == 0
-    assert capsys.readouterr().out.endswith('abstract = "x"\nsymbol = "next_number"\n')
+    assert capsys.readouterr().out.endswith('abstract = "x of @n"\nsymbol = "next_number"\n')
 
 
 @pytest.mark.parametrize('backend', BACKENDS)

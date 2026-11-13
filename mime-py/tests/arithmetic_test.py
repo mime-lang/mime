@@ -8,18 +8,26 @@ import pytest
 
 from mime.cli import main
 from mime.compiler import analyze
+from mime.diag import Diagnostic
+from tests.run_cases import CONTEXT, abstract_for
 
 NUMBER = '@number = {type = i64, abstract = "a whole number"}\n'
 GOLDENS = Path(__file__).parent / 'goldens' / 'clean'
 MIN, MAX = -(2**63), 2**63 - 1
 
 
+def mistakes(source: str) -> list[Diagnostic]:
+    """The mistakes in `source` besides those in `CONTEXT`, which these programs are not about."""
+    return [d for d in analyze(source)[1] if d.kind not in CONTEXT]
+
+
 def function(lines: str, word: str = '@f', head: str = '{@number} -> @number') -> str:
-    return f'define {word} {head} {{\n{lines}\n}}\nabstract = "x"\n'
+    return f'define {word} {head} {{\n{lines}\n}}\n{abstract_for(head)}\n'
 
 
 def kinds(source: str) -> list[str]:
-    return [d.kind for d in analyze(source)[1]]
+    # These programs test other mistakes; the rules about a whole program's words have tests of their own.
+    return [d.kind for d in analyze(source)[1] if d.kind not in CONTEXT]
 
 
 @pytest.mark.parametrize(
@@ -96,14 +104,14 @@ def test_body_mistakes(lines: str, expected: list[str]) -> None:
 
 def test_a_local_spelled_like_an_input() -> None:
     # The hint uses the spelling; what is reported does not, so a renaming cannot change it.
-    diagnostics = analyze(NUMBER + function('ret %number'))[1]
+    diagnostics = mistakes(NUMBER + function('ret %number'))
     assert [(d.kind, d.text) for d in diagnostics] == [('unused-local', '@number'), ('undeclared-word', '%number')]
     assert diagnostics[1].hint == 'an input is its word: write `@number`'
 
 
 def test_a_body_reads_only_its_inputs() -> None:
     other = '@other = {type = i64, abstract = "another number"}\n'
-    (d,) = analyze(NUMBER + other + function('%r = add i64 @number, @other\nret %r'))[1]
+    (d,) = mistakes(NUMBER + other + function('%r = add i64 @number, @other\nret %r'))
     assert (d.kind, d.text) == ('not-a-value', '@other')
     assert d.hint is not None
     assert d.hint.endswith('to read it, list it in the inputs')
@@ -112,18 +120,18 @@ def test_a_body_reads_only_its_inputs() -> None:
 def test_a_typo_for_a_result_suggests_the_result() -> None:
     # The misspelled local and the unread one are both reported: guessing which local a typo means depends on
     # spelling, so it may change the hint but never what is reported (design/step-5.md section 1).
-    unused, typo = analyze(NUMBER + function('%double = add i64 @number, @number\nret %doubel'))[1]
+    unused, typo = mistakes(NUMBER + function('%double = add i64 @number, @number\nret %doubel'))
     assert (unused.kind, unused.text) == ('unused-local', '%double')
     assert (typo.kind, typo.hint) == ('undeclared-word', 'did you mean `%double`?')
 
 
 def test_a_wrong_return_leaves_the_right_result_unused() -> None:
-    (d,) = analyze(NUMBER + function('%a = add i64 @number, 1\n%b = mul i64 %a, 2\nret %a'))[1]
+    (d,) = mistakes(NUMBER + function('%a = add i64 @number, 1\n%b = mul i64 %a, 2\nret %a'))
     assert (d.kind, d.text) == ('unused-local', '%b')
 
 
 def test_an_ignored_input_is_reported_on_the_type() -> None:
-    (d,) = analyze(NUMBER + function('ret 7'))[1]
+    (d,) = mistakes(NUMBER + function('ret 7'))
     assert (d.kind, d.key, d.text) == ('unused-local', 'type', '@number')
 
 
@@ -163,7 +171,7 @@ def test_every_lowered_instruction_wraps() -> None:
     ],
 )
 def test_hints_for_old_forms_and_llvm_habits(lines: str, hint: str | None) -> None:
-    (d,) = analyze(NUMBER + function(lines))[1]
+    (d,) = mistakes(NUMBER + function(lines))
     assert d.kind in ('syntax', 'unknown-language-word', 'undeclared-word')
     if hint is not None:
         assert d.hint is not None
