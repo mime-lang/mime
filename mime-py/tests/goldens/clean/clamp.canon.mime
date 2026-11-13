@@ -3,16 +3,17 @@
 @w2 = {type = i64, abstract = "the largest @w0 allowed"}
 
 define @w3 {@w0, @w1, @w2} -> i64 {
-  %0 = icmp slt i64 @w0, @w1
-  br %0, ^0{}, ^1{}
-^1{}:
-  %1 = icmp sgt i64 @w0, @w2
-  br %1, ^2{}, ^3{}
-^0{}:
+  %v0 = icmp slt i64 @w0, @w1
+  br %v0, ^b0{}, ^b1{}
+^b1{}:
+  %v1 = icmp sgt i64 @w0, @w2
+  br %v1, ^b2{}, ^b3{}
+^b0{}:
   ret @w1
-^2{}:
+^b2{}:
   ret @w2
-^3{}:
+^b3{}:
   ret @w0
 }
 abstract = "@w0, moved into the range from @w1 to @w2"
+symbol = "clamp"

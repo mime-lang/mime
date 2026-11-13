@@ -1,0 +1,18 @@
+[
+  {
+    "kind": "redundant-parameter",
+    "entry": "@f",
+    "key": "body",
+    "text": "%limit",
+    "message": "`%limit` only ever carries the input `@n`, which every block reads",
+    "hint": "drop the parameter and its arguments, and write `@n` where it is read"
+  },
+  {
+    "kind": "redundant-parameter",
+    "entry": "@f",
+    "key": "body",
+    "text": "%step",
+    "message": "`%step` only ever carries `1`",
+    "hint": "drop the parameter and its arguments, and write `1` where it is read"
+  }
+]

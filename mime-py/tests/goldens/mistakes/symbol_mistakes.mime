@@ -1,0 +1,25 @@
+@n = {type = i64, abstract = "x"}
+
+define @f {@n} -> i64 {
+  ret @n
+}
+abstract = "x"
+symbol = "2bad"
+
+define @g {@n} -> i64 {
+  ret @n
+}
+abstract = "x"
+symbol = "main"
+
+define @h {@n} -> i64 {
+  ret @n
+}
+abstract = "x"
+symbol = "dup"
+
+define @k {@n} -> i64 {
+  ret @n
+}
+abstract = "x"
+symbol = "dup"

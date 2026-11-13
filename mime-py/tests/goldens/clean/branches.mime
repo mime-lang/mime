@@ -2,12 +2,12 @@
 @flag = {type = i1, abstract = "a truth value"}
 
 define @sum {@n} -> i64 {
-  br ^loop{0, 0, @n}
-^loop{%i, %total, %limit}:
-  %done = icmp sgt i64 %i, %limit
+  br ^loop{0, 0}
+^loop{%i, %total}:
+  %done = icmp sgt i64 %i, @n
   %next = add i64 %i, 1
   %more = add i64 %total, %i
-  br %done, ^end{%total}, ^loop{%next, %more, %limit}
+  br %done, ^end{%total}, ^loop{%next, %more}
 ^end{%result}:
   ret %result
 }

@@ -1,73 +1,115 @@
-"""Lower a checked program to textual LLVM IR (design/step-4.md section 5, step-6.md section 8, step-7.md section 7)."""
+"""Lower a checked program to textual LLVM IR (design/step-4.md section 5, step-7.md section 7).
+
+Lowering copies the names of the canonical form (design/step-5.md, step-6.md): an input is `%w0`, a local `%v0`, a
+block `b0`. Each kind has its own prefix, so no name needs quoting, renumbering, or a check for clashes, and the IR
+reads with the same names as `mime canon`. A function is exported under its `symbol`, or is internal to its module
+as `@mime.word`.
+"""
 
 from mime.checker import Function, Program
 from mime.lexer import Tok
 from mime.parser import Block, Line, Value
+from mime.printer import Names, canonical_names, pass_throughs
 
 
-def symbol(word: str) -> str:
-    """`@"mime.affine"`: a `.` cannot appear in a C symbol, so no runtime symbol can clash, and an ELF linker reads
-    an `@` inside a symbol as a version, so the word's own `@` is left out."""
-    return f'@"mime.{word}"'
+def symbol(f: Function) -> str:
+    """The function's LLVM name: its `symbol`, or `mime.word`. A `.` cannot appear in a C symbol, so an internal name
+    never clashes with an exported one or with the runner's own, and the word's `@` is left out because an ELF linker
+    reads an `@` inside a symbol as a version."""
+    return f'@{f.symbol}' if f.symbol is not None else f'@mime.{f.word}'
 
 
-def _label(b: Block) -> str:
-    return 'entry' if b.label is None else f'"^{b.label.text}"'
+class _Function:
+    def __init__(self, f: Function, names: Names, index: int) -> None:
+        self.f = f
+        self.names = names
+        self.index = index
+        self.blocks = f.definition.blocks
+        self.by_label = {b.label.text: i for i, b in enumerate(self.blocks) if b.label is not None}
+        # A parameter that only carries one value is that value: its block's dominator defines it, so it needs no `phi`.
+        self.through = set(pass_throughs(f.definition))
 
+    def label(self, i: int) -> str:
+        b = self.blocks[i]
+        return 'entry' if b.label is None else self.names.label(self.index, b.label.text)
 
-def _local(b: Block, name: str) -> str:
-    """A local is named after its block, since the same local may be bound in two blocks."""
-    return f'%"%{name}"' if b.label is None else f'%"^{b.label.text}%{name}"'
+    def operand(self, i: int, v: Value) -> str:
+        if v.kind == Tok.WORD:
+            return f'%{self.names.word(v.text)}'
+        if v.kind == Tok.LOCAL:
+            return f'%{self.names.local(self.index, i, v.text)}'
+        return v.text  # an integer, `true` or `false`
 
+    def needs_edges(self, i: int) -> bool:
+        """A two-way `br` whose arms reach the same block with parameters goes through two edge blocks, so each `phi`
+        has one entry per predecessor (design/step-7.md section 7)."""
+        end = self.blocks[i].end
+        if end.keyword.text != 'br' or end.value is None:
+            return False
+        first, second = end.targets
+        target = self.blocks[self.by_label[first.label.text]]
+        return first.label.text == second.label.text and any(
+            (self.by_label[first.label.text], p.text) not in self.through for p in target.params
+        )
 
-def _operand(b: Block, v: Value) -> str:
-    """An input is `%"@number"` and a local `%"%0"`: quoted, because a bare `%0` is an unnamed LLVM value."""
-    if v.kind == Tok.WORD:
-        return f'%"@{v.text}"'
-    if v.kind == Tok.LOCAL:
-        return _local(b, v.text)
-    return v.text  # an integer, `true` or `false`
+    def edge(self, i: int, k: int) -> str:
+        return f'{self.label(i)}.e{k}'
 
+    def text(self) -> str:
+        incoming: dict[int, list[tuple[str, list[str]]]] = {j: [] for j in range(len(self.blocks))}
+        for i, b in enumerate(self.blocks):
+            for k, t in enumerate(b.end.targets):
+                source = self.edge(i, k) if self.needs_edges(i) else self.label(i)
+                incoming[self.by_label[t.label.text]].append((source, [self.operand(i, a) for a in t.args]))
+        params = ', '.join(f'{self.f.input_types[w]} %{self.names.word(w)}' for w in self.f.inputs)
+        linkage = '' if self.f.symbol is not None else 'internal '
+        out = [f'define {linkage}{self.f.output_type} {symbol(self.f)}({params}) {{']
+        for i, b in enumerate(self.blocks):
+            if b.label is not None:
+                canonical = self.label(i)
+                note = f'{" " * 40}; ^{b.label.text}' if b.label.text != canonical else ''
+                out.append(f'{canonical}:{note}'.rstrip() if note else f'{canonical}:')
+            elif any(self.by_label.get(t.label.text) is not None for t in b.end.targets):
+                out.append('entry:')
+            for k, p in enumerate(b.params):
+                if (i, p.text) in self.through:
+                    continue
+                ty = self.f.local_types[(i, p.text)]
+                pairs = ', '.join(f'[ {args[k]}, %{source} ]' for source, args in incoming[i])
+                out.append(f'  %{self.names.local(self.index, i, p.text)} = phi {ty} {pairs}')
+            out += [self.line(i, x) for x in b.lines]
+            out += self.end(i, b)
+        return '\n'.join([*out, '}']) + '\n'
 
-def _line(b: Block, x: Line) -> str:
-    # No `nsw` or `nuw` flag, so overflow wraps.
-    op = f'icmp {x.predicate.text}' if x.predicate is not None else x.operation.text
-    return f'  {_local(b, x.result.text)} = {op} i64 {_operand(b, x.left)}, {_operand(b, x.right)}'
+    def line(self, i: int, x: Line) -> str:
+        # No `nsw` or `nuw` flag, so overflow wraps.
+        op = f'icmp {x.predicate.text}' if x.predicate is not None else x.operation.text
+        left, right = self.operand(i, x.left), self.operand(i, x.right)
+        return f'  %{self.names.local(self.index, i, x.result.text)} = {op} i64 {left}, {right}'
 
-
-def _function(f: Function) -> str:
-    blocks = f.definition.blocks
-    by_label = {b.label.text: b for b in blocks if b.label is not None}
-    index = {id(b): i for i, b in enumerate(blocks)}
-    # Every jump goes through its own edge block, so each `phi` has one entry per predecessor, even when a `br` jumps
-    # to one block twice with different arguments (design/step-7.md section 7).
-    incoming: dict[int, list[tuple[str, tuple[str, ...]]]] = {i: [] for i in range(len(blocks))}
-    for i, b in enumerate(blocks):
-        for k, t in enumerate(b.end.targets):
-            incoming[index[id(by_label[t.label.text])]].append((f'"e{i}.{k}"', tuple(_operand(b, a) for a in t.args)))
-    params = ', '.join(f'{f.input_types[w]} %"@{w}"' for w in f.inputs)
-    out = [f'define {f.output_type} {symbol(f.word)}({params}) {{']
-    for i, b in enumerate(blocks):
-        out.append(f'{_label(b)}:')
-        for k, p in enumerate(b.params):
-            ty = f.local_types[(i, p.text)]
-            pairs = ', '.join(f'[ {args[k]}, %{edge} ]' for edge, args in incoming[i])
-            out.append(f'  {_local(b, p.text)} = phi {ty} {pairs}')
-        out += [_line(b, x) for x in b.lines]
-        end = b.end
-        if end.keyword.text == 'ret' and end.value is not None:
-            out.append(f'  ret {f.output_type} {_operand(b, end.value)}')
-        elif end.value is not None:
-            out.append(f'  br i1 {_operand(b, end.value)}, label %"e{i}.0", label %"e{i}.1"')
-        else:
-            out.append(f'  br label %"e{i}.0"')
-        for k, t in enumerate(end.targets):
-            out += [f'"e{i}.{k}":', f'  br label %{_label(by_label[t.label.text])}']
-    return '\n'.join([*out, '}']) + '\n'
+    def end(self, i: int, b: Block) -> list[str]:
+        e = b.end
+        if e.keyword.text == 'ret' and e.value is not None:
+            return [f'  ret {self.f.output_type} {self.operand(i, e.value)}']
+        edges = self.needs_edges(i)
+        labels = [
+            f'label %{self.edge(i, k) if edges else self.label(self.by_label[t.label.text])}'
+            for k, t in enumerate(e.targets)
+        ]
+        head = (
+            f'  br i1 {self.operand(i, e.value)}, {", ".join(labels)}' if e.value is not None else f'  br {labels[0]}'
+        )
+        out = [head]
+        if edges:
+            for k, t in enumerate(e.targets):
+                out += [f'{self.edge(i, k)}:', f'  br label %{self.label(self.by_label[t.label.text])}']
+        return out
 
 
 def lower(program: Program) -> str:
-    return '\n'.join(_function(f) for f in program.functions)
+    names = canonical_names(program.module)
+    index = {id(x): i for i, x in enumerate(program.module.items)}
+    return '\n'.join(_Function(f, names, index[id(f.definition)]).text() for f in program.functions)
 
 
 def runner(program: Program, word: str) -> str:
@@ -89,7 +131,7 @@ def runner(program: Program, word: str) -> str:
             args.append(f'i1 %bit{i}')
         else:
             args.append(f'i64 %arg{i}')
-    call = f'  %result = call {f.output_type} {symbol(f.word)}({", ".join(args)})'
+    call = f'  %result = call {f.output_type} {symbol(f)}({", ".join(args)})'
     if f.output_type == 'i1':
         show = [
             '  %word = select i1 %result, ptr @.true, ptr @.false',

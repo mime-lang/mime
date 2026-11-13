@@ -81,6 +81,10 @@ abstract = "the greatest common divisor of a $first and a $second"
 ```
 
 - A definition is `define`, the function's word, its type, its body in `{…}`, and then `abstract = "…"`.
+- **`symbol = "name"`** may follow the abstract. It is the name the function is exported under, a C identifier
+  unique in the module and not `main`. A function without one is internal to its module. A symbol is data, not a
+  word: renaming and `mime canon` never change it, so what links to a function stays stable however its word is
+  spelled. (Chosen over `link`, which also reads as a verb, a library or a URL.)
 - **The type is `{inputs} -> output`.** The inputs are a struct of data words, and the output is one data word or a
   primitive. A function with no inputs is `{} -> $number`.
 - **The inputs are the parameters.** In the body, `$first` is the value passed for `$first`. The type is written

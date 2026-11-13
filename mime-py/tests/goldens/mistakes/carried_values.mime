@@ -1,0 +1,12 @@
+@n = {type = i64, abstract = "a whole number"}
+
+define @f {@n} -> i64 {
+  br ^loop{0, @n, 1}
+^loop{%i, %limit, %step}:
+  %done = icmp sgt i64 %i, %limit
+  %next = add i64 %i, %step
+  br %done, ^end{%i}, ^loop{%next, %limit, %step}
+^end{%result}:
+  ret %result
+}
+abstract = "x"

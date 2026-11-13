@@ -20,6 +20,10 @@ class Diagnostic:
 FIELDS = ('kind', 'entry', 'key', 'text', 'message', 'hint')
 
 
+class ToolError(Exception):
+    """The program is fine, but the command or the machine is not (exit code 2)."""
+
+
 class FatalError(Exception):
     """A mistake that stops parsing. The checker reports everything else without stopping."""
 

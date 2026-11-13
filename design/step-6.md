@@ -76,18 +76,19 @@ program numbers its locals instead, and `mime canon` does the numbering.
 
 ```
 define @affine {@number} -> @number {
-  %0 = add i64 @number, @number
-  %1 = add i64 %0, @number
-  %2 = add i64 %1, 1
-  ret %2
+  %v0 = add i64 @number, @number
+  %v1 = add i64 %v0, @number
+  %v2 = add i64 %v1, 1
+  ret %v2
 }
 abstract = "three times the @number it is given, plus one"
 ```
 
 - **A writer uses any local, and canon numbers them.** While working, a model may write `%double`, `%7` or `%total`,
   and mix them, for example when it adds a line to a stored body. `mime canon --locals` then renumbers every local
-  as `%0`, `%1`, … with no leading zeros, so a writer never has to count.
-- **One counter per body.** The first local in a body is `%0`, and the count continues through every block, in order
+  as `%v0`, `%v1`, … (and, from step 7, every label as `^b0`, `^b1`, …), so a writer never has to count. The
+  letters keep canon's names apart from one another and from words (`@w0`), so a backend can use them as they are.
+- **One counter per body.** The first local in a body is `%v0`, and the count continues through every block, in order
   of first appearance, so each number means one value everywhere in its function.
 - **A pass-through keeps its number.** Once blocks arrive (with branches), a block parameter that receives the same value
   on every jump into its block, or that value and itself on a loop's back edge, is the value a dominance rule would
@@ -130,11 +131,10 @@ abstract = "three times the @number it is given, plus one"
 
 ## 8. Lowering
 
-A function is mangled as `@"mime.affine"`. A `.` cannot appear in a C symbol, so it cannot clash with the
-runner's own symbols, and the word's `@` is left out because an ELF linker reads an `@` inside a symbol as a
-version. Its parameters are
-`%"@number"`. A local keeps its sigil inside quotes, `%"%0"` or `%"%double"`, because a bare `%0` is an unnamed
-value in LLVM, which LLVM requires to be numbered in its own order. Link names are decided with modules.
+Since step 7, lowering copies the canonical form's names: inputs `%w0`, locals `%v0`, blocks `b0`. A function is
+exported under its `symbol`, or is internal as `@mime.affine`: a `.` cannot appear in a C symbol, so an internal
+name never clashes with an exported one or with the runner's, and the word's `@` is left out because an ELF linker
+reads an `@` inside a symbol as a version. Step 7 section 7 has the details.
 
 ## 9. Workflow
 

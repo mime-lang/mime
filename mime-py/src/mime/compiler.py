@@ -7,17 +7,13 @@ import tempfile
 from pathlib import Path
 
 from mime.checker import Program, check
-from mime.diag import Diagnostic, FatalError
+from mime.diag import Diagnostic, FatalError, ToolError
 from mime.lower import runner
 from mime.parser import parse
 
 I64_MIN, I64_MAX = -(2**63), 2**63 - 1
 NAME = re.compile(r'[a-z][a-z0-9_]*')
 LOCAL = re.compile(r'[a-z0-9]+')
-
-
-class ToolError(Exception):
-    """The program is fine, but the command or the machine is not (exit code 2)."""
 
 
 def analyze(source: str) -> tuple[Program | None, list[Diagnostic]]:

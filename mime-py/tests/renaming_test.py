@@ -68,6 +68,10 @@ RUNS = [
     ('clean/clamp', '@clamp', ['50', '0', '10']),
     ('clean/branches', '@sum', ['10']),
     ('clean/branches', '@negate', ['true']),
+    ('clean/pass_through', '@exit', ['3']),
+    ('clean/pass_through', '@chain', ['4']),
+    ('clean/pass_through', '@invariant', ['6']),
+    ('clean/pass_through', '@differ', ['0']),
 ]
 
 

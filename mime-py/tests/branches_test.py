@@ -38,6 +38,11 @@ def kinds(source: str) -> list[str]:
         ('branches', '@pick', ['true'], '1'),
         ('branches', '@pick', ['false'], '2'),
         ('branches', '@negate', ['true'], 'false'),
+        ('pass_through', '@exit', ['3'], '12'),
+        ('pass_through', '@chain', ['4'], '5'),
+        ('pass_through', '@invariant', ['6'], '105'),
+        ('pass_through', '@differ', ['0'], '1'),
+        ('pass_through', '@differ', ['5'], '4'),
     ],
 )
 def test_run(golden: str, word: str, args: list[str], out: str, capsys: pytest.CaptureFixture[str]) -> None:
@@ -87,7 +92,7 @@ NONE = '{} -> i64'
         ('%c = icmp eq i64 @n, 0\nret %c', '{@n} -> i64', ['wrong-type']),
         ('br @n, ^a{}, ^a{}\n^a{}:\nret 1', '{@n} -> i64', ['wrong-type']),
         ('br true, ^a{1}, ^a{false}\n^a{%x}:\nret %x', NONE, ['wrong-type']),
-        ('br ^loop{@n}\n^loop{%x}:\nbr ^loop{%x}', '{@n} -> i64', []),
+        ('br ^loop{@n}\n^loop{%x}:\nbr ^loop{%x}', '{@n} -> i64', ['redundant-parameter']),
         ('br ^a{}\n^a{}:\nret 1\n^b{}:\nret 2', NONE, ['unreachable-block']),
         ('br ^a{1, 2}\n^a{%x}:\nret %x', NONE, ['bad-value']),
         ('br ^b{}\n^a{}:\nret 1', NONE, ['undeclared-word', 'unreachable-block']),
@@ -114,8 +119,8 @@ def test_canon_numbers_labels_and_keeps_a_carried_value() -> None:
         'br ^loop{@n, 0}\n^loop{%i, %acc}:\n%c = icmp eq i64 %i, 0\n%d = sub i64 %i, 1\n%e = add i64 %acc, %i\nbr %c, ^end{%acc}, ^loop{%d, %e}\n^end{%r}:\nret %r'
     )
     form = canon(parse(source))
-    assert '^0{%0, %1}:' in form
-    assert '^1{%1}:\n  ret %1' in form  # %r only ever receives %acc, so it keeps %acc's number
+    assert '^b0{%v0, %v1}:' in form
+    assert '^b1{%v1}:\n  ret %v1' in form  # %r only ever receives %acc, so it keeps %acc's number
 
 
 def test_canon_locals_numbers_labels_too(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
@@ -125,7 +130,7 @@ def test_canon_locals_numbers_labels_too(tmp_path: Path, capsys: pytest.CaptureF
     )
     assert main(['canon', '--locals', str(p)]) == 0
     text = p.read_text()
-    assert 'br ^0{@n}\n^0{%0}:\n%1 = icmp eq i64 %0, 0\nbr %1, ^1{}, ^0{%0}\n^1{}:' in text
+    assert 'br ^b0{@n}\n^b0{%v0}:\n%v1 = icmp eq i64 %v0, 0\nbr %v1, ^b1{}, ^b0{%v0}\n^b1{}:' in text
     assert canon_locals(parse(text)) == text  # idempotent
     capsys.readouterr()
 
@@ -154,4 +159,35 @@ def test_a_run_that_never_finishes_is_stopped(tmp_path: Path, capsys: pytest.Cap
     assert main(['run', '--timeout', '0.5', str(p), '@f', '1']) == 2
     assert capsys.readouterr().err == (
         'mime: `@f` did not finish within 0.5 s; a loop may never reach its exit (see --timeout)\n'
+    )
+
+
+@pytest.mark.parametrize(
+    ('body', 'expected'),
+    [
+        # one input or one constant, besides the parameter itself: a second way to read it
+        ('br ^a{@n}\n^a{%x}:\nret %x', ['redundant-parameter']),
+        ('br ^a{7}\n^a{%x}:\n%y = add i64 %x, @n\nret %y', ['redundant-parameter']),
+        ('br ^a{true}\n^a{%x}:\nbr %x, ^b{}, ^b{}\n^b{}:\nret @n', ['redundant-parameter']),
+        # one local is a pass-through, which is fine: the block could not read it otherwise
+        ('%a = add i64 @n, 1\nbr ^b{%a}\n^b{%x}:\nret %x', []),
+        # different values, or an input and a constant, are not one value
+        ('%c = icmp eq i64 @n, 0\nbr %c, ^b{@n}, ^b{1}\n^b{%x}:\nret %x', []),
+        ('%c = icmp eq i64 @n, 0\nbr %c, ^b{1}, ^b{2}\n^b{%x}:\nret %x', []),
+    ],
+)
+def test_a_parameter_that_only_carries_an_input_or_a_constant(body: str, expected: list[str]) -> None:
+    assert kinds(function(body)) == expected
+
+
+def test_the_hint_says_what_to_write() -> None:
+    (d,) = analyze(
+        function(
+            'br ^loop{0, @n}\n^loop{%i, %limit}:\n%done = icmp sgt i64 %i, %limit\n%next = add i64 %i, 1\nbr %done, ^end{}, ^loop{%next, %limit}\n^end{}:\nret 0'
+        )
+    )[1]
+    assert (d.kind, d.text, d.hint) == (
+        'redundant-parameter',
+        '%limit',
+        'drop the parameter and its arguments, and write `@n` where it is read',
     )

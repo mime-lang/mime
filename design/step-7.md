@@ -67,6 +67,11 @@ atom       = word | local | integer | "true" | "false"
   the entry; a block that is not is `unreachable-block`.
 - A jump passes exactly as many arguments as the target has parameters.
 - Every parameter and every result is read, as before (`unused-local`).
+- **A parameter must carry a local.** One whose every argument is the same input or the same constant, apart from
+  itself on a loop's back edge, is a `redundant-parameter`: every block reads the function's inputs and may write
+  any constant, so the parameter is a second way to read the same value. The hint says to drop it and write the
+  input or the constant where it is read. A parameter that carries one *local* is a pass-through, which is fine,
+  since no other block could read that local (section 6).
 
 ## 4. Types: `i64` and `i1`
 
@@ -92,23 +97,23 @@ total, so `icmp` never traps.
 
 `mime canon` and `mime canon --locals` number labels and locals per body, apart from each other:
 
-- Labels become `^0`, `^1`, … in order of first appearance.
-- Locals become `%0`, `%1`, … in order of first appearance, across all blocks, as step 6 says, with its
+- Labels become `^b0`, `^b1`, … in order of first appearance.
+- Locals become `%v0`, `%v1`, … in order of first appearance, across all blocks, as step 6 says, with its
   pass-through rule: a block parameter whose every incoming argument is the same value, or the parameter itself on
   a back edge, gets that value's number. So a value that a loop carries unchanged keeps one name everywhere.
 
 ```
 define @w3 {@w0, @w1, @w2} -> i64 {
-  %0 = icmp slt i64 @w0, @w1
-  br %0, ^0{}, ^1{}
-^1{}:
-  %1 = icmp sgt i64 @w0, @w2
-  br %1, ^2{}, ^3{}
-^0{}:
+  %v0 = icmp slt i64 @w0, @w1
+  br %v0, ^b0{}, ^b1{}
+^b1{}:
+  %v1 = icmp sgt i64 @w0, @w2
+  br %v1, ^b2{}, ^b3{}
+^b0{}:
   ret @w1
-^2{}:
+^b2{}:
   ret @w2
-^3{}:
+^b3{}:
   ret @w0
 }
 ```
@@ -120,10 +125,35 @@ define @w3 {@w0, @w1, @w2} -> i64 {
 - `mime run` takes `true` or `false` for an `i1` input, and prints `true` or `false` for an `i1` result.
 - A loop may never reach its exit, so `mime run` stops a run after 10 seconds by default (`--timeout SECONDS`) and
   says so, rather than hanging the agent that called it.
-- Each block becomes an LLVM basic block, and its parameters become `phi` nodes. Every jump goes through its own
-  small edge block, so that a `br` whose two targets are the same block, with different arguments, still gives each
-  `phi` one entry per predecessor.
-- A local is named after its block in LLVM, `%"^loop%a"`, since the same local may be bound in two blocks.
+- **Lowering copies the canonical form's names.** An input is `%w0`, a local `%v0`, a block `b0`, and the entry
+  block `entry`. Each kind has its own prefix, so no name needs quoting or renumbering, none can clash with another,
+  and `mime llvm` shows the same names as `mime canon`. A block whose name in the source differs keeps it as a
+  comment: `b0:   ; ^loop`.
+- **A function's LLVM name is its `symbol`** when it has one, and it is then exported: `define i64 @clamp(…)`.
+  Without one it is internal to its module, as `@mime.word` (layout.md section 4).
+- Each block becomes an LLVM basic block, and its parameters become `phi` nodes, one entry per jump into the block.
+- **A pass-through parameter gets no `phi`.** It only ever carries one value, which canon already gives the same
+  name, and in closed blocks only the block that binds a value can pass it on, so that block dominates every block
+  the value reaches this way. The IR uses the value itself.
+- A `br` whose two arms reach the same block with parameters would give a `phi` two entries from one predecessor,
+  which LLVM rejects, so each arm goes through its own small edge block, `entry.e0`. No other jump needs one.
+
+```llvm
+define internal i64 @mime.sum(i64 %w0) {
+entry:
+  br label %b0
+b0:                                        ; ^loop
+  %v0 = phi i64 [ 0, %entry ], [ %v4, %b0 ]
+  %v1 = phi i64 [ 0, %entry ], [ %v5, %b0 ]
+  %v2 = phi i64 [ %w0, %entry ], [ %v2, %b0 ]
+  %v3 = icmp sgt i64 %v0, %v2
+  %v4 = add i64 %v0, 1
+  %v5 = add i64 %v1, %v0
+  br i1 %v3, label %b1, label %b0
+b1:                                        ; ^end
+  ret i64 %v1
+}
+```
 
 ## 8. Diagnostics
 
@@ -131,6 +161,7 @@ define @w3 {@w0, @w1, @w2} -> i64 {
 |---|---|
 | `wrong-type` | an `i1` where an `i64` belongs or the reverse, in an operand, a condition, a `ret`, or a jump argument |
 | `unreachable-block` | a block that no `br` from a reached block jumps to |
+| `redundant-parameter` | a block parameter that only ever carries one input or one constant |
 | `undeclared-word` | a `br` to a label that has no block |
 | `duplicate-word` | two blocks with one label |
 | `bad-value` | a jump with the wrong number of arguments, an unknown predicate, a type other than `i64` on an operation |

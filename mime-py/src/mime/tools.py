@@ -4,7 +4,7 @@ import difflib
 import json
 from dataclasses import dataclass
 
-from mime.compiler import ToolError
+from mime.diag import ToolError
 from mime.lexer import Span, Tok
 from mime.parser import Definition, Entry, Module, Struct, Value, atoms
 

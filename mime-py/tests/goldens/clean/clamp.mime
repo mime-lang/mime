@@ -16,3 +16,4 @@ define @clamp {@x, @lo, @hi} -> i64 {
   ret @x
 }
 abstract = "@x, moved into the range from @lo to @hi"
+symbol = "clamp"

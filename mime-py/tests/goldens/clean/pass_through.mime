@@ -1,0 +1,44 @@
+@n = {type = i64, abstract = "a whole number"}
+
+define @exit {@n} -> i64 {
+  br ^loop{@n}
+^loop{%i}:
+  %done = icmp slt i64 %i, 10
+  %next = mul i64 %i, 2
+  br %done, ^loop{%next}, ^end{%i}
+^end{%result}:
+  ret %result
+}
+abstract = "the first value of @n doubled again and again that is at least 10"
+
+define @chain {@n} -> i64 {
+  %a = add i64 @n, 1
+  br ^first{%a}
+^first{%x}:
+  br ^second{%x}
+^second{%y}:
+  ret %y
+}
+abstract = "one more than @n, passed through two blocks"
+
+define @invariant {@n} -> i64 {
+  %step = add i64 @n, 1
+  br ^loop{0, %step}
+^loop{%count, %by}:
+  %big = icmp sgt i64 %count, 100
+  %more = add i64 %count, %by
+  br %big, ^end{%count}, ^loop{%more, %by}
+^end{%total}:
+  ret %total
+}
+abstract = "the first multiple of one more than @n that is above 100"
+
+define @differ {@n} -> i64 {
+  %zero = icmp eq i64 @n, 0
+  %a = add i64 @n, 1
+  %b = sub i64 @n, 1
+  br %zero, ^join{%a}, ^join{%b}
+^join{%v}:
+  ret %v
+}
+abstract = "@n plus one when @n is zero, otherwise @n minus one"

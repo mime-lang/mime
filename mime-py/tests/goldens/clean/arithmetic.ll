@@ -1,34 +1,28 @@
-define i64 @"mime.square"(i64 %"@number") {
-entry:
-  %"%p" = mul i64 %"@number", %"@number"
-  ret i64 %"%p"
+define internal i64 @mime.w3(i64 %w0) {
+  %v0 = mul i64 %w0, %w0
+  ret i64 %v0
 }
 
-define i64 @"mime.less"(i64 %"@number") {
-entry:
-  %"%d" = sub i64 %"@number", 1
-  ret i64 %"%d"
+define internal i64 @mime.w4(i64 %w0) {
+  %v0 = sub i64 %w0, 1
+  ret i64 %v0
 }
 
-define i64 @"mime.negate"(i64 %"@number") {
-entry:
-  %"%n" = sub i64 0, %"@number"
-  ret i64 %"%n"
+define internal i64 @mime.w5(i64 %w0) {
+  %v0 = sub i64 0, %w0
+  ret i64 %v0
 }
 
-define i64 @"mime.sum"(i64 %"@number") {
-entry:
-  %"%total" = add i64 %"@number", -9223372036854775808
-  ret i64 %"%total"
+define internal i64 @mime.w6(i64 %w0) {
+  %v0 = add i64 %w0, -9223372036854775808
+  ret i64 %v0
 }
 
-define i64 @"mime.difference"(i64 %"@first", i64 %"@second") {
-entry:
-  %"%d" = sub i64 %"@first", %"@second"
-  ret i64 %"%d"
+define internal i64 @mime.w7(i64 %w1, i64 %w2) {
+  %v0 = sub i64 %w1, %w2
+  ret i64 %v0
 }
 
-define i64 @"mime.seven"() {
-entry:
+define internal i64 @mime.w8() {
   ret i64 7
 }

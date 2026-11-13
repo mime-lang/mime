@@ -44,6 +44,8 @@ A **function** is `define @f {@inputs} -> @output { … }` followed by `abstract
 - **The inputs are the parameters.** Inside the body, `@number` is the value passed for `@number`. An input is
   always its `@` word, never a `%` local, and there is no parameter list.
 - The abstract comes **after** the body, so you write it once you know what the body does.
+- An optional `symbol = "name"` after the abstract exports the function under that name, for C or other modules to
+  call. It must be a C identifier and unique, and renaming never changes it. Without it, the function is internal.
 
 A function's type and abstract belong to its `define`. Never write `type = {@a} -> @b` in a declaration.
 
@@ -101,9 +103,11 @@ abstract = "@x, moved into the range from @lo to @hi"
 - **Types are checked.** `add`, `sub`, `mul` take `i64`; `br`'s condition is an `i1`; `ret` gives the output's type. A
   block parameter's type comes from the arguments passed to it. An `i1` is `true` or `false`, never `1` or `0`.
 - The same local may be bound in two different blocks.
+- Don't pass an input or a constant through a block parameter: every block can read `@n` and write `1` directly.
+  A parameter that only ever carries one of them is a `redundant-parameter`.
 
-When a function is finished, run `mime canon --locals prog.mime`. It renumbers every local `%0`, `%1`, … in order
-of appearance, and every label `^0`, `^1`, …, so the stored program carries no local names. A stored body you edit later may mix numbered locals
+When a function is finished, run `mime canon --locals prog.mime`. It renumbers every local `%v0`, `%v1`, … in order
+of appearance, and every label `^b0`, `^b1`, …, so the stored program carries no local names. A stored body you edit later may mix numbered locals
 with new named ones; run the command again when you are done.
 
 ## Not LLVM

@@ -1,6 +1,7 @@
 """Check a parsed module (design/step-4.md section 3, step-2.md for references). Reports every error it finds."""
 
 import difflib
+import re
 from dataclasses import dataclass
 from typing import TypedDict
 
@@ -10,6 +11,7 @@ from mime.parser import Block, Definition, Entry, Field, Line, Module, Struct, V
 from mime.words import FALSE, ICMP, KEYS, LANGUAGE_WORDS, OPERATIONS, PREDICATES, RETIRED, TRUE, TYPES
 
 LATER_TYPES = frozenset({'i8', 'i16', 'i32'})
+SYMBOL = re.compile(r'[A-Za-z_][A-Za-z0-9_]*')
 LATER_OPERATIONS = frozenset({'sdiv', 'udiv', 'srem', 'urem', 'call', 'get'})
 I64_MIN, I64_MAX = -(2**63), 2**63 - 1
 OPERAND_HINT = (
@@ -27,12 +29,14 @@ class Function:
     input_types: dict[str, str]  # input word -> `i64` or `i1`
     output_type: str
     local_types: dict[tuple[int, str], str]  # (block index, local) -> `i64` or `i1`
+    symbol: str | None  # the name it is exported under, or None when it is internal to its module
 
 
 @dataclass(frozen=True)
 class Program:
     types: dict[str, str]  # data word -> its type
     functions: tuple[Function, ...]
+    module: Module  # what the program was checked from, for backends that need its canonical names
 
 
 class Where(TypedDict):
@@ -60,6 +64,8 @@ class _Checker:
         self.kinds: dict[str, str] = {}  # word -> 'data' or 'function'
         self.fields: dict[str, dict[str, Field]] = {}  # data word -> valid key -> first field with it
         self.locals: dict[str, list[str]] = {}  # result word -> the functions whose bodies bind it
+        self.module = module
+        self.symbols: dict[str, str] = {}  # symbol -> the function exported under it
         self.local_types: dict[str, dict[tuple[int, str], str]] = {}  # function -> (block, local) -> type
 
     def report(self, kind: str, message: str, at: Span, hint: str | None = None, *, entry: str, key: str | None = None,
@@ -204,7 +210,38 @@ class _Checker:
         input_types = {w: t for w, v in inputs.items() if (t := self.word_type(w)) is not None}
         output_type = self.word_type(d.output.text) if d.output.kind == Tok.WORD else d.output.text
         _Body(self, d, inputs, input_types, output_type if output_type in TYPES else None, rejected).check()
+        if d.symbol is not None:
+            self.symbol(d)
         self.references(word, position, d.abstract)
+
+    def symbol(self, d: Definition) -> None:
+        """`symbol = "clamp"`: a C identifier, unique in the module, and not `main`, which `mime run` defines."""
+        v = d.symbol
+        if v is None:
+            return
+        at: Where = {'entry': d.word.text, 'key': 'symbol'}
+        if not SYMBOL.fullmatch(v.text):
+            self.report(
+                'bad-value',
+                f'`{v.text}` is not a symbol',
+                v.span,
+                'a symbol is a C name: a letter or `_`, then letters, digits or `_`',
+                **at,
+            )
+        elif v.text == 'main':
+            self.report(
+                'bad-value', '`main` is taken by the program `mime run` builds', v.span, 'pick another symbol', **at
+            )
+        elif v.text in self.symbols:
+            self.report(
+                'duplicate-word',
+                f'`{v.text}` is already the symbol of `@{self.symbols[v.text]}`',
+                v.span,
+                'each exported function needs its own symbol',
+                **at,
+            )
+        else:
+            self.symbols[v.text] = d.word.text
 
     def word_type(self, word: str) -> str | None:
         """The type of a data word (`i64` or `i1`), or None when it has no valid one."""
@@ -320,11 +357,12 @@ class _Checker:
                 inputs = tuple(x.text for x in d.inputs)
                 output = types[d.output.text] if d.output.kind == Tok.WORD else d.output.text
                 local_types = self.local_types[d.word.text]
+                symbol = d.symbol.text if d.symbol is not None else None
+                input_types = {w: types[w] for w in inputs}
                 functions.append(
-                    Function(d.word.text, inputs, d.output.text, d, {w: types[w] for w in inputs}, output, local_types)
+                    Function(d.word.text, inputs, d.output.text, d, input_types, output, local_types, symbol)
                 )
-        functions = tuple(functions)
-        return Program(types, functions)
+        return Program(types, tuple(functions), self.module)
 
 
 class _Body:
@@ -365,6 +403,7 @@ class _Body:
             else:
                 self.labels[b.label.text] = i
         self.jumps()
+        self.carried()
         self.reachable()
         self.infer_params()
         for i, b in enumerate(self.d.blocks):
@@ -400,6 +439,37 @@ class _Body:
                         t.label.span,
                         f'write `^{t.label.text}{{{names}}}` with a value for each parameter',
                     )
+
+    def carried(self) -> None:
+        """A parameter that only ever receives one input or one constant, besides itself, is a second way to read it.
+
+        Every block reads the function's inputs and may write any constant, so the parameter is not needed
+        (design/step-7.md section 3). This follows the values passed, not how anything is spelled.
+        """
+        incoming: dict[tuple[int, int], set[tuple[str, str] | None]] = {}
+        for i, b in enumerate(self.d.blocks):
+            for t in b.end.targets:
+                j = self.labels.get(t.label.text)
+                if j is None or len(t.args) != len(self.d.blocks[j].params):
+                    continue
+                for k, (arg, p) in enumerate(zip(t.args, self.d.blocks[j].params, strict=True)):
+                    if arg.kind == Tok.LOCAL and i == j and arg.text == p.text:
+                        continue  # the parameter passed to itself, on a loop's back edge
+                    key = ('@', arg.text) if arg.kind == Tok.WORD and arg.text in self.inputs else None
+                    if arg.kind in (Tok.INT, Tok.NAME):
+                        key = ('', arg.text)
+                    incoming.setdefault((j, k), set()).add(key)
+        for (j, k), keys in incoming.items():
+            if len(keys) == 1 and (key := next(iter(keys))) is not None:
+                p = self.d.blocks[j].params[k]
+                what = f'the input `@{key[1]}`, which every block reads' if key[0] == '@' else f'`{key[1]}`'
+                use = f'`@{key[1]}`' if key[0] == '@' else f'`{key[1]}`'
+                self.report(
+                    'redundant-parameter',
+                    f'`%{p.text}` only ever carries {what}',
+                    p.span,
+                    f'drop the parameter and its arguments, and write {use} where it is read',
+                )
 
     def reachable(self) -> None:
         seen, todo = {0}, [0]

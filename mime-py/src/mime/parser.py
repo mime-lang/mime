@@ -91,8 +91,9 @@ class Definition:
     output: Value
     blocks: tuple[Block, ...]
     abstract: Value
+    symbol: Value | None  # `symbol = "clamp"` after the abstract: the name the function is exported under
     span: Span  # the `define`
-    end: int  # the offset just after the abstract
+    end: int  # the offset just after the abstract, or after the symbol
 
 
 @dataclass(frozen=True)
@@ -309,8 +310,17 @@ class _Parser:
         s = self.take()
         if s.kind != Tok.STRING:
             raise self.fail(s, f'expected the abstract as a string, found {_show(s)}', 'write the meaning in `"…"`')
+        symbol, end = None, s.span.end
+        if self.peek().kind == Tok.NAME and self.peek().text == 'symbol':
+            self.key = 'symbol'
+            self.take()
+            self.expect(Tok.EQUALS, 'after `symbol`')
+            v = self.take()
+            if v.kind != Tok.STRING:
+                raise self.fail(v, f'expected the symbol as a string, found {_show(v)}', 'write `symbol = "name"`')
+            symbol, end = _value(v), v.span.end
         self.entry_word = self.key = None
-        return Definition(_value(w), inputs, _value(out), tuple(blocks), _value(s), keyword.span, s.span.end)
+        return Definition(_value(w), inputs, _value(out), tuple(blocks), _value(s), symbol, keyword.span, end)
 
     def block(self, label: Value | None, params: tuple[Value, ...]) -> Block:
         """Lines up to and including the block's one terminator."""

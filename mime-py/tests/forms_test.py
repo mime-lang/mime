@@ -63,23 +63,23 @@ def test_canon_renames_every_word_and_keeps_the_english(prog: Path, capsys: pyte
     assert main(['canon', str(prog)]) == 0
     out = capsys.readouterr().out
     assert out == TIDY.replace('@number', '@w0').replace('@count', '@w1').replace('@double', '@w2').replace(
-        '%r', '%0'
+        '%r', '%v0'
     ).replace('@seven', '@w3')
     assert prog.read_text() == MESSY  # canon only prints
 
 
 def test_canon_locals_numbers_only_the_locals(prog: Path, capsys: pytest.CaptureFixture[str]) -> None:
     assert main(['canon', '--locals', str(prog)]) == 0
-    assert prog.read_text() == MESSY.replace('%r', '%0')
-    assert capsys.readouterr().out == MESSY.replace('%r', '%0')
+    assert prog.read_text() == MESSY.replace('%r', '%v0')
+    assert capsys.readouterr().out == MESSY.replace('%r', '%v0')
     assert main(['canon', '--locals', str(prog)]) == 0  # idempotent
-    assert prog.read_text() == MESSY.replace('%r', '%0')
+    assert prog.read_text() == MESSY.replace('%r', '%v0')
 
 
 def test_canon_numbers_locals_per_body_in_order_of_appearance() -> None:
     n = '@n = {type = i64, abstract = "x"}\n'
     source = n + 'define @f {@n} -> @n {%b = add i64 @n, 1 %a = mul i64 %b, %b ret %a} abstract = "x"\n'
-    assert '%0 = add i64 @w0, 1\n  %1 = mul i64 %0, %0\n  ret %1' in canon(parse(source))
+    assert '%v0 = add i64 @w0, 1\n  %v1 = mul i64 %v0, %v0\n  ret %v1' in canon(parse(source))
 
 
 def test_canon_numbers_results_per_body() -> None:

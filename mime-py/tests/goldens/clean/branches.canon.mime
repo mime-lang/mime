@@ -2,33 +2,33 @@
 @w1 = {type = i1, abstract = "a truth value"}
 
 define @w2 {@w0} -> i64 {
-  br ^0{0, 0, @w0}
-^0{%0, %1, %2}:
-  %3 = icmp sgt i64 %0, %2
-  %4 = add i64 %0, 1
-  %5 = add i64 %1, %0
-  br %3, ^1{%1}, ^0{%4, %5, %2}
-^1{%1}:
-  ret %1
+  br ^b0{0, 0}
+^b0{%v0, %v1}:
+  %v2 = icmp sgt i64 %v0, @w0
+  %v3 = add i64 %v0, 1
+  %v4 = add i64 %v1, %v0
+  br %v2, ^b1{%v1}, ^b0{%v3, %v4}
+^b1{%v1}:
+  ret %v1
 }
 abstract = "the sum of the numbers from 0 to @w0"
 
 define @w3 {@w0} -> @w1 {
-  %0 = icmp sgt i64 @w0, 0
-  ret %0
+  %v0 = icmp sgt i64 @w0, 0
+  ret %v0
 }
 abstract = "whether @w0 is above zero"
 
 define @w4 {@w1} -> i64 {
-  br @w1, ^0{1}, ^0{2}
-^0{%0}:
-  ret %0
+  br @w1, ^b0{1}, ^b0{2}
+^b0{%v0}:
+  ret %v0
 }
 abstract = "1 when @w1 holds, otherwise 2"
 
 define @w5 {@w1} -> i1 {
-  br @w1, ^0{false}, ^0{true}
-^0{%0}:
-  ret %0
+  br @w1, ^b0{false}, ^b0{true}
+^b0{%v0}:
+  ret %v0
 }
 abstract = "the opposite of @w1"

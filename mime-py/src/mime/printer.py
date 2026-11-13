@@ -4,8 +4,7 @@ import difflib
 from collections.abc import Iterator
 from dataclasses import dataclass, field
 
-from mime.compiler import ToolError
-from mime.diag import FatalError
+from mime.diag import FatalError, ToolError
 from mime.lexer import Span, Tok, tokens
 from mime.parser import Definition, Entry, Line, Module, Struct, Target, Terminator, Value, atoms
 
@@ -91,6 +90,9 @@ def _definition(source: str, d: Definition, index: int, names: Names) -> str:
         lines += [line(i, x) for x in b.lines]
         lines.append(end(i, b.end))
     lines += ['}', f'abstract = {_string(source, d.abstract, names.words)}']
+    if d.symbol is not None:
+        # A symbol is data, the name the function is exported under, so renaming and canon never change it.
+        lines.append(f'symbol = {source[d.symbol.span.start : d.symbol.span.end]}')
     return '\n'.join(lines)
 
 
@@ -123,7 +125,7 @@ def _body_names(d: Definition) -> list[tuple[int, Value]]:
     return [(i, v) for i, v in found if v.kind in (Tok.LOCAL, Tok.LABEL)]
 
 
-def _pass_throughs(d: Definition) -> dict[tuple[int, str], tuple[int, str]]:
+def pass_throughs(d: Definition) -> dict[tuple[int, str], tuple[int, str]]:
     """Each block parameter that only ever receives one value, or that value and itself, mapped to that value."""
     blocks = {b.label.text: i for i, b in enumerate(d.blocks) if b.label is not None}
     incoming: dict[tuple[int, str], set[tuple[int, str] | None]] = {}
@@ -145,11 +147,12 @@ def _pass_throughs(d: Definition) -> dict[tuple[int, str], tuple[int, str]]:
 
 
 def local_numbers(d: Definition) -> tuple[dict[tuple[int, str], str], dict[str, str]]:
-    """The body's locals and labels numbered `0`, `1`, … in order of first appearance (design/step-7.md section 6).
+    """The body's locals named `v0`, `v1`, … and its labels `b0`, `b1`, … in order of first appearance
+    (design/step-7.md section 6).
 
     A pass-through block parameter keeps the number of the value it carries (design/step-6.md section 5).
     """
-    through = _pass_throughs(d)
+    through = pass_throughs(d)
     locals_: dict[tuple[int, str], str] = {}
     labels: dict[str, str] = {}
 
@@ -163,11 +166,11 @@ def local_numbers(d: Definition) -> tuple[dict[tuple[int, str], str], dict[str, 
     count = 0
     for i, v in _body_names(d):
         if v.kind == Tok.LABEL:
-            labels.setdefault(v.text, str(len(labels)))
+            labels.setdefault(v.text, f'b{len(labels)}')
             continue
         root = source((i, v.text))
         if root not in locals_:
-            locals_[root] = str(count)
+            locals_[root] = f'v{count}'
             count += 1
         locals_[(i, v.text)] = locals_[root]
     return locals_, labels

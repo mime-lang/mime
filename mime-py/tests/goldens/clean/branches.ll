@@ -1,51 +1,42 @@
-define i64 @"mime.sum"(i64 %"@n") {
+define internal i64 @mime.w2(i64 %w0) {
 entry:
-  br label %"e0.0"
-"e0.0":
-  br label %"^loop"
-"^loop":
-  %"^loop%i" = phi i64 [ 0, %"e0.0" ], [ %"^loop%next", %"e1.1" ]
-  %"^loop%total" = phi i64 [ 0, %"e0.0" ], [ %"^loop%more", %"e1.1" ]
-  %"^loop%limit" = phi i64 [ %"@n", %"e0.0" ], [ %"^loop%limit", %"e1.1" ]
-  %"^loop%done" = icmp sgt i64 %"^loop%i", %"^loop%limit"
-  %"^loop%next" = add i64 %"^loop%i", 1
-  %"^loop%more" = add i64 %"^loop%total", %"^loop%i"
-  br i1 %"^loop%done", label %"e1.0", label %"e1.1"
-"e1.0":
-  br label %"^end"
-"e1.1":
-  br label %"^loop"
-"^end":
-  %"^end%result" = phi i64 [ %"^loop%total", %"e1.0" ]
-  ret i64 %"^end%result"
+  br label %b0
+b0:
+  %v0 = phi i64 [ 0, %entry ], [ %v3, %b0 ]
+  %v1 = phi i64 [ 0, %entry ], [ %v4, %b0 ]
+  %v2 = icmp sgt i64 %v0, %w0
+  %v3 = add i64 %v0, 1
+  %v4 = add i64 %v1, %v0
+  br i1 %v2, label %b1, label %b0
+b1:
+  ret i64 %v1
 }
 
-define i1 @"mime.positive"(i64 %"@n") {
-entry:
-  %"%yes" = icmp sgt i64 %"@n", 0
-  ret i1 %"%yes"
+define internal i1 @mime.w3(i64 %w0) {
+  %v0 = icmp sgt i64 %w0, 0
+  ret i1 %v0
 }
 
-define i64 @"mime.pick"(i1 %"@flag") {
+define internal i64 @mime.w4(i1 %w1) {
 entry:
-  br i1 %"@flag", label %"e0.0", label %"e0.1"
-"e0.0":
-  br label %"^out"
-"e0.1":
-  br label %"^out"
-"^out":
-  %"^out%v" = phi i64 [ 1, %"e0.0" ], [ 2, %"e0.1" ]
-  ret i64 %"^out%v"
+  br i1 %w1, label %entry.e0, label %entry.e1
+entry.e0:
+  br label %b0
+entry.e1:
+  br label %b0
+b0:
+  %v0 = phi i64 [ 1, %entry.e0 ], [ 2, %entry.e1 ]
+  ret i64 %v0
 }
 
-define i1 @"mime.negate"(i1 %"@flag") {
+define internal i1 @mime.w5(i1 %w1) {
 entry:
-  br i1 %"@flag", label %"e0.0", label %"e0.1"
-"e0.0":
-  br label %"^out"
-"e0.1":
-  br label %"^out"
-"^out":
-  %"^out%v" = phi i1 [ false, %"e0.0" ], [ true, %"e0.1" ]
-  ret i1 %"^out%v"
+  br i1 %w1, label %entry.e0, label %entry.e1
+entry.e0:
+  br label %b0
+entry.e1:
+  br label %b0
+b0:
+  %v0 = phi i1 [ false, %entry.e0 ], [ true, %entry.e1 ]
+  ret i1 %v0
 }

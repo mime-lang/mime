@@ -104,9 +104,9 @@ benchmark's mime cells for those tasks stop being `unavailable`, and the scrambl
 ### Modules
 
 - **New:** several files, `import` and export, renaming at import.
-- **Decide:** the syntax of imports and exports, and the link name of an imported word (step 6 mangles a function
-  as `@"mime.f"` for now). There is no header file: a module's declarations and abstracts are its interface
-  ([layout.md](layout.md) section 7).
+- **Decide:** the syntax of imports and exports. Link names are already settled: a function is exported under its
+  `symbol` and is otherwise internal ([layout.md](layout.md) section 4). There is no header file: a module's
+  declarations and abstracts are its interface ([layout.md](layout.md) section 7).
 
 ### Opaque structs
 

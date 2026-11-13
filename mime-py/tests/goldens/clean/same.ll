@@ -1,4 +1,3 @@
-define i64 @"mime.same"(i64 %"@number") {
-entry:
-  ret i64 %"@number"
+define internal i64 @mime.w1(i64 %w0) {
+  ret i64 %w0
 }

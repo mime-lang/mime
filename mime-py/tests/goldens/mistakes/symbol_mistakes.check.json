@@ -1,0 +1,26 @@
+[
+  {
+    "kind": "bad-value",
+    "entry": "@f",
+    "key": "symbol",
+    "text": "\"2bad\"",
+    "message": "`2bad` is not a symbol",
+    "hint": "a symbol is a C name: a letter or `_`, then letters, digits or `_`"
+  },
+  {
+    "kind": "bad-value",
+    "entry": "@g",
+    "key": "symbol",
+    "text": "\"main\"",
+    "message": "`main` is taken by the program `mime run` builds",
+    "hint": "pick another symbol"
+  },
+  {
+    "kind": "duplicate-word",
+    "entry": "@k",
+    "key": "symbol",
+    "text": "\"dup\"",
+    "message": "`dup` is already the symbol of `@h`",
+    "hint": "each exported function needs its own symbol"
+  }
+]

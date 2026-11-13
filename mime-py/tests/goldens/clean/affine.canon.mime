@@ -1,9 +1,9 @@
 @w0 = {type = i64, abstract = "a whole number"}
 
 define @w1 {@w0} -> @w0 {
-  %0 = add i64 @w0, @w0
-  %1 = add i64 %0, @w0
-  %2 = add i64 %1, 1
-  ret %2
+  %v0 = add i64 @w0, @w0
+  %v1 = add i64 %v0, @w0
+  %v2 = add i64 %v1, 1
+  ret %v2
 }
 abstract = "three times the @w0 it is given, plus one"

@@ -1,7 +1,9 @@
 """Golden tests: each golden program has its approved outputs next to it, in one of two folders.
 
-- `goldens/clean/NAME.mime` must check clean. It approves `NAME.ll`, what `mime llvm` prints, and `NAME.canon.mime`,
-  what `mime canon` prints.
+- `goldens/clean/NAME.mime` must check clean. It approves `NAME.canon.mime`, what `mime canon` prints, and `NAME.ll`,
+  the LLVM IR of that canonical form. Lowering the canonical form keeps the IR independent of how the golden names
+  its words and locals, so a golden's `.ll` changes only when its structure or the lowering does. (`mime llvm` itself
+  lowers a program as written, so its IR stays readable while debugging.)
 - `goldens/mistakes/NAME.mime` must have mistakes. It approves `NAME.check.json`, what `mime check` prints.
 
 Every golden that parses is kept in its one layout, as `mime fmt` writes it (design/step-5.md). A golden that is not
@@ -71,11 +73,13 @@ def test_clean_golden(name: str) -> None:
     source = CLEAN / f'{name}.mime'
     keep_formatted(source)
     text = source.read_text(encoding='utf-8')
-    program, diagnostics = analyze(text)
-    assert diagnostics == [], f'{name} is in goldens/clean but has mistakes; move it to goldens/mistakes'
+    assert analyze(text)[1] == [], f'{name} is in goldens/clean but has mistakes; move it to goldens/mistakes'
+    form = canon(parse(text))
+    program, diagnostics = analyze(form)
+    assert diagnostics == [], 'the canonical form of a clean program must check clean'
     assert program is not None
+    verify(form, namer=ApprovalNamer(CLEAN / f'{name}.canon.mime'), options=QUIET)
     verify(lower(program), namer=ApprovalNamer(CLEAN / f'{name}.ll'), options=QUIET)
-    verify(canon(parse(text)), namer=ApprovalNamer(CLEAN / f'{name}.canon.mime'), options=QUIET)
 
 
 @pytest.mark.parametrize('name', sources(MISTAKES))
