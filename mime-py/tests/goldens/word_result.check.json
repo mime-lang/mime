@@ -1,0 +1,10 @@
+[
+  {
+    "kind": "syntax",
+    "entry": "@f",
+    "key": "body",
+    "text": "@r",
+    "message": "a result is a local, not a word",
+    "hint": "write `%r`; a `@` word has an entry"
+  }
+]

@@ -1,0 +1,7 @@
+@number = {type = i64, abstract = "a whole number"}
+
+define @f {@number} -> @number {
+  @r = add i64 @number, 1
+  ret @r
+}
+abstract = "x"

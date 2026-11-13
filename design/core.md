@@ -4,6 +4,9 @@
 > oymo's struct style (`{key = value}`, `let … in …`), with mime's `$` rule applied. This doc sets the direction.
 > Each part is settled for real by its step in the [roadmap](roadmap.md).
 >
+> **[step-6.md](step-6.md) changes the sigils:** words are `@word` and locals `%local`, replacing the single `$`
+> class of §1. The examples below still use `$`.
+>
 > **[layout.md](layout.md) supersedes parts of this doc.** Data words are `{type, abstract}` (not `description`
 > and `sort`). A function is one `define $f {$inputs} -> $output { … }` with its abstract after the body (not
 > `takes`/`returns`), its inputs are declared words, and bodies are LLVM-style lines (§5, §6, §9). Where the two disagree, layout.md wins; this doc is updated

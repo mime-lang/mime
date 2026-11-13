@@ -11,7 +11,7 @@ class Diagnostic:
     line: int
     column: int
     hint: str | None = None
-    entry: str | None = None  # the entry's word with its `$`, as in the source
+    entry: str | None = None  # the entry's word with its `@`, as in the source
     key: str | None = None
     text: str | None = None  # the exact source text at fault
 

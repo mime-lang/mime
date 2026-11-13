@@ -53,7 +53,7 @@ fields, and for a definition `type` (its head), `body`, or `abstract`.
 | Where | Rule | Kind |
 |---|---|---|
 | declaration | keys are `type`, `abstract`, in that order, each once | `unknown-key`, `missing-key`, `key-order`, `duplicate-key` |
-| declaration | `type` is `i64` | `bad-value` (a struct gets "arrives in step 9", a word gets "a type is a primitive such as `i64`") |
+| declaration | `type` is `i64` | `bad-value` (a struct gets "arrives in step 10", a word gets "a type is a primitive such as `i64`") |
 | declaration | `abstract` is a non-empty string; its references name earlier entries only (step 2) | `bad-value`, the step 2 kinds |
 | any | a word has one declaration or one definition | `duplicate-word` |
 | definition | each input is an earlier data word, listed once | `undeclared-word`, `forward-reference`, `bad-value`, `duplicate-word` |
@@ -64,9 +64,10 @@ fields, and for a definition `type` (its head), `body`, or `abstract`.
 | body | every result and every input is read | `unused-local` |
 | definition | its `abstract` refers to earlier entries, not to itself or its results | the step 2 kinds |
 
-Each mistake gets one diagnostic, as in step 3. A misspelled result whose hint names a result counts as reading
-it. A misspelled input whose hint names a data word lets the body read that word without a second report, and so
-does an input declared later. An undeclared input or output with no close word gets the declaration to write.
+Each mistake gets one diagnostic where that does not depend on spelling: the body may read a rejected input, or an
+input declared later, without a second report. An undeclared input or output with no close word gets the
+declaration to write. (Step 6 removed the rule that a misspelled name whose hint names another counts as reading
+it, because guessing what a typo means depends on spelling; see step-5.md section 1.)
 
 ## 4. Hints for old forms and LLVM habits
 
@@ -80,7 +81,7 @@ does an input declared later. An undeclared input or output with no close word g
 | `input` | the inputs are the words of the type, such as `$number` |
 | `define $f($a)`, `define i64 @f(…)` | write the type: `define $f {$a} -> $r` |
 | `%x`, `@f` | words are written `$x` |
-| `phi` | use block parameters (step 7) |
+| `phi` | use block parameters (step 8) |
 | `nsw`, `nuw` | overflow always wraps |
 | `ret i64 $x` | the type comes from the definition |
 | `=>`, `→`, `:` in a type | write `->` |

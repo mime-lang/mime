@@ -1,7 +1,7 @@
 [
   {
     "kind": "syntax",
-    "entry": "$same",
+    "entry": "@same",
     "key": "body",
     "text": "i64",
     "message": "`i64` is a type, not an operand",

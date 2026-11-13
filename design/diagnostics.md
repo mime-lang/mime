@@ -14,11 +14,11 @@ mime check prog.mime
 [
   {
     "kind": "undeclared-word",
-    "entry": "$same",
+    "entry": "@same",
     "key": "type",
-    "text": "$numbr",
-    "message": "no entry declares `$numbr`",
-    "hint": "did you mean `$number`?"
+    "text": "@numbr",
+    "message": "no entry declares `@numbr`",
+    "hint": "did you mean `@number`?"
   }
 ]
 ```
@@ -41,7 +41,7 @@ never changes.
 | Field | Value |
 |---|---|
 | `kind` | a stable code, such as `undeclared-word`; tests and the benchmark match on it |
-| `entry` | the word of the entry the mistake is in, with its `$`, or `null` when the mistake is outside any entry or before its word is read |
+| `entry` | the word of the entry the mistake is in, with its `@`, or `null` when the mistake is outside any entry or before its word is read |
 | `key` | the key of the field the mistake is in, such as `type` or `body`, or `null` when it is in no one field |
 | `text` | the exact source text at fault, or `null` when the mistake is something missing |
 | `message` | what is wrong, in one sentence |
@@ -49,10 +49,10 @@ never changes.
 
 `text` is copied from the source, escapes and all, so it can be found by searching the file. For example:
 
-- a misspelled word: `$numbr`
+- a misspelled word: `@numbr`
 - a misplaced or unknown key: `type`
 - a bad value: `i32`
-- a bad `$` in an abstract: `$5`, `$numberX`
+- a bad `@` in an abstract: `@`, `@numberX`
 - a comment: the rest of its line
 
 A missing key has no text; `entry` names the entry it is missing from.

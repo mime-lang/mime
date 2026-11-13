@@ -1,10 +1,10 @@
 [
   {
     "kind": "nested-entry",
-    "entry": "$pair",
+    "entry": "@pair",
     "key": null,
-    "text": "$first",
-    "message": "entries do not nest, so `$first` cannot be declared inside another entry",
-    "hint": "declare `$first` as its own entry before this one"
+    "text": "@first",
+    "message": "entries do not nest, so `@first` cannot be declared inside another entry",
+    "hint": "declare `@first` as its own entry before this one"
   }
 ]

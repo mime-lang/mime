@@ -1,13 +1,12 @@
-$number = {type = i64, abstract = "a whole number"}
-$other = {type = i64, abstract = "another number"}
+@number = {type = i64, abstract = "a whole number"}
+@other = {type = i64, abstract = "another number"}
 
-define $a {$number} -> $number {
-  $x = div i64 $number, 2
-  $y = add i32 $x, $number
-  $x = mul i64 $later, $other
-  $other = add i64 $y, $y
-  $w = add i64 $w, 99999999999999999999
-  $later = add i64 $nope, $number
-  ret $x
+define @a {@number} -> @number {
+  %x = div i64 @number, 2
+  %y = add i32 %x, @number
+  %x = mul i64 %later, @other
+  %w = add i64 %w, 99999999999999999999
+  %later = add i64 %nope, %y
+  ret %x
 }
 abstract = "x"

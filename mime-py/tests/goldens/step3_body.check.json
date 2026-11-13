@@ -1,10 +1,10 @@
 [
   {
     "kind": "syntax",
-    "entry": "$a",
+    "entry": "@a",
     "key": "body",
     "text": "let",
     "message": "`let` is not a language word",
-    "hint": "write `$x = add i64 $a, $b`"
+    "hint": "write `%x = add i64 %a, %b`"
   }
 ]

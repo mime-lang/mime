@@ -1,4 +1,4 @@
-"""Tokens of the grammar (design/step-1.md, section 1), and the `$` marks inside strings (design/step-2.md)."""
+"""Tokens of the grammar (design/step-4.md, step-6.md), and the `@` references inside strings (design/step-2.md)."""
 
 from collections.abc import Iterator
 from dataclasses import dataclass
@@ -9,7 +9,8 @@ from mime.diag import Diagnostic, FatalError
 
 
 class Tok(Enum):
-    WORD = 'domain word'
+    WORD = 'word'
+    LOCAL = 'local'
     NAME = 'language word'
     STRING = 'string'
     LBRACE = '`{`'
@@ -36,10 +37,10 @@ class Span:
 
 @dataclass(frozen=True)
 class Ref:
-    """A `$` inside a string. `word` is the name after it, or None when no name follows.
+    """An `@` inside a string. `word` is the name after it, or None when no name follows.
 
-    `stray` is a character glued to the end of the name that a name cannot hold, such as the `X` in `$numberX`.
-    The span covers the `$`, the name, and any glued characters.
+    `stray` is a character glued to the end of the name that a name cannot hold, such as the `X` in `@numberX`.
+    The span covers the `@`, the name, and any glued characters.
     """
 
     word: str | None
@@ -50,9 +51,9 @@ class Ref:
 @dataclass(frozen=True)
 class Token:
     kind: Tok
-    text: str  # a word without its `$`, a name, or a string's value after escapes
+    text: str  # a word without its `@`, a local without its `%`, a name, or a string's value after escapes
     span: Span
-    refs: tuple[Ref, ...] = ()  # for a string, every unescaped `$` in it, in order
+    refs: tuple[Ref, ...] = ()  # for a string, every unescaped `@` in it, in order
 
 
 # `(`, `)` and `:` are not in the grammar yet; they are tokens so the parser can give the hint that fits where they are.
@@ -65,12 +66,13 @@ PUNCTUATION = {
     ')': Tok.RPAREN,
     ':': Tok.COLON,
 }
-ESCAPES = {'"': '"', '\\': '\\', '$': '$'}
+ESCAPES = {'"': '"', '\\': '\\', '@': '@'}
 NAME_HINT = 'a name is a lowercase letter followed by lowercase letters, digits or `_`'
 COMMENT_HINT = 'mime has no comments; put the English in an `abstract`'
-ARITHMETIC_HINT = 'arithmetic is written as an operation: `$x = add i64 $a, $b`, with `sub` or `mul` alike'
+ARITHMETIC_HINT = 'arithmetic is written as an operation: `%x = add i64 %a, %b`, with `sub` or `mul` alike'
 ARITHMETIC = frozenset('+-*/')
-SIGIL_HINT = 'words are written `$x`; mime has no `%` or `@`'
+DOLLAR_HINT = 'words are written `@name` and locals `%name`; mime has no `$`'
+LOCAL_HINT = 'a local is `%` followed by lowercase letters and digits, such as `%double` or `%0`'
 ARROW_HINT = 'write `->`'
 
 
@@ -112,7 +114,7 @@ def tokens(source: str) -> Iterator[Token]:
         while k < len(source) and _name_char(source[k]):
             k += 1
         if k < len(source) and _glued(source[k]):
-            # `input-1` is subtraction written infix, while `$my-word` is a name written in kebab case.
+            # `input-1` is subtraction written infix, while `@my-word` is a name written in kebab case.
             minus = source[k] == '-' and k + 1 < len(source) and _digit(source[k + 1])
             hint = ARITHMETIC_HINT if minus else NAME_HINT
             fail('syntax', f'`{source[k]}` cannot appear in a name', hint, i, _run_end(source, k), col + k - i)
@@ -134,8 +136,23 @@ def tokens(source: str) -> Iterator[Token]:
             end = len(source) if eol < 0 else eol
             fail('comment', 'comments are not part of mime', COMMENT_HINT, i, len(source[i:end].rstrip()) + i)
         elif c == '$':
+            fail('syntax', 'unexpected character `$`', DOLLAR_HINT, i, _run_end(source, i + 1))
+        elif c == '%':
+            j = i + 1
+            while j < len(source) and ('a' <= source[j] <= 'z' or _digit(source[j])):
+                j += 1
+            if j == i + 1:
+                fail('syntax', 'expected a local after `%`', LOCAL_HINT, i, _run_end(source, i + 1))
+            if j < len(source) and (_glued(source[j]) or source[j] == '_'):
+                fail(
+                    'syntax', f'`{source[j]}` cannot appear in a local', LOCAL_HINT, i, _run_end(source, j), col + j - i
+                )
+            yield Token(Tok.LOCAL, source[i + 1 : j], Span(line, col, i, j))
+            col += j - i
+            i = j
+        elif c == '@':
             if i + 1 >= len(source) or not _name_start(source[i + 1]):
-                fail('syntax', 'expected a name after `$`', NAME_HINT, i, _run_end(source, i + 1))
+                fail('syntax', 'expected a name after `@`', NAME_HINT, i, _run_end(source, i + 1))
             j = name_end(i + 1)
             yield Token(Tok.WORD, source[i + 1 : j], Span(line, col, i, j))
             col += j - i
@@ -143,8 +160,6 @@ def tokens(source: str) -> Iterator[Token]:
         elif source.startswith('->', i):
             yield Token(Tok.ARROW, '->', Span(line, col, i, i + 2))
             i, col = i + 2, col + 2
-        elif c in {'%', '@'}:
-            fail('syntax', f'unexpected character `{c}`', SIGIL_HINT, i, _run_end(source, i + 1))
         elif c == '→':
             fail('syntax', 'unexpected character `→`', ARROW_HINT + '; source is ASCII', i, i + 1)
         elif _digit(c) or (c == '-' and i + 1 < len(source) and _digit(source[i + 1])):
@@ -178,12 +193,12 @@ def tokens(source: str) -> Iterator[Token]:
                 if ch == '\\':
                     nxt = source[j + 1] if j + 1 < len(source) else ''
                     if nxt not in ESCAPES:
-                        hint = 'the escapes are `\\"`, `\\\\` and `\\$`'
+                        hint = 'a `$` needs no escape now' if nxt == '$' else 'the escapes are `\\"`, `\\\\` and `\\@`'
                         fail('syntax', f'unknown escape `\\{nxt}`', hint, j, j + 1 + len(nxt), cl)
                     value.append(ESCAPES[nxt])
                     j, cl = j + 2, cl + 2
                     continue
-                if ch == '$':
+                if ch == '@':
                     refs.append(_ref(source, j, line, cl))
                 value.append(ch)
                 j, cl = j + 1, cl + 1
@@ -199,7 +214,7 @@ def tokens(source: str) -> Iterator[Token]:
 
 
 def _ref(source: str, j: int, line: int, column: int) -> Ref:
-    """The reference whose `$` is at `source[j]`, inside a string."""
+    """The reference whose `@` is at `source[j]`, inside a string."""
     k = j + 1
     if k < len(source) and _name_start(source[k]):
         while k < len(source) and _name_char(source[k]):

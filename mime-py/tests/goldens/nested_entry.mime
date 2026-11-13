@@ -1,4 +1,4 @@
-$pair = {
+@pair = {
   abstract = "two whole numbers",
-  $first = {type = i64, abstract = "the first one"}
+  @first = {type = i64, abstract = "the first one"}
 }

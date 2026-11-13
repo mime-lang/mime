@@ -1,0 +1,1 @@
+@number = {type = i64, abstract = "costs \$5"}

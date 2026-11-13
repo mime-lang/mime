@@ -1,0 +1,18 @@
+[
+  {
+    "kind": "unused-local",
+    "entry": "@twice",
+    "key": "body",
+    "text": "%double",
+    "message": "nothing reads `%double`",
+    "hint": "use it, or remove its line; a body often returns the wrong local"
+  },
+  {
+    "kind": "undeclared-word",
+    "entry": "@twice",
+    "key": "body",
+    "text": "%doubel",
+    "message": "nothing binds `%doubel`",
+    "hint": "did you mean `%double`?"
+  }
+]

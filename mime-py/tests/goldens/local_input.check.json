@@ -1,0 +1,18 @@
+[
+  {
+    "kind": "unused-local",
+    "entry": "@f",
+    "key": "type",
+    "text": "@number",
+    "message": "nothing reads the input `@number`",
+    "hint": "remove `@number` from the type, or use it"
+  },
+  {
+    "kind": "undeclared-word",
+    "entry": "@f",
+    "key": "body",
+    "text": "%number",
+    "message": "nothing binds `%number`",
+    "hint": "an input is its word: write `@number`"
+  }
+]

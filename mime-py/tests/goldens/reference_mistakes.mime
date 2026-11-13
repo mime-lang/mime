@@ -1,12 +1,12 @@
-$number = {type = i64, abstract = "a whole number that costs $5"}
+@number = {type = i64, abstract = "a whole number, costs $5, and @ 5 per unit"}
 
-define $same {$number} -> $number {
-  $double = add i64 $number, $number
-  ret $double
+define @same {@number} -> @number {
+  %double = add i64 @number, @number
+  ret %double
 }
-abstract = "the $numbr it is given, a $numberX, the $double, see $same and $later"
+abstract = "the @numbr it is given, a @numberX, the @double, see @same and @later, write to help@example"
 
-define $later {$number} -> $number {
-  ret $number
+define @later {@number} -> @number {
+  ret @number
 }
-abstract = "the \"next\" one, costs \$5"
+abstract = "the \"next\" one, costs $5, at \@ 5"

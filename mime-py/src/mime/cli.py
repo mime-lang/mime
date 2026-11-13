@@ -4,7 +4,7 @@ from pathlib import Path
 
 from mime import diag, printer, tools
 from mime.__about__ import __version__
-from mime.compiler import ToolError, analyze, domain_word, run
+from mime.compiler import ToolError, analyze, domain_word, name_arg, run
 from mime.diag import FatalError
 from mime.lower import lower
 from mime.parser import parse
@@ -30,10 +30,10 @@ def _parser() -> argparse.ArgumentParser:
     p.add_argument('file')
     p.add_argument('--positions', action='store_true', help=positions)
     # The word is optional to argparse so that a word the shell expanded away gets a hint, not a bare usage error.
-    p.add_argument('word', nargs='?', help="the function to run, in single quotes so the shell keeps its `$`: '$same'")
+    p.add_argument('word', nargs='?', help='the function to run, written as in the source: @same')
     p.add_argument('inputs', nargs='*', help='one decimal integer per input, in the order of the type')
 
-    word = "the word, in single quotes so the shell keeps its `$`: '$number'"
+    word = 'the word, written as in the source: @number'
     p = sub.add_parser('show', help='print the entry for a word, exactly as written')
     p.add_argument('file')
     p.add_argument('word', nargs='?', help=word)
@@ -46,45 +46,49 @@ def _parser() -> argparse.ArgumentParser:
     p = sub.add_parser('fmt', help='rewrite a program in its one layout, keeping its words and English')
     p.add_argument('file')
 
-    p = sub.add_parser('canon', help='print the canonical form: the one layout, every word renamed $w0, $w1, ...')
+    p = sub.add_parser('canon', help='print the canonical form: every word renamed @w0, @w1, ..., every local numbered')
     p.add_argument('file')
+    p.add_argument('--locals', action='store_true', help='rewrite the file with only its locals numbered, and print it')
 
-    p = sub.add_parser('rename', help='rename one word everywhere and rewrite the file')
+    p = sub.add_parser('rename', help='rename one word or local everywhere and rewrite the file')
     p.add_argument('file')
-    p.add_argument('word', nargs='?', help="the word to rename, in single quotes: '$number'")
-    p.add_argument('new', nargs='?', help="its new spelling, in single quotes: '$count'")
+    p.add_argument('word', nargs='?', help='the word or local to rename: @number or %%double')
+    p.add_argument('new', nargs='?', help='its new spelling, with the same sigil: @count or %%twice')
     return parser
 
 
-SHELL_HINT = "if you wrote $name without single quotes, the shell expanded it as a variable; write '$name'"
-
-
 def _check_run_args(word: str | None) -> None:
-    """Explain a missing word, which most often means the shell ate a `$word`."""
-    if word == '':
-        msg = f'the word is empty; {SHELL_HINT}'
-        raise ToolError(msg)
-    if word is None:
-        msg = 'mime run needs a word: mime run FILE WORD INPUT...'
+    """Explain a missing word."""
+    if word is None or word == '':
+        msg = 'mime run needs a word: mime run FILE @WORD INPUT...'
         raise ToolError(msg)
     if word.lstrip('-').isdigit():
-        msg = f'`{word}` looks like an input, so the word is missing; {SHELL_HINT}'
+        msg = f'`{word}` looks like an input, so the word is missing: mime run FILE @WORD INPUT...'
         raise ToolError(msg)
 
 
 def _check_word_arg(command: str, word: str | None) -> str:
-    """The word for `show` or `uses`, explaining a missing one the way `mime run` does."""
-    if word == '':
-        msg = f'the word is empty; {SHELL_HINT}'
-        raise ToolError(msg)
-    if word is None:
-        msg = f'mime {command} needs a word: mime {command} FILE WORD; {SHELL_HINT}'
+    """The word for `show` or `uses`."""
+    if word is None or word == '':
+        msg = f'mime {command} needs a word: mime {command} FILE @WORD'
         raise ToolError(msg)
     return domain_word(word)
 
 
 def _query(args: argparse.Namespace) -> int:
-    """`show` and `uses`, which need only a program that parses (design/tools.md)."""
+    """`show` and `uses`, which need only a program that parses (design/tools.md). `uses` also takes a local."""
+    if args.command == 'uses' and args.word and args.word.startswith('%'):
+        local = name_arg(args.word)[1:]
+        try:
+            module = parse(_read(args.file))
+        except FatalError as e:
+            sys.stderr.write(diag.to_json([e.diagnostic], positions=args.positions))
+            return PROGRAM_ERRORS
+        sys.stdout.write(tools.uses_json(tools.local_uses(module, local), positions=args.positions))
+        return OK
+    if args.command == 'show' and args.word and args.word.startswith('%'):
+        msg = f'`{args.word}` is a local, so it has no entry; `mime uses` lists its uses'
+        raise ToolError(msg)
     word = _check_word_arg(args.command, args.word)
     try:
         module = parse(_read(args.file))
@@ -101,25 +105,29 @@ def _query(args: argparse.Namespace) -> int:
 def _form(args: argparse.Namespace) -> int:
     """`fmt`, `canon` and `rename`, which need only a program that parses (design/step-5.md)."""
     if args.command == 'rename':
-        old = _check_word_arg('rename', args.word)
-        if args.new is None or args.new == '':
-            msg = f'mime rename needs a new word: mime rename FILE OLD NEW; {SHELL_HINT}'
+        if not args.word or not args.new:
+            msg = 'mime rename needs the old and the new name: mime rename FILE @OLD @NEW'
             raise ToolError(msg)
-        new = domain_word(args.new)
+        old, new = name_arg(args.word), name_arg(args.new)
     source = _read(args.file)
     try:
         module = parse(source)
     except FatalError as e:
         sys.stderr.write(diag.to_json([e.diagnostic]))
         return PROGRAM_ERRORS
-    if args.command == 'canon':
+    if args.command == 'canon' and args.locals:
+        numbered = printer.canon_locals(module)
+        _write(args.file, numbered)
+        sys.stdout.write(numbered)
+    elif args.command == 'canon':
         sys.stdout.write(printer.canon(module))
     elif args.command == 'fmt':
         _write(args.file, printer.layout(module))
     else:
         renamed = printer.rename(source, old, new)
         _write(args.file, renamed)
-        sys.stdout.write(tools.uses_json(tools.uses(parse(renamed), new)))
+        found = tools.uses(parse(renamed), new[1:]) if new[0] == '@' else tools.local_uses(parse(renamed), new[1:])
+        sys.stdout.write(tools.uses_json(found))
     return OK
 
 

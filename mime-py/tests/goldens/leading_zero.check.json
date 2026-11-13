@@ -1,7 +1,7 @@
 [
   {
     "kind": "syntax",
-    "entry": "$a",
+    "entry": "@a",
     "key": "body",
     "text": "007",
     "message": "`007` is not how an integer is written",

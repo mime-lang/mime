@@ -1,38 +1,38 @@
-$w0 = {type = i64, abstract = "a whole number"}
-$w1 = {type = i64, abstract = "the first of two numbers"}
-$w2 = {type = i64, abstract = "the second of two numbers"}
+@w0 = {type = i64, abstract = "a whole number"}
+@w1 = {type = i64, abstract = "the first of two numbers"}
+@w2 = {type = i64, abstract = "the second of two numbers"}
 
-define $w3 {$w0} -> $w0 {
-  $w4 = mul i64 $w0, $w0
-  ret $w4
+define @w3 {@w0} -> @w0 {
+  %0 = mul i64 @w0, @w0
+  ret %0
 }
-abstract = "a $w0 times itself"
+abstract = "a @w0 times itself"
 
-define $w5 {$w0} -> $w0 {
-  $w6 = sub i64 $w0, 1
-  ret $w6
+define @w4 {@w0} -> @w0 {
+  %0 = sub i64 @w0, 1
+  ret %0
 }
-abstract = "one less than a $w0"
+abstract = "one less than a @w0"
 
-define $w7 {$w0} -> $w0 {
-  $w8 = sub i64 0, $w0
-  ret $w8
+define @w5 {@w0} -> @w0 {
+  %0 = sub i64 0, @w0
+  ret %0
 }
-abstract = "zero minus a $w0"
+abstract = "zero minus a @w0"
 
-define $w9 {$w0} -> $w0 {
-  $w10 = add i64 $w0, -9223372036854775808
-  ret $w10
+define @w6 {@w0} -> @w0 {
+  %0 = add i64 @w0, -9223372036854775808
+  ret %0
 }
-abstract = "a $w0 plus the smallest i64"
+abstract = "a @w0 plus the smallest i64"
 
-define $w11 {$w1, $w2} -> i64 {
-  $w12 = sub i64 $w1, $w2
-  ret $w12
+define @w7 {@w1, @w2} -> i64 {
+  %0 = sub i64 @w1, @w2
+  ret %0
 }
-abstract = "the $w1 minus the $w2, like $w5 but for any two"
+abstract = "the @w1 minus the @w2, like @w4 but for any two"
 
-define $w13 {} -> $w0 {
+define @w8 {} -> @w0 {
   ret 7
 }
 abstract = "always seven"

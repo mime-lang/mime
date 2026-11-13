@@ -1,9 +1,9 @@
-$number = {type = i64, abstract = "a whole number"}
+@number = {type = i64, abstract = "a whole number"}
 
-define $affine {$number} -> $number {
-  $double = add i64 $number, $number
-  $triple = add i64 $double, $number
-  $result = add i64 $triple, 1
-  ret $result
+define @affine {@number} -> @number {
+  %double = add i64 @number, @number
+  %triple = add i64 %double, @number
+  %result = add i64 %triple, 1
+  ret %result
 }
-abstract = "three times the $number it is given, plus one"
+abstract = "three times the @number it is given, plus one"

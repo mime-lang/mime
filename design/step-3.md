@@ -6,7 +6,7 @@
 >
 > **Superseded in step 4** by [layout.md](layout.md) and [step-4.md](step-4.md): bodies are LLVM-style lines and
 > locals are called results. Step 4 also drops the check in section 4 that an operation's sort is the function's,
-> since a function now has several inputs; type checking is step 13.
+> since a function now has several inputs; type checking is step 14.
 
 ```
 $number = {description = "a whole number", sort = i64}
@@ -62,7 +62,7 @@ A local is the word a `let` binds: `$double` above.
   so a word in a body always has exactly one binding.
 - **A local is used after it is bound.** An operand or the final atom may name only a local bound earlier in the
   same body. A body reads `input`, its earlier locals, and integers. It does not read module words yet. Calls
-  arrive in step 6.
+  arrive in step 7.
 - **Every local is used.** A `let` whose local nothing reads is an error, `unused-local`. Dead code would be a second
   form of the same computation, and an unused local is most often a sign that the body returns the wrong name.
 - A local is a domain word, so the renaming invariant covers it. A description cannot refer to a local, because a
@@ -101,7 +101,8 @@ A local is the word a `let` binds: `$double` above.
 
 Each mistake gets one diagnostic, not a cascade. A local that clashes with a module word is still treated as bound,
 a local read too early counts as read, and a misspelled local whose hint names a local counts as reading it, so none
-of them is also reported as `unused-local`.
+of them is also reported as `unused-local`. (Step 6 removed the last of these, because it depends on spelling; see
+step-5.md section 1.)
 
 `sdiv`, `udiv`, `srem`, `urem` and `icmp` are language words of core section 8 that arrive later. Writing one now
 gets "arrives in a later step". Every diagnostic in a body has `key` `body` and the offending text, as

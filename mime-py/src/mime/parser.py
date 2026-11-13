@@ -6,21 +6,21 @@ from mime.diag import Diagnostic, FatalError
 from mime.lexer import ARITHMETIC_HINT, ARROW_HINT, Ref, Span, Tok, Token, tokens
 from mime.words import DEFINE, LANGUAGE_WORDS, LLVM_HABITS, OPERATIONS, RET, RETIRED, TYPES
 
-DEFINE_HINT = 'write the type: `define $f {$a, $b} -> $r {…}`'
-LINE_HINT = 'a line is `$x = add i64 $a, $b`, with `sub` or `mul` alike'
+DEFINE_HINT = 'write the type: `define @f {@a, @b} -> @r {…}`'
+LINE_HINT = 'a line is `%x = add i64 %a, %b`, with `sub` or `mul` alike'
 
 
 @dataclass(frozen=True)
 class Value:
-    kind: Tok  # WORD, NAME, STRING or INT
+    kind: Tok  # WORD, LOCAL, NAME, STRING or INT
     text: str
     span: Span
-    refs: tuple[Ref, ...] = ()  # for a string, its `$` marks
+    refs: tuple[Ref, ...] = ()  # for a string, its `@` references
 
 
 @dataclass(frozen=True)
 class Struct:
-    """`{$a, $b}` as a declaration's value: a struct of words."""
+    """`{@a, @b}` as a declaration's value: a struct of words."""
 
     words: tuple[Value, ...]
     span: Span  # from `{` to `}`
@@ -35,17 +35,17 @@ class Field:
 
 @dataclass(frozen=True)
 class Entry:
-    """A declaration: `$word = {type = …, abstract = "…"}`."""
+    """A declaration: `@word = {type = …, abstract = "…"}`."""
 
     word: str
     fields: tuple[Field, ...]
-    span: Span  # the word, with its `$`
+    span: Span  # the word, with its `@`
     end: int  # the offset just after the closing `}`, so `source[span.start:end]` is the whole entry
 
 
 @dataclass(frozen=True)
 class Line:
-    """`$result = operation type left, right`."""
+    """`%result = operation type left, right`."""
 
     result: Value
     operation: Value
@@ -56,7 +56,7 @@ class Line:
 
 @dataclass(frozen=True)
 class Definition:
-    """`define $word {inputs} -> output {lines ret value} abstract = "…"`."""
+    """`define @word {inputs} -> output {lines ret value} abstract = "…"`."""
 
     word: Value
     inputs: tuple[Value, ...]
@@ -92,14 +92,16 @@ def atoms(d: Definition) -> list[Value]:
 
 def _show(t: Token) -> str:
     if t.kind == Tok.WORD:
-        return f'`${t.text}`'
+        return f'`@{t.text}`'
+    if t.kind == Tok.LOCAL:
+        return f'`%{t.text}`'
     if t.kind == Tok.NAME:
         return f'`{t.text}`'
     return t.kind.value
 
 
 def _infix(t: Token) -> str | None:
-    """The arithmetic hint for `$a -1`, where a value is followed by what reads as subtraction."""
+    """The arithmetic hint for `%a -1`, where a value is followed by what reads as subtraction."""
     return ARITHMETIC_HINT if t.kind == Tok.INT and t.text.startswith('-') else None
 
 
@@ -112,7 +114,7 @@ class _Parser:
         self.source = source
         self.stream = tokens(source)
         self.ahead: Token | None = None
-        # Where the parser is, for a diagnostic: the word with its `$`, and the key (`type`, `body`, `abstract`).
+        # Where the parser is, for a diagnostic: the word with its `@`, and the key (`type`, `body`, `abstract`).
         self.entry_word: str | None = None
         self.key: str | None = None
 
@@ -151,15 +153,15 @@ class _Parser:
         t = self.take()
         if t.kind == Tok.NAME and t.text not in LANGUAGE_WORDS:
             raise self.fail(
-                t, f'`{t.text}` is not a language word', f'did you mean `${t.text}`?', kind='unknown-language-word'
+                t, f'`{t.text}` is not a language word', f'did you mean `@{t.text}`?', kind='unknown-language-word'
             )
         if t.kind == Tok.COMMA:
             raise self.fail(t, 'entries are not separated by commas', 'remove the `,`')
         if t.kind != Tok.WORD:
-            raise self.fail(t, f'expected an entry such as `$word = {{…}}`, found {_show(t)}')
-        self.entry_word = f'${t.text}'
-        self.expect(Tok.EQUALS, f'after `${t.text}`')
-        self.expect(Tok.LBRACE, f'to start the entry for `${t.text}`')
+            raise self.fail(t, f'expected an entry such as `@word = {{…}}`, found {_show(t)}')
+        self.entry_word = f'@{t.text}'
+        self.expect(Tok.EQUALS, f'after `@{t.text}`')
+        self.expect(Tok.LBRACE, f'to start the entry for `@{t.text}`')
         fields = []
         if self.peek().kind != Tok.RBRACE:
             while True:
@@ -185,8 +187,8 @@ class _Parser:
         if k.kind == Tok.WORD:
             raise self.fail(
                 k,
-                f'entries do not nest, so `${k.text}` cannot be declared inside another entry',
-                f'declare `${k.text}` as its own entry before this one',
+                f'entries do not nest, so `@{k.text}` cannot be declared inside another entry',
+                f'declare `@{k.text}` as its own entry before this one',
                 kind='nested-entry',
             )
         if k.kind != Tok.NAME:
@@ -208,7 +210,7 @@ class _Parser:
         return Field(k.text, value, k.span)
 
     def struct(self) -> Struct:
-        """`{$a, $b}`. A key inside it means a nested entry, which mime does not have."""
+        """`{@a, @b}`. A key inside it means a nested entry, which mime does not have."""
         open_ = self.take()
         words = []
         while self.peek().kind != Tok.RBRACE:
@@ -239,7 +241,7 @@ class _Parser:
         w = self.take()
         if w.kind != Tok.WORD:
             raise self.fail(w, f'expected the function word after `define`, found {_show(w)}', DEFINE_HINT)
-        self.entry_word, self.key = f'${w.text}', 'type'
+        self.entry_word, self.key = f'@{w.text}', 'type'
         inputs = self.inputs()
         arrow = self.take()
         if arrow.kind != Tok.ARROW:
@@ -248,10 +250,10 @@ class _Parser:
         out = self.take()
         if out.kind not in (Tok.WORD, Tok.NAME):
             raise self.fail(
-                out, f'expected the output after `->`, found {_show(out)}', 'name a word, such as `$number`'
+                out, f'expected the output after `->`, found {_show(out)}', 'name a word, such as `@number`'
             )
         if self.peek().kind == Tok.ARROW:
-            raise self.fail(self.peek(), 'a function returns one value', 'put the inputs in a struct: `{$a, $b} -> $c`')
+            raise self.fail(self.peek(), 'a function returns one value', 'put the inputs in a struct: `{@a, @b} -> @c`')
         self.key = 'body'
         self.expect(Tok.LBRACE, 'to start the body')
         lines = []
@@ -272,7 +274,7 @@ class _Parser:
                 self.take()
                 break
             if t.kind == Tok.RBRACE:
-                raise self.fail(t, 'a body ends with `ret`', 'return the result: `ret $result`')
+                raise self.fail(t, 'a body ends with `ret`', 'return the result: `ret %result`')
             lines.append(self.line())
         self.key = 'abstract'
         a = self.take()
@@ -298,7 +300,7 @@ class _Parser:
                 hint = (
                     f'an input is a declared word; declare one with `type = {x.text}`'
                     if x.kind == Tok.NAME and x.text in TYPES
-                    else 'an input is a declared word, such as `$number`'
+                    else 'an input is a declared word, such as `@number`'
                 )
                 raise self.fail(x, f'expected an input word, found {_show(x)}', hint)
             found.append(_value(x))
@@ -315,16 +317,18 @@ class _Parser:
         r = self.take()
         if r.kind == Tok.NAME and (r.text in RETIRED or r.text in LLVM_HABITS):
             raise self.fail(r, f'`{r.text}` is not a language word', RETIRED.get(r.text) or LLVM_HABITS[r.text])
-        if r.kind != Tok.WORD:
+        if r.kind == Tok.WORD:
+            raise self.fail(r, 'a result is a local, not a word', f'write `%{r.text}`; a `@` word has an entry')
+        if r.kind != Tok.LOCAL:
             raise self.fail(r, f'expected a line or `ret`, found {_show(r)}', LINE_HINT)
         eq = self.take()
         if eq.kind == Tok.COLON:
-            raise self.fail(eq, 'blocks arrive in step 7', 'until then a body is one list of lines ending in `ret`')
+            raise self.fail(eq, 'blocks arrive in step 8', 'until then a body is one list of lines ending in `ret`')
         if eq.kind != Tok.EQUALS:
-            raise self.fail(eq, f'expected `=` after `${r.text}`, found {_show(eq)}', LINE_HINT)
+            raise self.fail(eq, f'expected `=` after `%{r.text}`, found {_show(eq)}', LINE_HINT)
         op = self.take()
         if op.kind != Tok.NAME:
-            raise self.fail(op, f'expected an operation after `${r.text} =`, found {_show(op)}', ARITHMETIC_HINT)
+            raise self.fail(op, f'expected an operation after `%{r.text} =`, found {_show(op)}', ARITHMETIC_HINT)
         if op.text in LLVM_HABITS:
             raise self.fail(op, f'`{op.text}` is not a language word', LLVM_HABITS[op.text])
         nxt = self.peek()
@@ -344,10 +348,12 @@ class _Parser:
 
     def atom(self, context: str) -> Value:
         t = self.take()
-        if t.kind in (Tok.WORD, Tok.INT):
+        if t.kind in (Tok.WORD, Tok.LOCAL, Tok.INT):
             return _value(t)
         if t.kind != Tok.NAME:
-            raise self.fail(t, f'expected an operand {context}, found {_show(t)}', 'an operand is a word or an integer')
+            raise self.fail(
+                t, f'expected an operand {context}, found {_show(t)}', 'an operand is a word, a local or an integer'
+            )
         if t.text in TYPES:
             raise self.fail(t, f'`{t.text}` is a type, not an operand', 'the type comes from the definition')
         if t.text in OPERATIONS:
@@ -360,7 +366,7 @@ class _Parser:
         if t.text in RETIRED:
             raise self.fail(t, f'`{t.text}` is not a language word', RETIRED[t.text])
         kind = 'syntax' if t.text in LANGUAGE_WORDS else 'unknown-language-word'
-        raise self.fail(t, f'`{t.text}` is not an operand', f'did you mean `${t.text}`?', kind=kind)
+        raise self.fail(t, f'`{t.text}` is not an operand', f'did you mean `%{t.text}` or `@{t.text}`?', kind=kind)
 
 
 def parse(source: str) -> Module:

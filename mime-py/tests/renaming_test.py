@@ -15,9 +15,9 @@ NAMES = sorted(p.stem for p in GOLDENS.glob('*.mime') if '.' not in p.stem)
 
 
 def scramble(source: str) -> tuple[str, dict[str, str]]:
-    """Rename every word to a name that says nothing, of a different length, in reverse order."""
+    """Rename every word and local to a name that says nothing, of a different length, in reverse order."""
     words = words_in(source)
-    mapping = {w: f'q{len(words) - i}zz{i * 7}' for i, w in enumerate(words)}
+    mapping = {w: f'{w[0]}q{len(words) - i}zz{i * 7}' for i, w in enumerate(words)}
     return rename_text(source, mapping), mapping
 
 
@@ -30,7 +30,7 @@ def test_renaming_keeps_the_diagnostics(name: str) -> None:
     before, after = analyze(source)[1], analyze(renamed)[1]
 
     def entry(e: str | None) -> str | None:
-        return e if e is None else '$' + mapping.get(e[1:], e[1:])
+        return e if e is None else mapping.get(e, e)
 
     assert [(d.kind, entry(d.entry), d.key) for d in before] == [(d.kind, d.entry, d.key) for d in after]
 
@@ -58,12 +58,12 @@ def test_the_canonical_form_is_a_fixed_point(name: str) -> None:
 
 
 RUNS = [
-    ('affine', '$affine', ['5']),
-    ('affine', '$affine', [str(2**63 - 1)]),
-    ('arithmetic', '$square', ['-12']),
-    ('arithmetic', '$difference', ['10', '3']),
-    ('arithmetic', '$seven', []),
-    ('same', '$same', ['42']),
+    ('affine', '@affine', ['5']),
+    ('affine', '@affine', [str(2**63 - 1)]),
+    ('arithmetic', '@square', ['-12']),
+    ('arithmetic', '@difference', ['10', '3']),
+    ('arithmetic', '@seven', []),
+    ('same', '@same', ['42']),
 ]
 
 
@@ -79,5 +79,5 @@ def test_renaming_keeps_the_behavior(name: str, word: str, args: list[str]) -> N
     assert scrambled is not None
     assert canonical is not None
     expected = run(program, word, args)
-    assert run(scrambled, '$' + mapping[word[1:]], args) == expected
-    assert run(canonical, '$' + canonical_names(parse(source)).words[word[1:]], args) == expected
+    assert run(scrambled, mapping[word], args) == expected
+    assert run(canonical, '@' + canonical_names(parse(source)).words[word[1:]], args) == expected

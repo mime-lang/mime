@@ -1,7 +1,7 @@
 [
   {
     "kind": "bad-value",
-    "entry": "$number",
+    "entry": "@number",
     "key": "type",
     "text": "i32",
     "message": "`i32` arrives in a later step",
@@ -9,15 +9,15 @@
   },
   {
     "kind": "key-order",
-    "entry": "$count",
+    "entry": "@count",
     "key": "abstract",
     "text": "abstract",
-    "message": "the keys of `$count` are out of order",
+    "message": "the keys of `@count` are out of order",
     "hint": "write them in this order: `type`, `abstract`"
   },
   {
     "kind": "unknown-key",
-    "entry": "$later",
+    "entry": "@later",
     "key": "sort",
     "text": "sort",
     "message": "`sort` is not a key",
@@ -25,15 +25,15 @@
   },
   {
     "kind": "duplicate-word",
-    "entry": "$number",
+    "entry": "@number",
     "key": null,
-    "text": "$number",
-    "message": "`$number` already has an entry",
+    "text": "@number",
+    "message": "`@number` already has an entry",
     "hint": "a word has one entry; merge the two or rename one"
   },
   {
     "kind": "bad-value",
-    "entry": "$number",
+    "entry": "@number",
     "key": "abstract",
     "text": "\"\"",
     "message": "an abstract cannot be empty",
@@ -41,34 +41,34 @@
   },
   {
     "kind": "bad-value",
-    "entry": "$pair",
+    "entry": "@pair",
     "key": "type",
-    "text": "{$first, $second}",
-    "message": "struct types arrive in step 9",
+    "text": "{@first, @second}",
+    "message": "struct types arrive in step 10",
     "hint": "the only type is `i64`"
   },
   {
     "kind": "undeclared-word",
-    "entry": "$f",
+    "entry": "@f",
     "key": "type",
-    "text": "$numbr",
-    "message": "no entry declares `$numbr`",
-    "hint": "did you mean `$number`?"
+    "text": "@numbr",
+    "message": "no entry declares `@numbr`",
+    "hint": "did you mean `@number`?"
   },
   {
     "kind": "bad-value",
-    "entry": "$f",
+    "entry": "@f",
     "key": "type",
-    "text": "$same",
-    "message": "`$same` is a function, so it cannot be the output",
+    "text": "@same",
+    "message": "`@same` is a function, so it cannot be the output",
     "hint": "the output is a data word, declared with `{type = …, abstract = \"…\"}`"
   },
   {
     "kind": "bad-value",
-    "entry": "$same",
+    "entry": "@same",
     "key": "type",
-    "text": "$f",
-    "message": "`$f` is a function, so it cannot be an input",
+    "text": "@f",
+    "message": "`@f` is a function, so it cannot be an input",
     "hint": "an input is a data word, declared with `{type = …, abstract = \"…\"}`"
   }
 ]

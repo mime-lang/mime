@@ -1,0 +1,7 @@
+@number = {type = i64, abstract = "a whole number"}
+
+define @next {@numbr} -> @number {
+  %r = add i64 @number, 1
+  ret %r
+}
+abstract = "one more than the @number"

@@ -11,9 +11,9 @@ from mime.parser import Definition, Entry, Module, Struct, Value, atoms
 
 @dataclass(frozen=True)
 class Use:
-    entry: str  # the word of the entry the use is in, with its `$`
+    entry: str  # the word of the entry the use is in, with its `@`
     key: str
-    text: str  # the reference as written, such as `$number`
+    text: str  # the reference as written, such as `@number`
     span: Span
 
 
@@ -27,7 +27,7 @@ def _words(module: Module) -> list[str]:
 
 def _did_you_mean(module: Module, word: str) -> str:
     close = difflib.get_close_matches(word, _words(module), n=1)
-    return f'; did you mean `${close[0]}`?' if close else ''
+    return f'; did you mean `@{close[0]}`?' if close else ''
 
 
 def show(module: Module, word: str) -> str:
@@ -37,7 +37,7 @@ def show(module: Module, word: str) -> str:
     """
     texts = [module.source[x.span.start : x.end] for x in module.items if _word(x) == word]
     if not texts:
-        msg = f'no entry declares `${word}`{_did_you_mean(module, word)}'
+        msg = f'no entry declares `@{word}`{_did_you_mean(module, word)}'
         raise ToolError(msg)
     return '\n\n'.join(texts) + '\n'
 
@@ -65,9 +65,19 @@ def uses(module: Module, word: str) -> list[Use]:
         found += [(d.word.text, 'body', s) for s in body]
         found += [(d.word.text, 'abstract', s) for s in _refs(d.abstract, word)]
     if not found and word not in _words(module):
-        msg = f'no entry declares `${word}` and nothing refers to it{_did_you_mean(module, word)}'
+        msg = f'no entry declares `@{word}` and nothing refers to it{_did_you_mean(module, word)}'
         raise ToolError(msg)
-    return [Use(f'${w}', key, module.source[s.start : s.end], s) for w, key, s in found]
+    return [Use(f'@{w}', key, module.source[s.start : s.end], s) for w, key, s in found]
+
+
+def local_uses(module: Module, local: str) -> list[Use]:
+    """Every read of `%local` in every body that binds or reads it, in source order. Its bindings are not uses."""
+    return [
+        Use(f'@{d.word.text}', 'body', f'%{a.text}', a.span)
+        for d in module.definitions
+        for a in atoms(d)
+        if a.kind == Tok.LOCAL and a.text == local
+    ]
 
 
 def uses_json(found: list[Use], *, positions: bool = False) -> str:

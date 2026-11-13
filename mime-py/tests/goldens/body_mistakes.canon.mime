@@ -1,13 +1,12 @@
-$w0 = {type = i64, abstract = "a whole number"}
-$w1 = {type = i64, abstract = "another number"}
+@w0 = {type = i64, abstract = "a whole number"}
+@w1 = {type = i64, abstract = "another number"}
 
-define $w2 {$w0} -> $w0 {
-  $w3 = div i64 $w0, 2
-  $w4 = add i32 $w3, $w0
-  $w3 = mul i64 $w5, $w1
-  $w1 = add i64 $w4, $w4
-  $w6 = add i64 $w6, 99999999999999999999
-  $w5 = add i64 $w7, $w0
-  ret $w3
+define @w2 {@w0} -> @w0 {
+  %0 = div i64 @w0, 2
+  %1 = add i32 %0, @w0
+  %0 = mul i64 %2, @w1
+  %3 = add i64 %3, 99999999999999999999
+  %2 = add i64 %4, %1
+  ret %0
 }
 abstract = "x"

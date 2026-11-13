@@ -3,6 +3,9 @@
 > Status: settled. Implemented by roadmap step 4, except where a section names a later step. It replaces the entry
 > keys of [step-1.md](step-1.md) (`description`, `sort`, `takes`, `returns`) and the `let … in` bodies of
 > [step-3.md](step-3.md), and it settles [core.md](core.md) open questions 2 and 3.
+>
+> From step 6 ([step-6.md](step-6.md)), words are written `@word` and locals `%local`. The examples here use the
+> step 4 form, `$` for both.
 
 ```
 $number = {type = i64, abstract = "a whole number"}
@@ -28,9 +31,9 @@ A module has three sections, always in this order:
 **Every entry refers only to earlier entries,** whatever their kind: a type, an input, an output or an abstract
 names only words declared or defined above it. So a module reads top to bottom like a mathematical text, and the
 hint for a word used too early is always the same: move its entry above. How a function refers to itself or to a
-later function, as recursion needs, is decided with calls in step 6.
+later function, as recursion needs, is decided with calls in step 7.
 
-Imports and exports arrive with modules in step 11, which fixes their syntax. Until then a module has only
+Imports and exports arrive with modules in step 12, which fixes their syntax. Until then a module has only
 entries, and `mime run` may run any function word.
 
 ## 2. Meaning
@@ -59,14 +62,14 @@ $pair   = {type = {$first, $second}, abstract = "a $first and a $second"}
 - A **data word** is `$w = {type = T, abstract = "…"}`, in that key order. It has no body, so its entry is its
   definition, and its abstract follows the type it describes.
 - **`type` is the type of the word's values:** a primitive (`i64`) or a struct of words (`{$first, $second}`,
-  step 9). A function type is written in its definition (section 4), never here: `type = {$n} -> $n` in a
+  step 10). A function type is written in its definition (section 4), never here: `type = {$n} -> $n` in a
   declaration gets "a function is written as a `define`".
 - **A word in a type is nominal.** `$point` and `$vector` may both have type `{$x, $y}` and are still different
-  types, because the word decides (core section 9). Type checking arrives in step 13.
+  types, because the word decides (core section 9). Type checking arrives in step 14.
 - **The words in a type are data words.** A function word there would mean a function value, which mime cannot
   express yet.
 - A word is declared once. A declaration refers only to earlier entries, never to itself. How a data word refers
-  to itself, as a list does, is decided with structs in step 9.
+  to itself, as a list does, is decided with structs in step 10.
 
 ## 4. Definitions
 
@@ -108,7 +111,7 @@ The body follows LLVM IR, the low-level code models know best, with five deliber
   because the definition gives the function's type.
 - **Overflow wraps,** as in step 3.
 
-**Blocks (step 7).** Control flow adds blocks, which step 4 does not implement. The lines after `{` are the entry
+**Blocks (step 8).** Control flow adds blocks, which step 4 does not implement. The lines after `{` are the entry
 block, which has no label. Every other block starts with a label, `$name($x, $y):`, or `$name():` with no
 parameters. `br $block(args)` jumps to a block, and `br $c, $then(args), $else(args)` jumps to one of two. A block
 sees its own parameters, its own earlier results and the function's parameters. Anything else is passed as a block
@@ -164,7 +167,7 @@ abstract = "the $number it is given"
 - `sort` becomes `type`. `takes` and `returns` become the definition's type.
 - `body = input` and `let … in` become a definition with lines and `ret`. `input` is retired, which settles core
   open question 2: a parameter is its word.
-- `mime run FILE '$f' 7` passes one decimal integer per input, in the type's order, and none for `{}`. Step 6
+- `mime run FILE '$f' 7` passes one decimal integer per input, in the type's order, and none for `{}`. Step 7
   replaces this with a mime call.
 - Lowering gives each input its LLVM parameter: `define i64 @"$gcd"(i64 %"$first", i64 %"$second")`.
 
@@ -179,11 +182,11 @@ abstract = "the $number it is given"
   abstract in a declaration gets "a function's type and abstract belong to its `define`". An ignored input gets
   `unused-local` with the hint to remove it from the type. *To measure:* whether abstract-last makes abstracts more
   accurate, and, once blocks arrive, argument swaps in `br` (both values are `i64`, so nothing catches them before
-  step 13).
+  step 14).
 
 ## 10. Out of scope
 
-- The syntax of imports and exports, and link names for imported words: step 11.
-- Calls, and how a function refers to itself or to a later function: step 6.
-- Struct values, `get`, and data words that refer to themselves, such as a list: step 9.
-- Blocks, `br`, `icmp` and `i1`: step 7. Step 4 implements a single body with `ret`.
+- The syntax of imports and exports, and link names for imported words: step 12.
+- Calls, and how a function refers to itself or to a later function: step 7.
+- Struct values, `get`, and data words that refer to themselves, such as a list: step 10.
+- Blocks, `br`, `icmp` and `i1`: step 8. Step 4 implements a single body with `ret`.

@@ -1,7 +1,7 @@
-$number = {type = i64, abstract = "a whole number"}
+@number = {type = i64, abstract = "a whole number"}
 
-define $a {$number} -> $number {
-  $r = add i64 $number, 007
-  ret $r
+define @a {@number} -> @number {
+  %r = add i64 @number, 007
+  ret %r
 }
 abstract = "x"

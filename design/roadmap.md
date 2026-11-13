@@ -56,18 +56,25 @@ $same   = {description = "the number it is given", takes = $number, returns = $n
 - **Done when:** the test suite renames every word in every test program and checks that behavior and canonical form
   are unchanged. This is mime's thesis turned into a test, so it comes early.
 
-### 6. Calls and recursion
+### 6. `@` words and `%` locals (done; see [step-6.md](step-6.md))
+
+- **New:** words are written `@word` and locals `%local` ([step-6.md](step-6.md)), so a reader sees which words
+  carry meaning, and a word on the command line needs no quotes. `mime canon` numbers locals per body, so their
+  names carry no meaning, and `mime canon --locals` rewrites a file with only its locals replaced.
+- **Note:** like step 4, this changes the form of every earlier program once.
+
+### 7. Calls and recursion
 
 - **New:** `call`, and recursion.
 - **Decide:** how a function refers to itself and to a later function, as mutual recursion needs: forward
   declarations, or definitions as a fixed point. Definitions are ordered, like everything else, until this step.
 - **Also:** `mime run` takes one argument written as a mime call, replacing `'$same' 7` (see step-1.md, section 4).
 
-### 7. Comparisons and branches
+### 8. Comparisons and branches
 
 - **New:** `icmp` with predicates, `i1`, and the blocks and `br` of layout.md section 5.
 
-### 8. Division and remainder
+### 9. Division and remainder
 
 - **New:** `sdiv`, `udiv`, `srem`, `urem`.
 - **Decide:** what division by zero means. One operation has exactly one meaning, so it cannot be left undefined.
@@ -75,33 +82,33 @@ $same   = {description = "the number it is given", takes = $number, returns = $n
 **Milestone: first benchmark run.** Integer tasks such as gcd can now be written in mime, so the benchmark's mime
 cells stop being `unavailable` and the scrambled-words ablation can run on them.
 
-### 9. Structs
+### 10. Structs
 
 - **New:** `type = {$first, $second}`, reading a field, building a struct value.
 - **Decide:** the syntax for both, and how a data word refers to itself, as a list does (`$list` holding a `$list`).
-  That needs the same answer as step 6's forward references, and it needs indirection, which mime does not have
+  That needs the same answer as step 7's forward references, and it needs indirection, which mime does not have
   yet.
 
-### 10. Integer widths
+### 11. Integer widths
 
 - **New:** `i8`, `i16`, `i32`, and conversions between widths.
 
-### 11. Modules
+### 12. Modules
 
 - **New:** several files, `import` and export, renaming at import, headers.
 - **Decide:** open question 3 (header format).
 
-### 12. Opaque structs
+### 13. Opaque structs
 
 - **New:** a struct exported without its fields.
 - **Decide:** open question 5 (where an importer's compiler finds the struct's size).
 
-### 13. Types
+### 14. Types
 
 - **New:** the type checker: structural types made nominal by words.
 - **Decide:** open question 4 (the checking layer).
 
-### 14. Unions
+### 15. Unions
 
 - **New:** set-theoretic unions (`A | B`) and the checks that cover every case.
 

@@ -1,15 +1,15 @@
-$number = {type = i32, abstract = "a whole number"}
-$count = {abstract = "how many", type = i64}
-$later = {sort = i64, abstract = "x"}
-$number = {type = i64, abstract = ""}
-$pair = {type = {$first, $second}, abstract = "two numbers"}
+@number = {type = i32, abstract = "a whole number"}
+@count = {abstract = "how many", type = i64}
+@later = {sort = i64, abstract = "x"}
+@number = {type = i64, abstract = ""}
+@pair = {type = {@first, @second}, abstract = "two numbers"}
 
-define $f {$numbr, $count} -> $same {
-  ret $count
+define @f {@numbr, @count} -> @same {
+  ret @count
 }
 abstract = "x"
 
-define $same {$f} -> $number {
+define @same {@f} -> @number {
   ret 1
 }
 abstract = "x"

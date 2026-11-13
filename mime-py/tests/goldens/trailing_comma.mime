@@ -1,1 +1,1 @@
-$number = {type = i64, abstract = "a whole number",}
+@number = {type = i64, abstract = "a whole number",}

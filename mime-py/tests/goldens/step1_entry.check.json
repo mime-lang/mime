@@ -1,7 +1,7 @@
 [
   {
     "kind": "unknown-key",
-    "entry": "$number",
+    "entry": "@number",
     "key": "description",
     "text": "description",
     "message": "`description` is not a key",
@@ -9,7 +9,7 @@
   },
   {
     "kind": "unknown-key",
-    "entry": "$number",
+    "entry": "@number",
     "key": "sort",
     "text": "sort",
     "message": "`sort` is not a key",

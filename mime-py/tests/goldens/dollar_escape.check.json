@@ -1,0 +1,10 @@
+[
+  {
+    "kind": "syntax",
+    "entry": "@number",
+    "key": "abstract",
+    "text": "\\$",
+    "message": "unknown escape `\\$`",
+    "hint": "a `$` needs no escape now"
+  }
+]

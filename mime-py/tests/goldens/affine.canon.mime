@@ -1,9 +1,9 @@
-$w0 = {type = i64, abstract = "a whole number"}
+@w0 = {type = i64, abstract = "a whole number"}
 
-define $w1 {$w0} -> $w0 {
-  $w2 = add i64 $w0, $w0
-  $w3 = add i64 $w2, $w0
-  $w4 = add i64 $w3, 1
-  ret $w4
+define @w1 {@w0} -> @w0 {
+  %0 = add i64 @w0, @w0
+  %1 = add i64 %0, @w0
+  %2 = add i64 %1, 1
+  ret %2
 }
-abstract = "three times the $w0 it is given, plus one"
+abstract = "three times the @w0 it is given, plus one"

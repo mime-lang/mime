@@ -15,10 +15,15 @@ Consistently renaming domain words, including the references inside abstracts, n
 Language words are never renamed. A `\$` in an abstract is a dollar sign, not a reference, so it is never renamed,
 and neither is a bad reference such as `$5` or `$numberX`.
 
-**Hints that come from spelling are outside the invariant.** "Did you mean `$number`?" for `$numbr` exists because
-the two spellings are close, and closeness of spelling is exactly what a renaming changes. After one, the hint may
-become a general one. The kind, entry and key of every diagnostic stay the same, and that is what the invariant
-promises and the renaming test checks.
+**Hints that come from spelling are outside the invariant; what is reported is not.** "Did you mean `@number`?"
+for `@numbr` exists because the two spellings are close, and closeness of spelling is exactly what a renaming
+changes. After one, the hint may become a general one. But the kind, entry and key of every diagnostic stay the
+same: that is what the invariant promises and the renaming test checks. So the checker never lets a guess based on
+spelling change what it reports. A misspelled local is an `undeclared-word`, and the local it was probably meant to
+be is still an `unused-local`; the hint on the first names the second. (Step 6 removed an earlier rule that hid the
+second report: a renaming could make the two spellings unalike and bring the report back. Typo goldens now keep the
+renaming test honest about this.) Likewise `%number` used for an input `@number` keeps its hint, but the input is
+still reported as unread.
 
 ## 2. `mime fmt FILE`
 

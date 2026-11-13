@@ -1,6 +1,6 @@
-$number = {type = i64, abstract = "a whole number"}
+@number = {type = i64, abstract = "a whole number"}
 
-define $add {$number} -> $number {
+define @add {@number} -> @number {
   %r = add nsw i64 %number, 1
   ret %r
 }

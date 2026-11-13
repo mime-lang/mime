@@ -1,0 +1,18 @@
+[
+  {
+    "kind": "undeclared-word",
+    "entry": "@next",
+    "key": "type",
+    "text": "@numbr",
+    "message": "no entry declares `@numbr`",
+    "hint": "did you mean `@number`?"
+  },
+  {
+    "kind": "not-a-value",
+    "entry": "@next",
+    "key": "body",
+    "text": "@number",
+    "message": "`@number` is a data word that is not an input of this function",
+    "hint": "a body reads its inputs, its earlier locals, and integers; to read it, list it in the inputs"
+  }
+]

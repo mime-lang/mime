@@ -1,10 +1,10 @@
 [
   {
     "kind": "syntax",
-    "entry": "$add",
+    "entry": "@add",
     "key": "body",
-    "text": "%r",
-    "message": "unexpected character `%`",
-    "hint": "words are written `$x`; mime has no `%` or `@`"
+    "text": "nsw",
+    "message": "`nsw` is not a language word",
+    "hint": "overflow always wraps, so there is no flag"
   }
 ]

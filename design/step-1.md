@@ -92,7 +92,7 @@ mime run prog.mime '$same' 7
   without `$` is rejected with a hint, so there is one form.
 - Forgetting the quotes fails loudly. Unquoted, the shell usually expands `$same` to nothing, so mime sees `7` where
   the word belongs. In double quotes, it sees an empty word. Both get the hint "write '$name'".
-- This form is temporary. Step 6 adds calls, and then `mime run` takes one argument written as a mime call, so the
+- This form is temporary. Step 7 adds calls, and then `mime run` takes one argument written as a mime call, so the
   command line and the language share one form.
 - The input is a decimal integer argument. The result is printed as a decimal integer and a newline.
 - `mime llvm prog.mime` prints the LLVM IR, for debugging and for tests.

@@ -1,0 +1,7 @@
+@number = {type = i64, abstract = "a whole number"}
+
+define @twice {@number} -> @number {
+  %double = add i64 @number, @number
+  ret %doubel
+}
+abstract = "two times the @number"

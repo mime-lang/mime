@@ -1,4 +1,4 @@
-"""Lower a checked program to textual LLVM IR (design/step-4.md, section 5)."""
+"""Lower a checked program to textual LLVM IR (design/step-4.md section 5, step-6.md section 8)."""
 
 from mime.checker import Function, Program
 from mime.lexer import Tok
@@ -8,21 +8,28 @@ LLVM_TYPE = {'i64': 'i64'}
 
 
 def symbol(word: str) -> str:
-    return f'@"${word}"'
+    """`@"mime.affine"`: a `.` cannot appear in a C symbol, so no runtime symbol can clash, and an ELF linker reads
+    an `@` inside a symbol as a version, so the word's own `@` is left out."""
+    return f'@"mime.{word}"'
 
 
 def _operand(v: Value) -> str:
-    return f'%"${v.text}"' if v.kind == Tok.WORD else v.text
+    """An input is `%"@number"` and a local `%"%0"`: quoted, because a bare `%0` is an unnamed LLVM value."""
+    if v.kind == Tok.WORD:
+        return f'%"@{v.text}"'
+    if v.kind == Tok.LOCAL:
+        return f'%"%{v.text}"'
+    return v.text
 
 
 def _function(f: Function) -> str:
     t = LLVM_TYPE['i64']  # every data word is an `i64` so far
-    params = ', '.join(f'{t} %"${w}"' for w in f.inputs)
+    params = ', '.join(f'{t} %"@{w}"' for w in f.inputs)
     lines = [f'define {t} {symbol(f.word)}({params}) {{']
     for line in f.definition.lines:
         # No `nsw` or `nuw` flag, so overflow wraps.
         left, right = _operand(line.left), _operand(line.right)
-        lines.append(f'  %"${line.result.text}" = {line.operation.text} {t} {left}, {right}')
+        lines.append(f'  {_operand(line.result)} = {line.operation.text} {t} {left}, {right}')
     lines.append(f'  ret {t} {_operand(f.definition.ret)}')
     return '\n'.join([*lines, '}']) + '\n'
 

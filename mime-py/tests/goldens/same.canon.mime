@@ -1,6 +1,6 @@
-$w0 = {type = i64, abstract = "a whole number"}
+@w0 = {type = i64, abstract = "a whole number"}
 
-define $w1 {$w0} -> $w0 {
-  ret $w0
+define @w1 {@w0} -> @w0 {
+  ret @w0
 }
-abstract = "the $w0 it is given"
+abstract = "the @w0 it is given"

@@ -1,2 +1,2 @@
-$number = {type = i64, abstract = "a whole number"}
-$same = {type = {$number} -> $number}
+@number = {type = i64, abstract = "a whole number"}
+@same = {type = {@number} -> @number}

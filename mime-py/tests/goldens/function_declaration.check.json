@@ -1,10 +1,10 @@
 [
   {
     "kind": "syntax",
-    "entry": "$same",
+    "entry": "@same",
     "key": "type",
     "text": "->",
     "message": "a function is written as a `define`",
-    "hint": "write the type: `define $f {$a, $b} -> $r {…}`"
+    "hint": "write the type: `define @f {@a, @b} -> @r {…}`"
   }
 ]

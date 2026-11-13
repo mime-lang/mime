@@ -1,50 +1,58 @@
 [
   {
     "kind": "bad-reference",
-    "entry": "$number",
+    "entry": "@number",
     "key": "abstract",
-    "text": "$5",
-    "message": "`$` in an abstract must start a reference to a word",
-    "hint": "write `\\$` for a dollar sign"
+    "text": "@",
+    "message": "`@` in an abstract must start a reference to a word",
+    "hint": "write `\\@` for an at sign"
   },
   {
     "kind": "undeclared-word",
-    "entry": "$same",
+    "entry": "@same",
     "key": "abstract",
-    "text": "$numbr",
-    "message": "no entry declares `$numbr`",
-    "hint": "did you mean `$number`?"
+    "text": "@numbr",
+    "message": "no entry declares `@numbr`",
+    "hint": "did you mean `@number`?"
   },
   {
     "kind": "bad-reference",
-    "entry": "$same",
+    "entry": "@same",
     "key": "abstract",
-    "text": "$numberX",
-    "message": "`$number` is followed by `X`, which cannot appear in a name",
+    "text": "@numberX",
+    "message": "`@number` is followed by `X`, which cannot appear in a name",
     "hint": "a name is lowercase letters, digits or `_`; put a space or punctuation other than `-` after it"
   },
   {
     "kind": "undeclared-word",
-    "entry": "$same",
+    "entry": "@same",
     "key": "abstract",
-    "text": "$double",
-    "message": "no entry declares `$double`",
-    "hint": "`$double` is a result in the body of `$same`; an abstract refers only to entries"
+    "text": "@double",
+    "message": "no entry declares `@double`",
+    "hint": "`%double` is a local in the body of `@same`; an abstract refers only to entries"
   },
   {
     "kind": "forward-reference",
-    "entry": "$same",
+    "entry": "@same",
     "key": "abstract",
-    "text": "$same",
-    "message": "the abstract of `$same` refers to `$same` itself",
-    "hint": "an abstract may refer only to earlier entries; describe `$same` by its parts"
+    "text": "@same",
+    "message": "the abstract of `@same` refers to `@same` itself",
+    "hint": "an abstract may refer only to earlier entries; describe `@same` by its parts"
   },
   {
     "kind": "forward-reference",
-    "entry": "$same",
+    "entry": "@same",
     "key": "abstract",
-    "text": "$later",
-    "message": "`$later` is declared after `$same`",
-    "hint": "an abstract may refer only to earlier entries; move the entry for `$later` above `$same`"
+    "text": "@later",
+    "message": "`@later` is declared after `@same`",
+    "hint": "an abstract may refer only to earlier entries; move the entry for `@later` above `@same`"
+  },
+  {
+    "kind": "undeclared-word",
+    "entry": "@same",
+    "key": "abstract",
+    "text": "@example",
+    "message": "no entry declares `@example`",
+    "hint": "write `\\@` for an at sign, as in an address"
   }
 ]

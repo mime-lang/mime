@@ -1,7 +1,7 @@
 [
   {
     "kind": "trailing-comma",
-    "entry": "$number",
+    "entry": "@number",
     "key": null,
     "text": ",",
     "message": "a trailing comma is not allowed",

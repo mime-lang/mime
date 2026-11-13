@@ -1,38 +1,38 @@
-$number = {type = i64, abstract = "a whole number"}
-$first = {type = i64, abstract = "the first of two numbers"}
-$second = {type = i64, abstract = "the second of two numbers"}
+@number = {type = i64, abstract = "a whole number"}
+@first = {type = i64, abstract = "the first of two numbers"}
+@second = {type = i64, abstract = "the second of two numbers"}
 
-define $square {$number} -> $number {
-  $p = mul i64 $number, $number
-  ret $p
+define @square {@number} -> @number {
+  %p = mul i64 @number, @number
+  ret %p
 }
-abstract = "a $number times itself"
+abstract = "a @number times itself"
 
-define $less {$number} -> $number {
-  $d = sub i64 $number, 1
-  ret $d
+define @less {@number} -> @number {
+  %d = sub i64 @number, 1
+  ret %d
 }
-abstract = "one less than a $number"
+abstract = "one less than a @number"
 
-define $negate {$number} -> $number {
-  $n = sub i64 0, $number
-  ret $n
+define @negate {@number} -> @number {
+  %n = sub i64 0, @number
+  ret %n
 }
-abstract = "zero minus a $number"
+abstract = "zero minus a @number"
 
-define $sum {$number} -> $number {
-  $total = add i64 $number, -9223372036854775808
-  ret $total
+define @sum {@number} -> @number {
+  %total = add i64 @number, -9223372036854775808
+  ret %total
 }
-abstract = "a $number plus the smallest i64"
+abstract = "a @number plus the smallest i64"
 
-define $difference {$first, $second} -> i64 {
-  $d = sub i64 $first, $second
-  ret $d
+define @difference {@first, @second} -> i64 {
+  %d = sub i64 @first, @second
+  ret %d
 }
-abstract = "the $first minus the $second, like $less but for any two"
+abstract = "the @first minus the @second, like @less but for any two"
 
-define $seven {} -> $number {
+define @seven {} -> @number {
   ret 7
 }
 abstract = "always seven"

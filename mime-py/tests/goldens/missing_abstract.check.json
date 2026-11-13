@@ -1,7 +1,7 @@
 [
   {
     "kind": "syntax",
-    "entry": "$same",
+    "entry": "@same",
     "key": "abstract",
     "text": null,
     "message": "a definition ends with its abstract",
