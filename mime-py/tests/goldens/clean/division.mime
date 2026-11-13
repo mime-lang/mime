@@ -5,14 +5,14 @@ define @quotient {@a, @b} -> i64 {
   %q = sdiv i64 @a, @b
   ret %q
 }
-abstract = "@a divided by @b, rounded toward zero; traps when @b is 0"
+abstract = "@a divided by @b, rounded toward zero; traps when @b is 0, or when @a is the smallest i64 and @b is -1"
 symbol = "quotient"
 
 define @remainder {@a, @b} -> i64 {
   %r = srem i64 @a, @b
   ret %r
 }
-abstract = "the remainder of @a divided by @b, with the sign of @a; traps when @b is 0"
+abstract = "the remainder of @a divided by @b, with the sign of @a; traps when @b is 0, or when @a is the smallest i64 and @b is -1"
 symbol = "remainder"
 
 define @unsigned_quotient {@a, @b} -> i64 {

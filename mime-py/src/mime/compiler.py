@@ -161,14 +161,14 @@ def run(program: Program, name: str, args: list[str], timeout: float = 10.0, bac
         if ran.returncode in (-signal.SIGSEGV, -signal.SIGBUS):
             raise ToolError(too_deep)
         if ran.returncode == TRAPPED:
-            # The trap routine wrote the site of the line that left its domain (design/step-13.md section 4).
+            # The trap routine wrote the site of the guard that failed (design/step-13.md section 4, step-14.md section 2).
             sites = trap_sites(program)
             try:
-                g, line = sites[int(ran.stderr.strip())]
+                g, line, message = sites[int(ran.stderr.strip())]
             except (ValueError, IndexError):
                 msg = f'the program trapped, but reported no site; this is a mime bug: {ran.stderr[:200]!r}'
                 raise ToolError(msg) from None
-            raise trap(program, g, line, f'`{line.operation.text}` by zero')
+            raise trap(program, g, line, message)
         if ran.returncode != 0:
             msg = f'the program exited with code {ran.returncode}'
             raise ToolError(msg)

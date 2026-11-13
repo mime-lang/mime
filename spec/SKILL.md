@@ -67,8 +67,9 @@ A body is lines, then `ret`:
 - **Division rounds toward zero**, as in C and LLVM, not down as Python's `//` does: `sdiv i64 -7, 2` is `-3`, and
   `srem i64 -7, 2` is `-1` (the remainder has the sign of the dividend). `udiv` and `urem` read both operands as
   unsigned. There is no `div`, `mod` or `rem`.
-- **Dividing by zero traps**: the run stops with a `trap` naming the line (see `mime run` below). The smallest `i64`
-  divided by `-1` wraps to itself, like any overflow. If a divisor can be zero, check it first with `icmp`.
+- **Dividing by zero traps**: the run stops with a `trap` naming the line (see `mime run` below). So does `sdiv` or
+  `srem` of the smallest `i64` by `-1`, which LLVM leaves undefined: it does **not** wrap. If a divisor can be zero,
+  or `-1` with a dividend that can be the smallest `i64`, check it first with `icmp`.
 - An operand, and the value after `ret`, is an input (`@number`), a local bound **earlier** in the body (`%double`),
   or a decimal integer (`1`, `-7`; no leading zeros).
 - **No nesting.** `%r = add i64 mul i64 @a, 2, 1` is an error: give `mul` its own line and use its local.
@@ -170,6 +171,9 @@ abstract = "whether @n is odd; it recurses @n times"
 
 ## Not LLVM
 
+Each operation means exactly what LLVM's Language Reference says. Where LLVM says undefined behavior or poison, a
+mime run traps at that line instead (see `mime run` below), so a clean run means the same in LLVM.
+
 Bodies look like LLVM IR, with these differences: an input is its `@` word (LLVM would use a `%` parameter),
 operands and `ret` carry no type, there is no `phi`, `nsw` or `nuw` (overflow always wraps), and a definition's
 head is its mime type (`define @f {@a} -> @r`), not `define i64 @f(i64 %a)`. `@number` in a body is a value, not a
@@ -213,7 +217,7 @@ program with checker errors. `show` prints a function's whole definition, from `
 after the entries of the words in its type, so you see what each input and the output mean.
 
 `mime run` exits with 0 and prints the result, or exits with 1 and prints the program's diagnostics on stderr. A
-trap, when an operation leaves its domain (a division by zero), exits with 3 and prints one JSON object on stderr, with
+trap, when an operation reaches what LLVM leaves undefined (a division by zero), exits with 3 and prints one JSON object on stderr, with
 the fields below and `kind` `trap`: its `text` is the line that trapped.
 
 Each diagnostic has a `kind`, the `entry` and `key` it is in (`type`, `abstract`, or `body`), the exact source

@@ -7,6 +7,17 @@ TRUE, FALSE = 'true', 'false'
 PREDICATES = frozenset({'eq', 'ne', 'slt', 'sle', 'sgt', 'sge', 'ult', 'ule', 'ugt', 'uge'})
 ARITHMETIC = frozenset({'add', 'sub', 'mul', 'sdiv', 'udiv', 'srem', 'urem'})  # on `i64`
 DIVISIONS = frozenset({'sdiv', 'udiv', 'srem', 'urem'})  # partial: a zero divisor traps (design/step-13.md)
+SIGNED_DIVISIONS = frozenset({'sdiv', 'srem'})  # also partial: the smallest i64 by -1 (design/step-14.md)
+
+
+def guards(op: str) -> list[str]:
+    """The messages of the traps a line of `op` can raise, in the order its guards run: for a division, a zero divisor
+    first, then, for `sdiv` and `srem`, the smallest i64 divided by -1, which LLVM leaves undefined (design/step-14.md)."""
+    if op not in DIVISIONS:
+        return []
+    return [f'`{op}` by zero', *([f'`{op}` overflow'] if op in SIGNED_DIVISIONS else [])]
+
+
 LOGIC = frozenset({'and', 'or', 'xor'})  # on `i1`
 OPERATIONS = ARITHMETIC | LOGIC
 

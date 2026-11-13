@@ -12,7 +12,7 @@ define @w2 {@w0, @w1} -> i64 {
 ^b1{%v0}:
   ret %v0
 }
-abstract = "the greatest common divisor of @w0 and @w1, up to sign"
+abstract = "the greatest common divisor of @w0 and @w1, up to sign; traps when one is the smallest i64 and the other -1"
 symbol = "gcd"
 
 define @w3 {@w0, @w1} -> i64 {
@@ -25,5 +25,5 @@ define @w3 {@w0, @w1} -> i64 {
   %v2 = call @w3 {@w0 = @w1, @w1 = %v1}
   ret %v2
 }
-abstract = "the greatest common divisor of @w0 and @w1, up to sign, as @w2 gives; it recurses about log @w1 times"
+abstract = "the greatest common divisor of @w0 and @w1, up to sign, as @w2 gives, trap included; it recurses about log @w1 times"
 symbol = "gcd_by_recursion"

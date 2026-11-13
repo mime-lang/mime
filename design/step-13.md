@@ -47,7 +47,10 @@ symbol = "gcd"
 
 - **Division by zero traps,** for all four. Its message is "`sdiv` by zero" (and `udiv`, `srem`, `urem` alike),
   which says which domain was left, never the values ([step-8.md](step-8.md) section 4).
-- **The smallest `i64` divided by `-1` wraps,** to the smallest `i64`, and its `srem` is `0`. The true quotient,
+- **Replaced by [step-14.md](step-14.md): this case now traps,** as "`sdiv` overflow" and "`srem` overflow", because
+  LLVM leaves it undefined and mime's meaning is LLVM's ([abstract-machine.md](abstract-machine.md)). What follows
+  is this step's original reasoning. **The smallest `i64` divided by `-1` wraps,** to the smallest `i64`, and its
+  `srem` is `0`. The true quotient,
   2^63, does not fit, and mime already has one rule for a result that does not fit: it wraps
   ([step-3.md](step-3.md)). Trapping here alone would make `sdiv` the only operation whose overflow traps, a
   second rule for a model to learn. Two's complement hardware and the JVM give this value; LLVM's `sdiv` is

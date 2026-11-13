@@ -4,8 +4,8 @@
 > oymo's struct style (`{key = value}`, `let … in …`), with mime's `$` rule applied. This doc sets the direction.
 > Each part is settled for real by its step in the [roadmap](roadmap.md).
 >
-> **[backends.md](backends.md)** sets how meaning is defined across backends: by the spec, with partial operations
-> that trap and never undefined behavior.
+> **[abstract-machine.md](abstract-machine.md)** sets how meaning is defined across backends: by LLVM's Language
+> Reference, with a trap in checked mode wherever it says poison or undefined behavior.
 >
 > **[step-6.md](step-6.md) changes the sigils:** words are `@word` and locals `%local`, replacing the single `$`
 > class of §1. The examples below still use `$`.
@@ -230,7 +230,8 @@ Primitives are language words: bare, fixed by this spec, never renamed.
 - **Sorts:** `i1`, `i8`, `i16`, `i32`, `i64`, and structs of words (§4). No floats or pointers yet.
 - **Operations:** `add`, `sub`, `mul`, `sdiv`, `udiv`, `srem`, `urem`, `icmp` with predicates, `call`, branches,
   and return, following LLVM.
-- **Overflow wraps.** Each operation has exactly one meaning.
+- **Each operation means what LLVM's Language Reference says** ([abstract-machine.md](abstract-machine.md)), so
+  overflow wraps, and what LLVM leaves undefined traps in checked mode.
 
 **Model ease.** Familiar: these are LLVM's own names, so models already know their exact meaning.
 

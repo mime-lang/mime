@@ -8,11 +8,11 @@ It never prints a name, so it reads every name as written.
 import time
 from dataclasses import dataclass, field
 
-from mime.checker import Function, Program
+from mime.checker import I64_MIN, Function, Program
 from mime.diag import Diagnostic, Trap
 from mime.lexer import Tok
 from mime.parser import Line, Value
-from mime.words import DIVISIONS
+from mime.words import DIVISIONS, SIGNED_DIVISIONS
 
 BITS = 64
 MODULUS = 2**BITS
@@ -46,7 +46,8 @@ COMPARE = {
 
 
 def sdiv(a: int, b: int) -> int:
-    """`a / b` rounded toward zero, as LLVM and C do, not down as Python's `//` does; wraps (design/step-13.md)."""
+    """`a / b` rounded toward zero, as LLVM and C do, not down as Python's `//` does (design/step-13.md). The caller
+    has ruled out the smallest i64 divided by -1, which traps (design/step-14.md)."""
     q = abs(a) // abs(b)
     return wrap(q if (a < 0) == (b < 0) else -q)
 
@@ -128,6 +129,9 @@ def _line(frame: _Frame, x: Line) -> Scalar:
         return COMPARE[x.predicate.text](left, right)
     if op in DIVISIONS and right == 0:
         msg = f'`{op}` by zero'
+        raise _Domain(msg)
+    if op in SIGNED_DIVISIONS and left == I64_MIN and right == -1:
+        msg = f'`{op}` overflow'
         raise _Domain(msg)
     return OPERATE[op](left, right)
 

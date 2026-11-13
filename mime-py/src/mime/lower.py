@@ -10,25 +10,26 @@ from mime.checker import Function, Program
 from mime.lexer import Tok
 from mime.parser import Block, Call, Line, Value
 from mime.printer import Names, canonical_names, pass_throughs
-from mime.words import DIVISIONS
+from mime.words import DIVISIONS, SIGNED_DIVISIONS, guards
 
 I64_MIN = -(2**63)
 
 
-def trap_sites(program: Program) -> list[tuple[Function, Line]]:
-    """Every line that can trap, in the order lowering numbers them: a division, by function, block and line
-    (design/step-13.md section 4). The number of a site is its index here."""
+def trap_sites(program: Program) -> list[tuple[Function, Line, str]]:
+    """Every guard of the program, with the line it guards and its trap's message, in the order lowering numbers
+    them: by function, block, line and guard (design/step-14.md section 2). The number of a site is its index here."""
     return [
-        (f, x)
+        (f, x, message)
         for f in program.functions
         for b in f.definition.blocks
         for x in b.lines
-        if isinstance(x, Line) and x.operation.text in DIVISIONS
+        if isinstance(x, Line)
+        for message in guards(x.operation.text)
     ]
 
 
-def _divisions(b: Block) -> int:
-    return sum(1 for x in b.lines if isinstance(x, Line) and x.operation.text in DIVISIONS)
+def _guards(x: Line | Call) -> int:
+    return len(guards(x.operation.text)) if isinstance(x, Line) else 0
 
 
 def symbol(f: Function) -> str:
@@ -40,10 +41,10 @@ def symbol(f: Function) -> str:
 
 class _Function:
     def __init__(
-        self, f: Function, names: Names, index: int, functions: dict[str, Function], sites: dict[int, int]
+        self, f: Function, names: Names, index: int, functions: dict[str, Function], sites: dict[tuple[int, str], int]
     ) -> None:
         self.f = f
-        self.sites = sites  # id of a division line -> its trap site
+        self.sites = sites  # (id of a line, a guard's message) -> its trap site
         self.functions = functions
         self.names = names
         self.index = index
@@ -79,8 +80,8 @@ class _Function:
         return f'{self.label(i)}.e{k}'
 
     def exit(self, i: int) -> str:
-        """The LLVM block a block's terminator is in: the last continuation after its guarded divisions, if any."""
-        n = _divisions(self.blocks[i])
+        """The LLVM block a block's terminator is in: the last continuation after its guards, if any."""
+        n = sum(_guards(x) for x in self.blocks[i].lines)
         return f'{self.label(i)}.d{n - 1}' if n else self.label(i)
 
     def text(self) -> str:
@@ -108,13 +109,12 @@ class _Function:
             guarded = 0
             for x in b.lines:
                 out += self.line(i, x, guarded)
-                if isinstance(x, Line) and x.operation.text in DIVISIONS:
-                    guarded += 1
+                guarded += _guards(x)
             out += self.end(i, b)
         return '\n'.join([*out, '}']) + '\n'
 
     def line(self, i: int, x: Line | Call, guarded: int) -> list[str]:
-        """The IR of one line. `guarded` counts the divisions above it in its block, which name its blocks."""
+        """The IR of one line. `guarded` counts the guards above it in its block, which name its blocks."""
         result = f'%{self.names.local(self.index, i, x.result.text)}'
         if isinstance(x, Call):
             # The arguments are in the callee's input order, which the checker ensures, so they are passed as written.
@@ -127,25 +127,27 @@ class _Function:
         left, right = self.operand(i, x.left), self.operand(i, x.right)
         if op not in DIVISIONS:
             return [f'  {result} = {op} {x.type.text} {left}, {right}']
-        # A zero divisor traps; the smallest i64 divided by -1 wraps, which is what dividing it by 1 gives, so that
-        # divisor is replaced by 1 rather than branched on (design/step-13.md section 4).
-        trapped, rest = f'{self.label(i)}.t{guarded}', f'{self.label(i)}.d{guarded}'
-        out = [
-            f'  {result}.zero = icmp eq i64 {right}, 0',
-            f'  br i1 {result}.zero, label %{trapped}, label %{rest}',
-            f'{trapped}:',
-            f'  call void @mime.trap(i64 {self.sites[id(x)]})',
-            '  unreachable',
-            f'{rest}:',
-        ]
-        if op in ('sdiv', 'srem'):
-            out += [
+        # Each guard branches to its own trap: a zero divisor, then, for `sdiv` and `srem`, the smallest i64 divided by
+        # -1, which LLVM leaves undefined (design/step-14.md section 2).
+        conditions = [[f'  {result}.zero = icmp eq i64 {right}, 0'], []]
+        if x.operation.text in SIGNED_DIVISIONS:
+            conditions[1] = [
                 f'  {result}.min = icmp eq i64 {left}, {I64_MIN}',
                 f'  {result}.neg = icmp eq i64 {right}, -1',
-                f'  {result}.edge = and i1 {result}.min, {result}.neg',
-                f'  {result}.by = select i1 {result}.edge, i64 1, i64 {right}',
+                f'  {result}.over = and i1 {result}.min, {result}.neg',
             ]
-            right = f'{result}.by'
+        out = []
+        for k, message in enumerate(guards(op)):
+            trapped, rest = f'{self.label(i)}.t{guarded + k}', f'{self.label(i)}.d{guarded + k}'
+            test = f'{result}.zero' if k == 0 else f'{result}.over'
+            out += [
+                *conditions[k],
+                f'  br i1 {test}, label %{trapped}, label %{rest}',
+                f'{trapped}:',
+                f'  call void @mime.trap(i64 {self.sites[(id(x), message)]})',
+                '  unreachable',
+                f'{rest}:',
+            ]
         return [*out, f'  {result} = {op} i64 {left}, {right}']
 
     def end(self, i: int, b: Block) -> list[str]:
@@ -173,7 +175,7 @@ def lower(program: Program, *, trap_defined: bool = False) -> str:
     names = canonical_names(program.module)
     index = {id(x): i for i, x in enumerate(program.module.items)}
     functions = {f.word: f for f in program.functions}
-    sites = {id(x): n for n, (_, x) in enumerate(trap_sites(program))}
+    sites = {(id(x), message): n for n, (_, x, message) in enumerate(trap_sites(program))}
     text = '\n'.join(_Function(f, names, index[id(f.definition)], functions, sites).text() for f in program.functions)
     if sites and not trap_defined:
         text += '\ndeclare void @mime.trap(i64) noreturn\n'

@@ -39,6 +39,7 @@ when it does, core.md is updated in the same step.
 | 11 | canonical order: data words and `declare`s above their first `define`, `unused-word`, `canon --keep-words` | [step-11.md](step-11.md) |
 | 12 | first benchmark run: mime cells in the harness, `clamp`'s `ref.mime`, the mime signature skeleton | [step-12.md](step-12.md) |
 | 13 | division and remainder: `sdiv udiv srem urem`, `and or xor` on `i1`, the first trap on every backend | [step-13.md](step-13.md) |
+| 14 | LLVM's abstract machine: LangRef is the meaning, checked mode traps on poison and UB, the smallest `i64` `sdiv -1` traps | [step-14.md](step-14.md), [abstract-machine.md](abstract-machine.md) |
 
 Along the way: [diagnostics.md](diagnostics.md) (JSON only, `entry`/`key`/`text`), [tools.md](tools.md)
 (`show`, which prints a function after the words in its type, and `uses`), and what an abstract says
@@ -46,26 +47,11 @@ Along the way: [diagnostics.md](diagnostics.md) (JSON only, `entry`/`key`/`text`
 
 ## Next steps, in order
 
-### Lists
-
-- **New:** a list of `i64`: its length, reading an element, and building a new list.
-- **Decide:** the syntax of the list type (a primitive type, not raw memory and pointers, so it maps onto
-  JavaScript and the JVM; [backends.md](backends.md) section 6), what reading past the end means (a trap or a
-  defined value, never undefined), and how `mime run` and the benchmark harness pass a list in and read one out.
-- **Why here:** four of the benchmark's five tasks take or return a list (`sum-list`, `is-sorted`,
-  `merge-sorted`, `shortest-k-distinct`), and two return a boolean, which `i1` covers.
-
-**Milestone: the whole benchmark runs.** Every task can be written in mime. The two `names`-track tasks
-(`sum-list`, `is-sorted`) take lists, so this is also where the scrambled-words ablation first runs: a mime
-library's `none` style is its `mime canon`, and its `honest` style its `mime canon --keep-words`
-([step-12.md](step-12.md) section 5).
-
 ### Structs
 
 - **New:** `type = {@first, @second}`, reading a field, building a struct value.
-- **Decide:** the syntax for both, and how a data word refers to itself, as a linked list does (`@list` holding a
-  `@list`). Calls answered this for functions with `declare` (step 9); a data word may need
-  the same, and indirection, which lists may have brought.
+- **Decide:** the syntax for both, and how a data word refers to itself (`@node` holding a `@node`). Calls
+  answered this for functions with `declare` (step 9); a data word may need the same, and indirection.
 - **Check nominal identity from the start.** [layout.md](layout.md) section 3 already promises that `@point` and
   `@vector` are different types even with the same fields. Until the types step, a `@vector` passed where a
   `@point` belongs would check clean, so this step checks that a struct value's word is the word expected, and
@@ -79,7 +65,7 @@ library's `none` style is its `mime canon`, and its `honest` style its `mime can
 - **Later, WebAssembly:** the same structured lowering, onto `block`, `loop` and `br`, with `i64` native. It is not
   a step yet: it earns one when a user needs it, since every backend multiplies the cost of every later step
   ([backends.md](backends.md) section 7).
-- **Why here:** lists and structs are the core data types; once they stop changing, a second compiled backend
+- **Why here:** structs are the core data type; once they stop changing, a second compiled backend
   costs less in every later step.
 
 ### JVM backend
