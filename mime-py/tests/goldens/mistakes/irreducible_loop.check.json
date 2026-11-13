@@ -1,0 +1,10 @@
+[
+  {
+    "kind": "irreducible-loop",
+    "entry": "@bad",
+    "key": "body",
+    "text": "^a",
+    "message": "the loop through `^a` can also be entered without passing `^a`",
+    "hint": "give the loop one entry: every jump into it, from outside or from inside, goes to one block, which takes a parameter saying where to go and branches on it"
+  }
+]

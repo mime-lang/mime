@@ -1,0 +1,15 @@
+@flag = {type = i1, abstract = "where the loop starts"}
+
+define @bad {@flag} -> i64 {
+  br @flag, ^a{0}, ^b{0}
+^a{%x}:
+  %y = add i64 %x, 1
+  br ^b{%y}
+^b{%z}:
+  %w = add i64 %z, 1
+  %c = icmp slt i64 %w, 10
+  br %c, ^a{%w}, ^done{%w}
+^done{%r}:
+  ret %r
+}
+abstract = "counts to ten, starting the loop at either of two blocks"

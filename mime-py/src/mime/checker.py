@@ -500,6 +500,7 @@ class _Body:
         self.jumps()
         self.carried()
         self.reachable()
+        self.reducible()
         self.infer_params()
         for i, b in enumerate(self.d.blocks):
             self.block(i, b)
@@ -582,6 +583,66 @@ class _Body:
                     b.label.span,
                     'jump to it from a block that runs, or remove it',
                 )
+
+    def successors(self, i: int) -> list[tuple[int, Span]]:
+        """The blocks block `i` jumps to, in the order its `br` names them, with the span of each target label."""
+        out = []
+        for t in self.d.blocks[i].end.targets:
+            j = self.labels.get(t.label.text)
+            if j is not None:
+                out.append((j, t.label.span))
+        return out
+
+    def reducible(self) -> None:
+        """Every cycle has one way in, its header, which dominates the jump that closes it (design/step-10.md)."""
+        succ = {0: self.successors(0)}
+        order, todo = [0], [0]
+        while todo:
+            for j, _ in succ[todo.pop()]:
+                if j not in succ:
+                    succ[j] = self.successors(j)
+                    order.append(j)
+                    todo.append(j)
+        preds: dict[int, list[int]] = {i: [] for i in order}
+        for i in order:
+            for j, _ in succ[i]:
+                preds[j].append(i)
+        every = set(order)
+        dom = {i: ({0} if i == 0 else set(every)) for i in order}
+        changed = True
+        while changed:
+            changed = False
+            for i in order[1:]:
+                new = set.intersection(*(dom[p] for p in preds[i])) | {i}
+                if new != dom[i]:
+                    dom[i], changed = new, True
+        reported: set[int] = set()
+        on_path, done = {0}, {0}
+        stack = [(0, iter(succ[0]))]
+        while stack:
+            i, it = stack[-1]
+            step = next(it, None)
+            if step is None:
+                stack.pop()
+                on_path.discard(i)
+                continue
+            j, span = step
+            if j in on_path:
+                if j not in dom[i] and j not in reported:
+                    reported.add(j)
+                    label = self.d.blocks[j].label
+                    name = f'^{label.text}' if label is not None else 'the entry block'
+                    self.report(
+                        'irreducible-loop',
+                        f'the loop through `{name}` can also be entered without passing `{name}`',
+                        span,
+                        'give the loop one entry: every jump into it, from outside or from inside, goes to one block, '
+                        'which takes a parameter saying where to go and branches on it',
+                    )
+            elif j not in done:
+                done.add(j)
+                on_path.add(j)
+                stack.append((j, iter(succ[j])))
 
     def infer_params(self) -> None:
         """Give each block parameter the type of the arguments jumps pass to it (design/step-7.md section 4)."""

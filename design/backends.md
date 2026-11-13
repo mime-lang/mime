@@ -69,7 +69,7 @@ only when it behaves the same on every backend that exists.
 |---|---|---|
 | **LLVM** (step 4) | everything so far | guards for LLVM's undefined behavior, such as division edge cases |
 | **Reference interpreter** (step 8) | everything: it is the simplest backend | speed only |
-| **JavaScript** | `i1` as a boolean; lists as arrays | `i64` needs `BigInt` with `BigInt.asIntN(64, …)` to wrap, which is exact but slow. JavaScript has no `goto`, so blocks lower to a loop around a `switch` on the next block. There are no guaranteed tail calls, so deep recursion can overflow the stack |
+| **JavaScript** | `i1` as a boolean; lists as arrays | `i64` needs `BigInt` with `BigInt.asIntN(64, …)` to wrap, which is exact but slow. JavaScript has no `goto`, but blocks are reducible ([step-10.md](step-10.md)), so they lower to labeled `while`, `break` and `continue`. There are no guaranteed tail calls, so deep recursion can overflow the stack |
 | **JVM** | `long` wraps natively; bytecode has `goto`, so blocks map directly | integer division by zero throws and needs a guard; modules map onto classes |
 
 ## 5. The interpreter, in two stages
@@ -85,8 +85,9 @@ only when it behaves the same on every backend that exists.
 
 - **Lists are a primitive type**, not built from raw memory and pointers. Arrays map directly onto JavaScript and
   the JVM; pointers would be costly on both.
-- **Blocks stay general**: any block may jump to any other. The cost falls on the JavaScript backend's loop and
-  `switch`, not on the language.
+- **Blocks are reducible**: every loop has one way in, its header ([step-10.md](step-10.md)). This replaced
+  "blocks stay general", which left JavaScript a loop around a `switch` on the next block. Structured targets,
+  JavaScript and WebAssembly, lower blocks to their own loops; LLVM and the JVM take any jumps anyway.
 - **The backend is chosen on the command line**, as `mime run --backend interp|llvm|js|jvm`, with the interpreter
   the default, so `mime run` needs no clang ([step-8.md](step-8.md) section 3). A run names its function by its
   `symbol`, which no renaming changes.

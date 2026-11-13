@@ -35,6 +35,7 @@ when it does, core.md is updated in the same step.
 | 7 | branches: `icmp`, `i1`, blocks with parameters, `br`, `^label`s | [step-7.md](step-7.md) |
 | 8 | the reference interpreter, `mime run --backend`, running by symbol, conformance run cases | [step-8.md](step-8.md) |
 | 9 | calls by word, recursion, `declare`, running out of stack as a machine limit | [step-9.md](step-9.md) |
+| 10 | loops with one way in: reducible control flow, `irreducible-loop` | [step-10.md](step-10.md) |
 
 Along the way: [diagnostics.md](diagnostics.md) (JSON only, `entry`/`key`/`text`) and [tools.md](tools.md)
 (`show`, `uses`).
@@ -73,7 +74,8 @@ benchmark's mime cells for those tasks stop being `unavailable`, and the scrambl
 ### JavaScript backend
 
 - **New:** `mime run --backend js`, through the conformance tests.
-- **Decide:** `i64` as `BigInt` or as something faster, and the loop-and-`switch` lowering of blocks.
+- **Decide:** `i64` as `BigInt` or as something faster, and how reducible blocks lower to labeled loops
+  ([step-10.md](step-10.md)).
 - **Why here:** lists and structs are the core data types; once they stop changing, a second compiled backend
   costs less in every later step.
 

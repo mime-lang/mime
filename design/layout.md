@@ -124,6 +124,7 @@ parameters. `br ^block{args}` jumps to a block, and `br %c, ^then{args}, ^else{a
 sees its own parameters, its own earlier results and the function's parameters. Anything else is passed as a block
 argument, so there are no dominance rules: each block can be checked and read on its own, like a small function. A
 block that no `br` reaches is an error (`unreachable-block`), and nothing can jump to the entry block, as in LLVM.
+Every loop has one way in, its header, so control flow is reducible (`irreducible-loop`, [step-10.md](step-10.md)).
 
 ## 6. Differences from LLVM IR
 

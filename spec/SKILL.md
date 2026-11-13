@@ -100,6 +100,9 @@ abstract = "@x, moved into the range from @lo to @hi"
   To use a value from another block, pass it as an argument: `br ^next{%a}` and `^next{%b}:`. A loop is a block
   that jumps back to itself, passing its new values.
 - A jump passes exactly as many arguments as the block has parameters, and every block must be reached by some jump.
+- **Every loop has one way in**, its header: every jump into a cycle of blocks, from outside or back from inside,
+  goes to that one block, as with `while`. A cycle entered at two blocks is an `irreducible-loop`; fix it with one
+  header that takes a flag saying where to go and branches on it.
 - `%c = icmp slt i64 %a, %b` compares two `i64` and gives an `i1`. `s` predicates are signed, `u` unsigned.
 - **Types are checked.** `add`, `sub`, `mul` take `i64`; `br`'s condition is an `i1`; `ret` gives the output's type. A
   block parameter's type comes from the arguments passed to it. An `i1` is `true` or `false`, never `1` or `0`.

@@ -164,3 +164,38 @@ def test_the_hint_says_what_to_write() -> None:
         '%limit',
         'drop the parameter and its arguments, and write `@n` where it is read',
     )
+
+
+FLAG = '{@flag} -> i64'
+BAD = (
+    'br @flag, ^a{0}, ^b{0}\n^a{%x}:\n%y = add i64 %x, 1\nbr ^b{%y}\n'
+    '^b{%z}:\n%w = add i64 %z, 1\n%c = icmp slt i64 %w, 10\nbr %c, ^a{%w}, ^done{%w}\n^done{%r}:\nret %r'
+)
+
+
+@pytest.mark.parametrize(
+    'body',
+    [
+        # A self loop, a loop with a body block, and two nested loops each have one way in (design/step-10.md).
+        'br ^loop{0}\n^loop{%i}:\n%j = add i64 %i, 1\n%c = icmp slt i64 %j, 10\nbr %c, ^loop{%j}, ^done{%j}\n'
+        '^done{%r}:\nret %r',
+        'br ^loop{0}\n^loop{%i}:\n%c = icmp slt i64 %i, 10\nbr %c, ^step{%i}, ^done{%i}\n'
+        '^step{%j}:\n%k = add i64 %j, 1\nbr ^loop{%k}\n^done{%r}:\nret %r',
+        'br ^outer{0}\n^outer{%i}:\n%c = icmp slt i64 %i, 3\nbr %c, ^inner{%i, 0}, ^done{%i}\n'
+        '^inner{%a, %b}:\n%d = icmp slt i64 %b, 3\nbr %d, ^next{%a, %b}, ^back{%a}\n'
+        '^next{%e, %f}:\n%g = add i64 %f, 1\nbr ^inner{%e, %g}\n'
+        '^back{%h}:\n%k = add i64 %h, 1\nbr ^outer{%k}\n^done{%r}:\nret %r',
+        # The fix of design/step-10.md section 3: one header that branches on a flag.
+        'br ^head{@flag, 0}\n^head{%toa, %x}:\nbr %toa, ^a{%x}, ^b{%x}\n^a{%v}:\n%y = add i64 %v, 1\n'
+        'br ^head{false, %y}\n^b{%z}:\n%w = add i64 %z, 1\n%c = icmp slt i64 %w, 10\n'
+        'br %c, ^head{true, %w}, ^done{%w}\n^done{%r}:\nret %r',
+    ],
+)
+def test_a_loop_with_one_way_in_checks(body: str) -> None:
+    assert kinds(function(body, FLAG if '@flag' in body else NONE)) == []
+
+
+def test_a_loop_with_two_ways_in_is_reported_once_whatever_the_jump_order() -> None:
+    assert kinds(function(BAD, FLAG)) == ['irreducible-loop']
+    swapped = BAD.replace('br @flag, ^a{0}, ^b{0}', 'br @flag, ^b{0}, ^a{0}')
+    assert kinds(function(swapped, FLAG)) == ['irreducible-loop']
