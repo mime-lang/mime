@@ -1,0 +1,10 @@
+[
+  {
+    "kind": "syntax",
+    "entry": "@caller",
+    "key": "body",
+    "text": "i64",
+    "message": "a call takes no type",
+    "hint": "write `call @same {@a = %x}`; the type comes from `@same`"
+  }
+]

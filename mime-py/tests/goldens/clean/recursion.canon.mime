@@ -1,0 +1,22 @@
+@w0 = {type = i64, abstract = "a whole number, zero or more"}
+
+define @w1 {@w0} -> i64 {
+  %v0 = icmp eq i64 @w0, 0
+  br %v0, ^b0{}, ^b1{}
+^b0{}:
+  ret 0
+^b1{}:
+  %v1 = sub i64 @w0, 1
+  %v2 = call @w1 {@w0 = %v1}
+  %v3 = add i64 %v2, @w0
+  ret %v3
+}
+abstract = "the sum of the numbers from 0 to @w0, by recursion"
+symbol = "sum"
+
+define @w2 {@w0} -> i64 {
+  %v0 = call @w2 {@w0 = @w0}
+  ret %v0
+}
+abstract = "never returns: it calls itself with the same @w0"
+symbol = "forever"

@@ -1,0 +1,7 @@
+[
+  {"symbol": "quadruple", "inputs": ["3"], "output": "2"},
+  {"symbol": "quadruple", "inputs": ["0"], "output": "-10"},
+  {"symbol": "magnitude", "inputs": ["-7"], "output": "7"},
+  {"symbol": "magnitude", "inputs": ["7"], "output": "7"},
+  {"symbol": "magnitude", "inputs": ["-9223372036854775808"], "output": "-9223372036854775808"}
+]

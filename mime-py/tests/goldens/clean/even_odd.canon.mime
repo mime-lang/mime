@@ -1,0 +1,30 @@
+@w0 = {type = i64, abstract = "a whole number, zero or more"}
+@w1 = {type = i1, abstract = "a truth value"}
+
+declare @w2 {@w0} -> @w1
+
+define @w3 {@w0} -> @w1 {
+  %v0 = icmp eq i64 @w0, 0
+  br %v0, ^b0{}, ^b1{}
+^b0{}:
+  ret true
+^b1{}:
+  %v1 = sub i64 @w0, 1
+  %v2 = call @w2 {@w0 = %v1}
+  ret %v2
+}
+abstract = "whether @w0 is even, by @w2"
+symbol = "even"
+
+define @w2 {@w0} -> @w1 {
+  %v0 = icmp eq i64 @w0, 0
+  br %v0, ^b0{}, ^b1{}
+^b0{}:
+  ret false
+^b1{}:
+  %v1 = sub i64 @w0, 1
+  %v2 = call @w3 {@w0 = %v1}
+  ret %v2
+}
+abstract = "whether @w0 is odd, the opposite of @w3"
+symbol = "odd"

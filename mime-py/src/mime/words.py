@@ -2,12 +2,12 @@
 
 KEYS = ('type', 'abstract')  # a declaration's keys, in this order
 TYPES = frozenset({'i64', 'i1'})
-DEFINE, RET, BR, ICMP = 'define', 'ret', 'br', 'icmp'
+DEFINE, DECLARE, RET, BR, ICMP, CALL = 'define', 'declare', 'ret', 'br', 'icmp', 'call'
 TRUE, FALSE = 'true', 'false'
 PREDICATES = frozenset({'eq', 'ne', 'slt', 'sle', 'sgt', 'sge', 'ult', 'ule', 'ugt', 'uge'})
 OPERATIONS = frozenset({'add', 'sub', 'mul'})
 
-LANGUAGE_WORDS = frozenset(KEYS) | TYPES | OPERATIONS | PREDICATES | {DEFINE, RET, BR, ICMP, TRUE, FALSE}
+LANGUAGE_WORDS = frozenset(KEYS) | TYPES | OPERATIONS | PREDICATES | {DEFINE, DECLARE, RET, BR, ICMP, CALL, TRUE, FALSE}
 
 # Words of steps 1 to 3 that step 4 replaced, with the hint that names the replacement.
 RETIRED = {

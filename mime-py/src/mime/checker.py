@@ -7,12 +7,12 @@ from typing import TypedDict
 
 from mime.diag import Diagnostic
 from mime.lexer import Span, Tok
-from mime.parser import Block, Definition, Entry, Field, Line, Module, Struct, Value
+from mime.parser import Block, Call, Declaration, Definition, Entry, Field, Item, Line, Module, Struct, Value, item_word
 from mime.words import FALSE, ICMP, KEYS, LANGUAGE_WORDS, OPERATIONS, PREDICATES, RETIRED, TRUE, TYPES
 
 LATER_TYPES = frozenset({'i8', 'i16', 'i32'})
 SYMBOL = re.compile(r'[A-Za-z_][A-Za-z0-9_]*')
-LATER_OPERATIONS = frozenset({'sdiv', 'udiv', 'srem', 'urem', 'call', 'get'})
+LATER_OPERATIONS = frozenset({'sdiv', 'udiv', 'srem', 'urem', 'get'})
 I64_MIN, I64_MAX = -(2**63), 2**63 - 1
 OPERAND_HINT = (
     'an operand is an input of the function, a local bound earlier in this block, an integer, or true or false'
@@ -37,6 +37,22 @@ class Program:
     types: dict[str, str]  # data word -> its type
     functions: tuple[Function, ...]
     module: Module  # what the program was checked from, for backends that need its canonical names
+
+
+@dataclass(frozen=True)
+class Signature:
+    """A function's type, from its `define` or its `declare`: what a call is checked against (step-9.md section 3)."""
+
+    inputs: tuple[str, ...]
+    input_types: dict[str, str]  # input word -> `i64` or `i1`, for the inputs that have one
+    output_type: str | None
+    rejected: frozenset[str] = frozenset()  # inputs of the head already reported; a call naming one is not reported
+
+
+def _head(x: Definition | Declaration) -> str:
+    inputs = ', '.join(f'@{v.text}' for v in x.inputs)
+    output = f'@{x.output.text}' if x.output.kind == Tok.WORD else x.output.text
+    return f'{{{inputs}}} -> {output}'
 
 
 class Where(TypedDict):
@@ -67,6 +83,9 @@ class _Checker:
         self.module = module
         self.symbols: dict[str, str] = {}  # symbol -> the function exported under it
         self.local_types: dict[str, dict[tuple[int, str], str]] = {}  # function -> (block, local) -> type
+        self.signatures: dict[str, Signature] = {}  # function -> its type, once its head is checked
+        self.declared: dict[str, int] = {}  # function -> position of its `declare`
+        self.defined: dict[str, int] = {}  # function -> position of its `define`
 
     def report(self, kind: str, message: str, at: Span, hint: str | None = None, *, entry: str, key: str | None = None,
                missing: bool = False) -> None:  # fmt: skip
@@ -75,22 +94,27 @@ class _Checker:
         self.diags.append(Diagnostic(kind, message, at.line, at.column, hint, f'@{entry}', key, text))
 
     def run(self) -> Program | None:
-        # Index every word first, so a reference can tell a later word from a missing one.
-        words = [
-            (x.word, x.span, 'data') if isinstance(x, Entry) else (x.word.text, x.word.span, 'function')
-            for x in self.items
-        ]
-        for i, (word, span, kind) in enumerate(words):
-            if word in self.index:
-                self.report(
-                    'duplicate-word',
-                    f'`@{word}` already has an entry',
-                    span,
-                    'a word has one entry; merge the two or rename one',
-                    entry=word,
-                )
+        # Index every word first, so a reference can tell a later word from a missing one. A function's word is
+        # indexed at its `declare` when it has one, so everything below the declaration may use it.
+        for i, x in enumerate(self.items):
+            word = item_word(x)
+            span = x.span if isinstance(x, Entry) else x.word.span
+            if isinstance(x, Definition) and word in self.declared and word not in self.defined:
+                self.defined[word] = i
+            elif word in self.index:
+                hint = 'a word has one entry; merge the two or rename one'
+                if isinstance(x, Declaration) and word in self.defined:
+                    hint = (
+                        f'a declaration comes above the `define` of `@{word}`, and only when a call above it needs it'
+                    )
+                self.report('duplicate-word', f'`@{word}` already has an entry', span, hint, entry=word)
             else:
-                self.index[word], self.kinds[word] = i, kind
+                self.index[word] = i
+                self.kinds[word] = 'data' if isinstance(x, Entry) else 'function'
+                if isinstance(x, Declaration):
+                    self.declared[word] = i
+                elif isinstance(x, Definition):
+                    self.defined[word] = i
         for d in (x for x in self.items if isinstance(x, Definition)):
             for b in d.blocks:
                 for v in (*b.params, *(line.result for line in b.lines)):
@@ -101,11 +125,15 @@ class _Checker:
             if isinstance(x, Definition):
                 self.definition(x, i)
                 continue
+            if isinstance(x, Declaration):
+                self.declaration(x, i)
+                continue
             valid = self.entry(x)
             if self.index[x.word] == i:
                 self.fields[x.word] = valid
             if 'abstract' in valid:
                 self.references(x.word, i, valid['abstract'].value)
+        self.declarations()
         self.diags.sort(key=lambda d: (d.line, d.column))
         if self.diags:
             return None
@@ -178,7 +206,61 @@ class _Checker:
 
     # Definitions
 
-    def definition(self, d: Definition, position: int) -> None:
+    def declaration(self, d: Declaration, position: int) -> None:
+        if self.declared.get(d.word.text) != position:
+            return  # a duplicate, already reported
+        self.head(d, position)
+
+    def declarations(self) -> None:
+        """Each `declare` has one `define` below it with the same type, and something between the two calls it."""
+        for word, position in self.declared.items():
+            d = self.items[position]
+            if not isinstance(d, Declaration):
+                continue
+            at: Where = {'entry': word, 'key': 'type'}
+            if word not in self.defined and any(item_word(x) == word for x in self.items[position + 1 :]):
+                continue  # a later entry for the word, not a `define`, is already a duplicate-word
+            if word not in self.defined:
+                self.report(
+                    'missing-definition',
+                    f'`@{word}` is declared, but no `define` below defines it',
+                    d.word.span,
+                    f'write `define @{word} {_head(d)} {{…}}` below, or drop the declaration',
+                    **at,
+                )
+                continue
+            later = self.defined[word]
+            x = self.items[later]
+            if isinstance(x, Definition) and _head(x) != _head(d):
+                self.report(
+                    'wrong-type',
+                    f'the type of `@{word}` differs from its declaration',
+                    x.word.span,
+                    f'`@{word}` is declared above as `{_head(d)}`',
+                    **at,
+                )
+            if not any(self.mentions(self.items[i], word) for i in range(position + 1, later)):
+                self.report(
+                    'redundant-declaration',
+                    f'nothing calls `@{word}` before its `define`',
+                    d.word.span,
+                    f'drop it: `@{word}` is defined before anything calls it',
+                    **at,
+                )
+
+    @staticmethod
+    def mentions(x: Item, word: str) -> bool:
+        """Whether an entry calls `word` in its body or refers to it in its abstract."""
+        if isinstance(x, Declaration):
+            return False
+        if isinstance(x, Definition):
+            called = any(isinstance(line, Call) and line.callee.text == word for b in x.blocks for line in b.lines)
+            return called or any(r.word == word for r in x.abstract.refs)
+        abstract = next((f.value for f in x.fields if f.key == 'abstract'), None)
+        return isinstance(abstract, Value) and any(r.word == word for r in abstract.refs)
+
+    def head(self, d: Definition | Declaration, position: int) -> tuple[dict[str, Value], set[str], Signature]:
+        """Check a function's inputs and output, and record its type for the calls that name it."""
         word = d.word.text
         head: Where = {'entry': word, 'key': 'type'}
         inputs: dict[str, Value] = {}
@@ -209,7 +291,17 @@ class _Checker:
             )
         input_types = {w: t for w, v in inputs.items() if (t := self.word_type(w)) is not None}
         output_type = self.word_type(d.output.text) if d.output.kind == Tok.WORD else d.output.text
-        _Body(self, d, inputs, input_types, output_type if output_type in TYPES else None, rejected).check()
+        signature = Signature(
+            tuple(inputs), input_types, output_type if output_type in TYPES else None, frozenset(rejected)
+        )
+        if word not in self.signatures:  # a declaration's type stands; a define that differs is reported
+            self.signatures[word] = signature
+        return inputs, rejected, signature
+
+    def definition(self, d: Definition, position: int) -> None:
+        word = d.word.text
+        inputs, rejected, signature = self.head(d, position)
+        _Body(self, d, position, inputs, signature, rejected).check()
         if d.symbol is not None:
             self.symbol(d)
         self.references(word, position, d.abstract)
@@ -326,7 +418,7 @@ class _Checker:
                 else:
                     hint = self.suggest(r.word, owner, owner_index)
                 self.report('undeclared-word', f'no entry declares `@{r.word}`', r.span, hint, **at)
-            elif r.word == owner and self.index[owner] == owner_index:
+            elif r.word == owner and owner_index in (self.index[owner], self.defined.get(owner)):
                 self.report(
                     'forward-reference',
                     f'the abstract of `@{owner}` refers to `@{owner}` itself',
@@ -372,16 +464,19 @@ class _Body:
         self,
         checker: '_Checker',
         d: Definition,
+        position: int,
         inputs: dict[str, Value],
-        input_types: dict[str, str],
-        output_type: str | None,
+        signature: Signature,
         rejected: set[str],
     ) -> None:
         self.c = checker
         self.d = d
+        self.position = position
         self.inputs = inputs
-        self.input_types = input_types
-        self.output_type = output_type
+        self.signature = signature
+        self.input_types = signature.input_types
+        self.output_type = signature.output_type
+        self.callees: dict[int, Signature | None] = {}  # id of a call line -> its callee's type, resolved once
         self.rejected = rejected
         self.at: Where = {'entry': d.word.text, 'key': 'body'}
         self.labels: dict[str, int] = {}  # label -> index of its first block
@@ -492,7 +587,12 @@ class _Body:
         """Give each block parameter the type of the arguments jumps pass to it (design/step-7.md section 4)."""
         for i, b in enumerate(self.d.blocks):
             for line in b.lines:
-                self.types[(i, line.result.text)] = 'i1' if line.operation.text == ICMP else 'i64'
+                if isinstance(line, Call):
+                    sig = self.callees[id(line)] = self.callee(line.callee)
+                    if sig is not None and sig.output_type is not None:
+                        self.types[(i, line.result.text)] = sig.output_type
+                else:
+                    self.types[(i, line.result.text)] = 'i1' if line.operation.text == ICMP else 'i64'
         changed = True
         while changed:
             changed = False
@@ -532,9 +632,12 @@ class _Body:
                     'pass it a value in some jump, other than itself',
                 )
         for line in b.lines:
-            self.operation(line)
-            for v in (line.left, line.right):
-                self.read(i, v, line.result.text, bound, every, used, 'i64', f'`{line.operation.text}`')
+            if isinstance(line, Call):
+                self.call(i, line, bound, every, used)
+            else:
+                self.operation(line)
+                for v in (line.left, line.right):
+                    self.read(i, v, line.result.text, bound, every, used, 'i64', f'`{line.operation.text}`')
             if line.result.text in bound:
                 self.report(
                     'duplicate-word',
@@ -563,6 +666,95 @@ class _Body:
                     v.span,
                     'use it, or remove it; a block often returns the wrong local',
                 )
+
+    def callee(self, v: Value) -> Signature | None:
+        """The type of the function a call names: an earlier one, a declared one, or this one, which is recursion.
+
+        A call of this function is checked against its own head, even where a `declare` above says otherwise: the
+        difference is reported once, on the head.
+        """
+        word = v.text
+        c = self.c
+        own = self.d.word.text
+        if word == own:
+            return self.signature
+        if word not in c.index:
+            functions = [w for w, k in c.kinds.items() if k == 'function']
+            close = difflib.get_close_matches(word, functions, n=1)
+            hint = f'did you mean `@{close[0]}`?' if close else 'define the function above this one'
+            self.report('undeclared-word', f'no entry declares `@{word}`', v.span, hint)
+            return None
+        if c.kinds[word] != 'function':
+            self.report(
+                'bad-value',
+                f'`@{word}` is a data word, so it cannot be called',
+                v.span,
+                f'only a function can be called; to read `@{word}`, list it in the inputs',
+            )
+            return None
+        if c.index[word] > self.position:
+            later = c.items[c.index[word]]
+            if isinstance(later, Declaration):
+                hint = f'move `declare @{word} {_head(later)}` above `@{own}`'
+                message = f'`@{word}` is declared after `@{own}`'
+            else:
+                head = _head(later) if isinstance(later, Definition) else '{…} -> …'
+                hint = f'declare it above `@{own}`: `declare @{word} {head}`, or move its `define` up'
+                message = f'`@{word}` is defined after `@{own}`'
+            self.report('forward-reference', message, v.span, hint)
+            return None
+        return c.signatures.get(word)
+
+    def call(self, i: int, line: Call, bound: dict[str, Value], every: set[str], used: set[str]) -> None:
+        """A call's arguments: one per input of the callee, in the callee's order (design/step-9.md section 3)."""
+        sig = self.callees[id(line)]
+        word = line.callee.text
+        result = line.result.text
+        if sig is None:
+            for a in line.args:
+                self.read(i, a.value, result, bound, every, used, None, f'`@{word}`')
+            return
+        takes = ', '.join(f'`@{w}`' for w in sig.inputs)
+        given: list[str] = []
+        unknown = False
+        for a in line.args:
+            key = a.key.text
+            expected = None
+            if key in sig.rejected:
+                pass  # the callee's head already reports this input
+            elif key not in sig.inputs:
+                unknown = True
+                hint = (
+                    f'`@{word}` takes {takes}'
+                    if sig.inputs
+                    else f'`@{word}` takes no inputs: write `call @{word} {{}}`'
+                )
+                self.report('unknown-key', f'`@{key}` is not an input of `@{word}`', a.key.span, hint)
+            elif key in given:
+                self.report('duplicate-key', f'`@{key}` is given twice in this call of `@{word}`', a.key.span)
+            else:
+                given.append(key)
+                expected = sig.input_types.get(key)
+            self.read(i, a.value, result, bound, every, used, expected, f'`@{key}` of `@{word}`')
+        missing = [w for w in sig.inputs if w not in given]
+        if missing and not unknown:  # an unknown input is often the missing one, already reported
+            fill = ', '.join(f'@{w} = …' for w in missing)
+            self.report(
+                'missing-key',
+                f'this call of `@{word}` gives no {", ".join(f"`@{w}`" for w in missing)}',
+                line.callee.span,
+                f'`@{word}` takes {takes}: add `{fill}`',
+            )
+        want = [w for w in sig.inputs if w in given]
+        if given != want:
+            first = next(a for a, b in zip(given, want, strict=True) if a != b)
+            span = next(a.key.span for a in line.args if a.key.text == first)
+            self.report(
+                'key-order',
+                f'the arguments of this call of `@{word}` are out of order',
+                span,
+                f"write the arguments in the order of `@{word}`'s type: {takes}",
+            )
 
     def operation(self, line: 'Line') -> None:
         op, ty = line.operation, line.type

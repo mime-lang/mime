@@ -8,7 +8,7 @@ as `@mime.word`.
 
 from mime.checker import Function, Program
 from mime.lexer import Tok
-from mime.parser import Block, Line, Value
+from mime.parser import Block, Call, Line, Value
 from mime.printer import Names, canonical_names, pass_throughs
 
 
@@ -20,8 +20,9 @@ def symbol(f: Function) -> str:
 
 
 class _Function:
-    def __init__(self, f: Function, names: Names, index: int) -> None:
+    def __init__(self, f: Function, names: Names, index: int, functions: dict[str, Function]) -> None:
         self.f = f
+        self.functions = functions
         self.names = names
         self.index = index
         self.blocks = f.definition.blocks
@@ -81,11 +82,18 @@ class _Function:
             out += self.end(i, b)
         return '\n'.join([*out, '}']) + '\n'
 
-    def line(self, i: int, x: Line) -> str:
+    def line(self, i: int, x: Line | Call) -> str:
+        result = f'%{self.names.local(self.index, i, x.result.text)}'
+        if isinstance(x, Call):
+            # The arguments are in the callee's input order, which the checker ensures, so they are passed as written.
+            # No check guards the depth: a native stack that overflows stops the program (design/step-9.md section 6).
+            g = self.functions[x.callee.text]
+            args = ', '.join(f'{g.input_types[a.key.text]} {self.operand(i, a.value)}' for a in x.args)
+            return f'  {result} = call {g.output_type} {symbol(g)}({args})'
         # No `nsw` or `nuw` flag, so overflow wraps.
         op = f'icmp {x.predicate.text}' if x.predicate is not None else x.operation.text
         left, right = self.operand(i, x.left), self.operand(i, x.right)
-        return f'  %{self.names.local(self.index, i, x.result.text)} = {op} i64 {left}, {right}'
+        return f'  {result} = {op} i64 {left}, {right}'
 
     def end(self, i: int, b: Block) -> list[str]:
         e = b.end
@@ -109,7 +117,8 @@ class _Function:
 def lower(program: Program) -> str:
     names = canonical_names(program.module)
     index = {id(x): i for i, x in enumerate(program.module.items)}
-    return '\n'.join(_Function(f, names, index[id(f.definition)]).text() for f in program.functions)
+    functions = {f.word: f for f in program.functions}
+    return '\n'.join(_Function(f, names, index[id(f.definition)], functions).text() for f in program.functions)
 
 
 def runner(program: Program, word: str) -> str:

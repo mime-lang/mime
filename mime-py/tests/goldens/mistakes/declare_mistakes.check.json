@@ -1,0 +1,34 @@
+[
+  {
+    "kind": "redundant-declaration",
+    "entry": "@early",
+    "key": "type",
+    "text": "@early",
+    "message": "nothing calls `@early` before its `define`",
+    "hint": "drop it: `@early` is defined before anything calls it"
+  },
+  {
+    "kind": "missing-definition",
+    "entry": "@ghost",
+    "key": "type",
+    "text": "@ghost",
+    "message": "`@ghost` is declared, but no `define` below defines it",
+    "hint": "write `define @ghost {@n} -> i64 {…}` below, or drop the declaration"
+  },
+  {
+    "kind": "wrong-type",
+    "entry": "@odd",
+    "key": "type",
+    "text": "@odd",
+    "message": "the type of `@odd` differs from its declaration",
+    "hint": "`@odd` is declared above as `{@n} -> @flag`"
+  },
+  {
+    "kind": "duplicate-word",
+    "entry": "@even",
+    "key": null,
+    "text": "@even",
+    "message": "`@even` already has an entry",
+    "hint": "a declaration comes above the `define` of `@even`, and only when a call above it needs it"
+  }
+]

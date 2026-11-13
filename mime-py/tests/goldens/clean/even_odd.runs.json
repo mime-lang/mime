@@ -1,0 +1,7 @@
+[
+  {"symbol": "even", "inputs": ["0"], "output": "true"},
+  {"symbol": "even", "inputs": ["7"], "output": "false"},
+  {"symbol": "even", "inputs": ["300"], "output": "true"},
+  {"symbol": "odd", "inputs": ["0"], "output": "false"},
+  {"symbol": "odd", "inputs": ["5"], "output": "true"}
+]

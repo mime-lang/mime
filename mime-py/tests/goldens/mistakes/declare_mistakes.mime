@@ -1,0 +1,38 @@
+@n = {type = i64, abstract = "a whole number"}
+@flag = {type = i1, abstract = "a truth value"}
+
+declare @odd {@n} -> @flag
+declare @early {@n} -> i64
+
+define @early {@n} -> i64 {
+  ret @n
+}
+abstract = "the @n it is given"
+
+declare @ghost {@n} -> i64
+
+define @even {@n} -> @flag {
+  %zero = icmp eq i64 @n, 0
+  br %zero, ^yes{}, ^no{}
+^yes{}:
+  ret true
+^no{}:
+  %m = sub i64 @n, 1
+  %o = call @odd {@n = %m}
+  ret %o
+}
+abstract = "whether @n is even"
+
+define @odd {@n} -> i1 {
+  %zero = icmp eq i64 @n, 0
+  br %zero, ^no{}, ^yes{}
+^no{}:
+  ret false
+^yes{}:
+  %m = sub i64 @n, 1
+  %e = call @even {@n = %m}
+  ret %e
+}
+abstract = "whether @n is odd"
+
+declare @even {@n} -> @flag

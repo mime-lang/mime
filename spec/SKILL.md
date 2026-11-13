@@ -1,7 +1,7 @@
 # mime
 
 mime is a language where a word means only what its type and definition say. Its spelling carries nothing:
-renaming every word consistently never changes a program. This is the whole language as of roadmap step 8.
+renaming every word consistently never changes a program. This is the whole language as of roadmap step 9.
 
 ## Names
 
@@ -10,8 +10,8 @@ renaming every word consistently never changes a program. This is the whole lang
 - A **local** is `%` plus lowercase letters and digits: `%double`, `%0`. A local is a value inside one function
   body. It has no entry and no abstract.
 - A **label** is `^` plus lowercase letters and digits: `^loop`, `^0`. It names a block in a body.
-- A **language word** is a bare name fixed by mime: `type`, `abstract`, `define`, `ret`, `br`, `add`, `sub`, `mul`,
-  `icmp`, the predicates `eq ne slt sle sgt sge ult ule ugt uge`, the types `i64` and `i1`, and `true`, `false`.
+- A **language word** is a bare name fixed by mime: `type`, `abstract`, `define`, `declare`, `ret`, `br`, `add`,
+  `sub`, `mul`, `icmp`, `call`, the predicates `eq ne slt sle sgt sge ult ule ugt uge`, the types `i64` and `i1`, and `true`, `false`.
 
 `@` marks what carries meaning and must be looked up; `%` marks what is mechanical. mime has no `$`.
 
@@ -32,7 +32,7 @@ abstract = "three times the @number it is given, plus one"
 ```
 
 **Every entry refers only to earlier entries.** Declare a word above everything that uses it. Data words and
-definitions may come in any order otherwise.
+definitions may come in any order otherwise. The one exception: a body may call its own function (recursion).
 
 A **data word** is `@word = {type = i64, abstract = "…"}`, with exactly these two keys in this order. The types are
 `i64` (a 64-bit integer) and `i1` (a truth value, `true` or `false`).
@@ -111,13 +111,49 @@ When a function is finished, run `mime canon --locals prog.mime`. It renumbers e
 of appearance, and every label `^b0`, `^b1`, …, so the stored program carries no local names. A stored body you edit later may mix numbered locals
 with new named ones; run the command again when you are done.
 
+## Calls
+
+```
+%g = call @gcd {@first = %b, @second = %r}
+```
+
+- A call is a line: `%r = call @f {@input = value, …}`. Each argument names the callee's input it fills, then the
+  caller's value: an input, a local, an integer, `true` or `false`. `{@n = @n}` passes your `@n` to its `@n`.
+- Give **every input exactly once, in the order of the callee's type**. A function with no inputs: `call @ten {}`.
+- No type is written: `call @gcd {…}`, never `call i64 @gcd(…)`. The result has the callee's output type, and must
+  be read.
+- Call an earlier function, or the function itself. For **mutual recursion**, declare the later one first, with
+  its head only, and define it below:
+
+```
+declare @odd {@n} -> @flag
+
+define @even {@n} -> @flag {
+  …
+  %o = call @odd {@n = %m}
+  …
+}
+abstract = "whether @n is even"
+
+define @odd {@n} -> @flag { … }
+abstract = "whether @n is odd"
+```
+
+- A `declare` has no body, abstract or symbol, and needs exactly one `define` below it with the same type. Write one
+  only when something above that `define` calls it; otherwise it is a `redundant-declaration`.
+- Call mistakes use the field kinds: `missing-key`, `unknown-key`, `duplicate-key`, `key-order`.
+- A result is guaranteed if the machine can hold the calls. A recursion too deep for it, or one that never reaches
+  its base case, stops with "ran out of stack" (exit code 2), as an endless loop stops at the timeout.
+
 ## Not LLVM
 
 Bodies look like LLVM IR, with these differences: an input is its `@` word (LLVM would use a `%` parameter),
 operands and `ret` carry no type, there is no `phi`, `nsw` or `nuw` (overflow always wraps), and a definition's
 head is its mime type (`define @f {@a} -> @r`), not `define i64 @f(i64 %a)`. `@number` in a body is a value, not a
 global that needs a `load`. Labels are `^loop` (not `%loop` or `loop:`), a jump is `br ^loop{%x}` (not
-`br label %loop`), and the condition of `br` takes no type (`br %c, …`, not `br i1 %c, …`).
+`br label %loop`), and the condition of `br` takes no type (`br %c, …`, not `br i1 %c, …`). A call names each
+argument's input and takes no type (`call @f {@a = %x}`, not `call i64 @f(i64 %x)`), and `declare` is a function
+defined later in the same module, not one defined elsewhere.
 
 ## References in abstracts
 

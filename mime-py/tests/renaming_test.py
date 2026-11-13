@@ -4,11 +4,11 @@ from pathlib import Path
 
 import pytest
 
-from mime.compiler import analyze, run
+from mime.compiler import analyze
 from mime.diag import FatalError
 from mime.parser import parse
 from mime.printer import canon, rename_text, words_in
-from tests.run_cases import BACKENDS, every_case
+from tests.run_cases import BACKENDS, every_case, matches, outcome
 
 GOLDENS = Path(__file__).parent / 'goldens'
 # Every golden program, clean or with mistakes, as a path relative to `GOLDENS`.
@@ -59,10 +59,10 @@ def test_the_canonical_form_is_a_fixed_point(name: str) -> None:
 
 
 @pytest.mark.parametrize('backend', BACKENDS)
-@pytest.mark.parametrize(('name', 'symbol', 'inputs', 'output'), every_case())
-def test_renaming_keeps_the_behavior(name: str, symbol: str, inputs: list[str], output: str, backend: str) -> None:
+@pytest.mark.parametrize(('name', 'symbol', 'inputs', 'expected'), every_case())
+def test_renaming_keeps_the_behavior(name: str, symbol: str, inputs: list[str], expected: str, backend: str) -> None:
     # A symbol is data, which no renaming changes, so the same run case names the same function after renaming.
     renamed, _ = scramble((GOLDENS / 'clean' / f'{name}.mime').read_text())
     program, _ = analyze(renamed)
     assert program is not None
-    assert run(program, symbol, inputs, backend=backend) == output + '\n'
+    assert matches(outcome(program, symbol, inputs, backend), expected)

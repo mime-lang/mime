@@ -4,10 +4,25 @@ from dataclasses import dataclass, replace
 
 from mime.diag import Diagnostic, FatalError
 from mime.lexer import ARITHMETIC_HINT, ARROW_HINT, Ref, Span, Tok, Token, tokens
-from mime.words import BR, DEFINE, FALSE, ICMP, LANGUAGE_WORDS, LLVM_HABITS, OPERATIONS, RET, RETIRED, TRUE, TYPES
+from mime.words import (
+    BR,
+    CALL,
+    DECLARE,
+    DEFINE,
+    FALSE,
+    ICMP,
+    LANGUAGE_WORDS,
+    LLVM_HABITS,
+    OPERATIONS,
+    RET,
+    RETIRED,
+    TRUE,
+    TYPES,
+)
 
 DEFINE_HINT = 'write the type: `define @f {@a, @b} -> @r {…}`'
 LINE_HINT = 'a line is `%x = add i64 %a, %b`, with `sub` or `mul` alike'
+CALL_HINT = 'write `%r = call @f {@a = %x, @b = %y}`, naming each input of `@f`'
 
 
 @dataclass(frozen=True)
@@ -56,6 +71,24 @@ class Line:
 
 
 @dataclass(frozen=True)
+class Argument:
+    """`@input = value` in a call: the callee's input it fills, and the caller's value (design/step-9.md section 2)."""
+
+    key: Value  # the callee's input word
+    value: Value
+
+
+@dataclass(frozen=True)
+class Call:
+    """`%result = call @callee {@a = x, @b = y}`."""
+
+    result: Value
+    keyword: Value  # `call`
+    callee: Value
+    args: tuple[Argument, ...]
+
+
+@dataclass(frozen=True)
 class Target:
     """`^label{args}`: a block a `br` jumps to, and the values it passes to the block's parameters."""
 
@@ -78,7 +111,7 @@ class Block:
 
     label: Value | None
     params: tuple[Value, ...]
-    lines: tuple[Line, ...]
+    lines: tuple[Line | Call, ...]
     end: Terminator
 
 
@@ -97,8 +130,22 @@ class Definition:
 
 
 @dataclass(frozen=True)
+class Declaration:
+    """`declare @word {inputs} -> output`: the head of a `define` further down (design/step-9.md section 4)."""
+
+    word: Value
+    inputs: tuple[Value, ...]
+    output: Value
+    span: Span  # the `declare`
+    end: int  # the offset just after the output
+
+
+type Item = Entry | Definition | Declaration
+
+
+@dataclass(frozen=True)
 class Module:
-    items: tuple[Entry | Definition, ...]  # every entry, data word or definition, in source order
+    items: tuple[Item, ...]  # every entry in source order: data words, definitions and declarations
     source: str
 
     @property
@@ -110,11 +157,25 @@ class Module:
         return tuple(x for x in self.items if isinstance(x, Definition))
 
 
+def item_word(x: Item) -> str:
+    """The word an entry is for, without its `@`."""
+    return x.word if isinstance(x, Entry) else x.word.text
+
+
+def line_values(x: Line | Call) -> list[Value]:
+    """Every word and value a line names besides its result, in source order: a call's callee and each argument's
+    input word and value, or an operation's two operands."""
+    if isinstance(x, Call):
+        return [x.callee, *(v for a in x.args for v in (a.key, a.value))]
+    return [x.left, x.right]
+
+
 def block_values(b: Block) -> list[Value]:
-    """Every value a block reads, in source order: operands, the `ret` value or `br` condition, and jump arguments."""
+    """Every value and word a block names, in source order, besides the locals it binds: operands, a call's callee and
+    arguments, the `ret` value or `br` condition, and jump arguments."""
     found = []
     for line in b.lines:
-        found += [line.left, line.right]
+        found += line_values(line)
     if b.end.value is not None:
         found.append(b.end.value)
     for t in b.end.targets:
@@ -123,7 +184,7 @@ def block_values(b: Block) -> list[Value]:
 
 
 def atoms(d: Definition) -> list[Value]:
-    """Every value a body reads, in source order. Locals being bound are not included."""
+    """Every value and word a body names, in source order. Locals being bound are not included."""
     return [v for b in d.blocks for v in block_values(b)]
 
 
@@ -178,10 +239,15 @@ class _Parser:
         return t
 
     def module(self) -> Module:
-        items: list[Entry | Definition] = []
+        items: list[Item] = []
         while self.peek().kind != Tok.END:
             t = self.peek()
-            items.append(self.definition() if t.kind == Tok.NAME and t.text == DEFINE else self.entry())
+            if t.kind == Tok.NAME and t.text == DEFINE:
+                items.append(self.definition())
+            elif t.kind == Tok.NAME and t.text == DECLARE:
+                items.append(self.declaration())
+            else:
+                items.append(self.entry())
         return Module(tuple(items), self.source)
 
     # Declarations
@@ -273,11 +339,11 @@ class _Parser:
 
     # Definitions
 
-    def definition(self) -> Definition:
-        keyword = self.take()
+    def head(self, keyword: Token) -> tuple[Token, tuple[Value, ...], Token]:
+        """`@word {inputs} -> output` after `define` or `declare`."""
         w = self.take()
         if w.kind != Tok.WORD:
-            raise self.fail(w, f'expected the function word after `define`, found {_show(w)}', DEFINE_HINT)
+            raise self.fail(w, f'expected the function word after `{keyword.text}`, found {_show(w)}', DEFINE_HINT)
         self.entry_word, self.key = f'@{w.text}', 'type'
         inputs = self.inputs()
         arrow = self.take()
@@ -291,6 +357,28 @@ class _Parser:
             )
         if self.peek().kind == Tok.ARROW:
             raise self.fail(self.peek(), 'a function returns one value', 'put the inputs in a struct: `{@a, @b} -> @c`')
+        return w, inputs, out
+
+    def declaration(self) -> Declaration:
+        keyword = self.take()
+        w, inputs, out = self.head(keyword)
+        nxt = self.peek()
+        if nxt.kind == Tok.LBRACE:
+            raise self.fail(
+                nxt,
+                'a declaration has no body',
+                f'write the body in the `define` of `@{w.text}` below, or make this the `define`',
+            )
+        if nxt.kind == Tok.NAME and nxt.text in ('abstract', 'symbol'):
+            raise self.fail(
+                nxt, f'a declaration has no {nxt.text}', f'write `{nxt.text} = …` after the `define` of `@{w.text}`'
+            )
+        self.entry_word = self.key = None
+        return Declaration(_value(w), inputs, _value(out), keyword.span, out.span.end)
+
+    def definition(self) -> Definition:
+        keyword = self.take()
+        w, inputs, out = self.head(keyword)
         self.key = 'body'
         self.expect(Tok.LBRACE, 'to start the body')
         blocks = [self.block(None, ())]
@@ -442,7 +530,7 @@ class _Parser:
         self.take()
         return tuple(found)
 
-    def line(self) -> Line:
+    def line(self) -> Line | Call:
         r = self.take()
         if r.kind in (Tok.NAME, Tok.LOCAL) and self.peek().kind == Tok.COLON:
             raise self.fail(r, 'a block label is written with `^`', f'write `^{r.text}{{}}:`')
@@ -460,6 +548,8 @@ class _Parser:
             raise self.fail(op, f'expected an operation after `%{r.text} =`, found {_show(op)}', ARITHMETIC_HINT)
         if op.text in LLVM_HABITS:
             raise self.fail(op, f'`{op.text}` is not a language word', LLVM_HABITS[op.text])
+        if op.text == CALL:
+            return self.call(_value(r), _value(op))
         nxt = self.peek()
         if nxt.kind in (Tok.LBRACE, Tok.LPAREN):
             raise self.fail(nxt, f'the operands of `{op.text}` take no brackets', LINE_HINT)
@@ -483,6 +573,47 @@ class _Parser:
             raise self.fail(self.peek(), f'`{op.text}` takes two operands', LINE_HINT)
         return Line(_value(r), _value(op), predicate, _value(ty), left, right)
 
+    def call(self, result: Value, keyword: Value) -> Call:
+        """`call @f {@a = x, @b = y}` after `%result =`."""
+        t = self.take()
+        if t.kind == Tok.NAME and t.text in TYPES:
+            f = self.peek()
+            hint = (
+                f'write `call @{f.text} {{@a = %x}}`; the type comes from `@{f.text}`'
+                if f.kind == Tok.WORD
+                else 'the type comes from the function; ' + CALL_HINT
+            )
+            raise self.fail(t, 'a call takes no type', hint)
+        if t.kind != Tok.WORD:
+            raise self.fail(t, f'expected the function after `call`, found {_show(t)}', CALL_HINT)
+        callee = _value(t)
+        if self.peek().kind == Tok.LPAREN:
+            raise self.fail(
+                self.peek(),
+                'a call takes its arguments in braces, each named by its input',
+                f'write `call @{t.text} {{@a = %x}}`',
+            )
+        self.expect(Tok.LBRACE, f'after `call @{t.text}`', CALL_HINT)
+        args = []
+        while self.peek().kind != Tok.RBRACE:
+            k = self.take()
+            if k.kind != Tok.WORD:
+                raise self.fail(
+                    k,
+                    f'expected the input an argument fills, found {_show(k)}',
+                    f'an argument names an input of `@{t.text}`: `@a = {self.source[k.span.start : k.span.end]}`',
+                )
+            self.expect(Tok.EQUALS, f'after the input `@{k.text}`', f'write `@{k.text} = %x`')
+            args.append(Argument(_value(k), self.atom(f'for `@{k.text}`')))
+            if self.peek().kind == Tok.COMMA:
+                comma = self.take()
+                if self.peek().kind == Tok.RBRACE:
+                    raise self.fail(comma, 'a trailing comma is not allowed', 'remove the `,`', kind='trailing-comma')
+            elif self.peek().kind != Tok.RBRACE:
+                raise self.fail(self.peek(), f'expected `,` or `}}` after an argument, found {_show(self.peek())}')
+        self.take()
+        return Call(result, keyword, callee, tuple(args))
+
     def atom(self, context: str) -> Value:
         t = self.take()
         if t.kind in (Tok.WORD, Tok.LOCAL, Tok.INT):
@@ -495,7 +626,7 @@ class _Parser:
             return _value(t)
         if t.text in TYPES:
             raise self.fail(t, f'`{t.text}` is a type, not an operand', 'the type comes from the definition')
-        if t.text in OPERATIONS or t.text == ICMP:
+        if t.text in OPERATIONS or t.text in (ICMP, CALL):
             raise self.fail(
                 t,
                 f'`{t.text}` is an operation inside an operand',

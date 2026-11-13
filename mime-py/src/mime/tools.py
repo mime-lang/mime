@@ -6,7 +6,7 @@ from dataclasses import dataclass
 
 from mime.diag import ToolError
 from mime.lexer import Span, Tok
-from mime.parser import Definition, Entry, Module, Struct, Value, atoms
+from mime.parser import Declaration, Definition, Entry, Module, Struct, Value, atoms, item_word
 
 
 @dataclass(frozen=True)
@@ -17,12 +17,8 @@ class Use:
     span: Span
 
 
-def _word(x: Entry | Definition) -> str:
-    return x.word if isinstance(x, Entry) else x.word.text
-
-
 def _words(module: Module) -> list[str]:
-    return [_word(x) for x in module.items]
+    return [item_word(x) for x in module.items]
 
 
 def _did_you_mean(module: Module, word: str) -> str:
@@ -33,9 +29,13 @@ def _did_you_mean(module: Module, word: str) -> str:
 def show(module: Module, word: str) -> str:
     """The source text of every entry for `word`, in order, with a blank line between two.
 
-    A function's entry is its whole definition, from `define` through its abstract.
+    A function's entry is its whole definition, from `define` through its abstract. Its `declare` is shown only while
+    there is no `define`, since the `define` repeats its type (design/step-9.md section 8).
     """
-    texts = [module.source[x.span.start : x.end] for x in module.items if _word(x) == word]
+    found = [x for x in module.items if item_word(x) == word]
+    if any(isinstance(x, Definition) for x in found):
+        found = [x for x in found if not isinstance(x, Declaration)]
+    texts = [module.source[x.span.start : x.end] for x in found]
     if not texts:
         msg = f'no entry declares `@{word}`{_did_you_mean(module, word)}'
         raise ToolError(msg)
@@ -60,6 +60,9 @@ def uses(module: Module, word: str) -> list[Use]:
                 found += [(d.word, f.key, s) for s in spans]
             continue
         head = [x.span for x in (*d.inputs, d.output) if x.kind == Tok.WORD and x.text == word]
+        if isinstance(d, Declaration):
+            found += [(d.word.text, 'type', s) for s in head]
+            continue
         body = [a.span for a in atoms(d) if a.kind == Tok.WORD and a.text == word]
         found += [(d.word.text, 'type', s) for s in head]
         found += [(d.word.text, 'body', s) for s in body]

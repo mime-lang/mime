@@ -1,0 +1,26 @@
+@number = {type = i64, abstract = "a whole number"}
+@first = {type = i64, abstract = "the first of two numbers"}
+@second = {type = i64, abstract = "the second of two numbers"}
+
+define @difference {@first, @second} -> i64 {
+  %d = sub i64 @first, @second
+  ret %d
+}
+abstract = "the @first minus the @second"
+
+define @caller {@number} -> i64 {
+  %a = call @difference {@first = @number}
+  %b = call @difference {@second = %a, @first = 1}
+  %c = call @difference {@first = %b, @third = 2}
+  %d = call @difference {@first = %c, @first = 2, @second = 3}
+  %e = call @number {@number = %d}
+  %f = call @later {@number = %e}
+  %g = call @difference {@first = true, @second = %f}
+  ret %g
+}
+abstract = "every way to get a call wrong"
+
+define @later {@number} -> i64 {
+  ret @number
+}
+abstract = "the @number it is given"

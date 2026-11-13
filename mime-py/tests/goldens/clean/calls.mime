@@ -1,0 +1,50 @@
+@number = {type = i64, abstract = "a whole number"}
+@first = {type = i64, abstract = "the first of two numbers"}
+@second = {type = i64, abstract = "the second of two numbers"}
+@count = {type = i64, abstract = "how many of something"}
+@flag = {type = i1, abstract = "a truth value"}
+
+define @double {@number} -> @number {
+  %d = add i64 @number, @number
+  ret %d
+}
+abstract = "twice a @number"
+
+define @difference {@first, @second} -> i64 {
+  %d = sub i64 @first, @second
+  ret %d
+}
+abstract = "the @first minus the @second"
+
+define @ten {} -> @number {
+  ret 10
+}
+abstract = "always ten"
+
+define @negative {@number} -> @flag {
+  %below = icmp slt i64 @number, 0
+  ret %below
+}
+abstract = "whether a @number is below zero"
+
+define @quadruple {@count} -> @number {
+  %a = call @double {@number = @count}
+  %b = call @double {@number = %a}
+  %t = call @ten {}
+  %r = call @difference {@first = %b, @second = %t}
+  ret %r
+}
+abstract = "four times @count, minus the ten of @ten, by @double and @difference"
+symbol = "quadruple"
+
+define @magnitude {@number} -> @number {
+  %below = call @negative {@number = @number}
+  br %below, ^flip{}, ^keep{}
+^flip{}:
+  %m = call @difference {@first = 0, @second = @number}
+  ret %m
+^keep{}:
+  ret @number
+}
+abstract = "a @number without its sign, by @negative and @difference"
+symbol = "magnitude"

@@ -1,0 +1,6 @@
+[
+  {"symbol": "sum", "inputs": ["0"], "output": "0"},
+  {"symbol": "sum", "inputs": ["10"], "output": "55"},
+  {"symbol": "sum", "inputs": ["300"], "output": "45150"},
+  {"symbol": "forever", "inputs": ["1"], "limit": "stack"}
+]

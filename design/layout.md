@@ -30,11 +30,13 @@ A module has three sections, always in this order:
 
 **Every entry refers only to earlier entries,** whatever their kind: a type, an input, an output or an abstract
 names only words declared or defined above it. So a module reads top to bottom like a mathematical text, and the
-hint for a word used too early is always the same: move its entry above. How a function refers to itself or to a
-later function, as recursion needs, is decided with calls.
+hint for a word used too early is always the same: move its entry above. Two things are not entries that refer
+backward ([step-9.md](step-9.md) section 4): a body may call its own function, which is recursion, and
+`declare @f {inputs} -> output` gives a later function's head early, for mutual recursion. A word declared so
+counts as declared from its `declare` on.
 
 Imports and exports arrive with the modules step, which fixes their syntax. Until then a module has only
-entries, and `mime run` may run any function word.
+entries, and `mime run` runs a function by its `symbol` ([step-8.md](step-8.md) section 3).
 
 ## 2. Meaning
 
@@ -93,7 +95,8 @@ abstract = "the greatest common divisor of a $first and a $second"
 - **The abstract follows the body directly,** so it does not name its word again. Like every entry, it refers
   only to earlier entries. It may not refer to its own word, nor to the body's results or blocks, which a reader of
   the abstract cannot see.
-- A function word is defined once, and it is not also declared. An abstract or a type in a declaration whose word
+- A function word is defined once, and declared at most once, above its `define` and only where a call above the
+  `define` needs it (`declare`, [step-9.md](step-9.md) section 4). It is never declared as a data word. An abstract or a type in a declaration whose word
   is defined below gets "a function's type and abstract belong to its `define`".
 
 `$a -> $b`, without braces, gets "the inputs are a struct: write `{$a} -> $b`". `$a -> $b -> $c` gets "a function

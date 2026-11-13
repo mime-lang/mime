@@ -6,7 +6,20 @@ from dataclasses import dataclass, field
 
 from mime.diag import FatalError, ToolError
 from mime.lexer import Span, Tok, tokens
-from mime.parser import Definition, Entry, Line, Module, Struct, Target, Terminator, Value, atoms
+from mime.parser import (
+    Call,
+    Declaration,
+    Definition,
+    Entry,
+    Line,
+    Module,
+    Struct,
+    Target,
+    Terminator,
+    Value,
+    atoms,
+    line_values,
+)
 
 
 @dataclass
@@ -69,7 +82,10 @@ def _definition(source: str, d: Definition, index: int, names: Names) -> str:
     def target(block: int, t: Target) -> str:
         return f'^{names.label(index, t.label.text)}{{' + ', '.join(atom(block, a) for a in t.args) + '}'
 
-    def line(block: int, x: Line) -> str:
+    def line(block: int, x: Line | Call) -> str:
+        if isinstance(x, Call):
+            args = ', '.join(f'{atom(block, a.key)} = {atom(block, a.value)}' for a in x.args)
+            return f'  {atom(block, x.result)} = call {atom(block, x.callee)} {{{args}}}'
         op = f'icmp {x.predicate.text}' if x.predicate is not None else x.operation.text
         left, right = atom(block, x.left), atom(block, x.right)
         return f'  {atom(block, x.result)} = {op} {x.type.text} {left}, {right}'
@@ -96,15 +112,29 @@ def _definition(source: str, d: Definition, index: int, names: Names) -> str:
     return '\n'.join(lines)
 
 
+def _declaration(d: Declaration, names: Names) -> str:
+    inputs = ', '.join(f'@{names.word(x.text)}' for x in d.inputs)
+    output = f'@{names.word(d.output.text)}' if d.output.kind == Tok.WORD else d.output.text
+    return f'declare @{names.word(d.word.text)} {{{inputs}}} -> {output}'
+
+
 def layout(module: Module, names: Names | None = None) -> str:
     """The program in its one layout (design/step-5.md section 2), with `names` applied."""
     names = names or Names()
     out = ''
     for i, x in enumerate(module.items):
         if i > 0:
-            # One blank line around a definition; data words stand on consecutive lines.
-            out += '\n\n' if isinstance(x, Definition) or isinstance(module.items[i - 1], Definition) else '\n'
-        out += _definition(module.source, x, i, names) if isinstance(x, Definition) else _entry(module.source, x, names)
+            # Entries of one kind stand on consecutive lines, data words or declarations; a definition, or a change
+            # of kind, gets a blank line.
+            before = module.items[i - 1]
+            same = type(x) is type(before) and not isinstance(x, Definition)
+            out += '\n' if same else '\n\n'
+        if isinstance(x, Definition):
+            out += _definition(module.source, x, i, names)
+        elif isinstance(x, Declaration):
+            out += _declaration(x, names)
+        else:
+            out += _entry(module.source, x, names)
     return out + '\n' if out else ''
 
 
@@ -116,7 +146,7 @@ def _body_names(d: Definition) -> list[tuple[int, Value]]:
             found.append((i, b.label))
         found += [(i, p) for p in b.params]
         for x in b.lines:
-            found += [(i, x.result), (i, x.left), (i, x.right)]
+            found += [(i, x.result), *((i, v) for v in line_values(x))]
         if b.end.value is not None:
             found.append((i, b.end.value))
         for t in b.end.targets:
@@ -200,6 +230,11 @@ def canonical_names(module: Module) -> Names:
                         refs(v)
             continue
         word(x.word.text)
+        if isinstance(x, Declaration):
+            for v in (*x.inputs, x.output):
+                if v.kind == Tok.WORD:
+                    word(v.text)
+            continue
         for v in (*x.inputs, x.output, *atoms(x)):
             if v.kind == Tok.WORD:
                 word(v.text)

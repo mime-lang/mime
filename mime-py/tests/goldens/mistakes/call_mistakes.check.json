@@ -1,0 +1,58 @@
+[
+  {
+    "kind": "missing-key",
+    "entry": "@caller",
+    "key": "body",
+    "text": "@difference",
+    "message": "this call of `@difference` gives no `@second`",
+    "hint": "`@difference` takes `@first`, `@second`: add `@second = …`"
+  },
+  {
+    "kind": "key-order",
+    "entry": "@caller",
+    "key": "body",
+    "text": "@second",
+    "message": "the arguments of this call of `@difference` are out of order",
+    "hint": "write the arguments in the order of `@difference`'s type: `@first`, `@second`"
+  },
+  {
+    "kind": "unknown-key",
+    "entry": "@caller",
+    "key": "body",
+    "text": "@third",
+    "message": "`@third` is not an input of `@difference`",
+    "hint": "`@difference` takes `@first`, `@second`"
+  },
+  {
+    "kind": "duplicate-key",
+    "entry": "@caller",
+    "key": "body",
+    "text": "@first",
+    "message": "`@first` is given twice in this call of `@difference`",
+    "hint": null
+  },
+  {
+    "kind": "bad-value",
+    "entry": "@caller",
+    "key": "body",
+    "text": "@number",
+    "message": "`@number` is a data word, so it cannot be called",
+    "hint": "only a function can be called; to read `@number`, list it in the inputs"
+  },
+  {
+    "kind": "forward-reference",
+    "entry": "@caller",
+    "key": "body",
+    "text": "@later",
+    "message": "`@later` is defined after `@caller`",
+    "hint": "declare it above `@caller`: `declare @later {@number} -> i64`, or move its `define` up"
+  },
+  {
+    "kind": "wrong-type",
+    "entry": "@caller",
+    "key": "body",
+    "text": "true",
+    "message": "`true` is an `i1`, but `@first` of `@difference` needs an `i64`",
+    "hint": "an `i1` is a truth value, not a number; branch on it with `br`"
+  }
+]

@@ -2,6 +2,7 @@
 
 import re
 import shutil
+import signal
 import subprocess
 import tempfile
 import time
@@ -9,7 +10,7 @@ from pathlib import Path
 
 from mime.checker import Function, Program, check
 from mime.diag import Diagnostic, FatalError, ToolError
-from mime.interp import Scalar, Timeout, interpret
+from mime.interp import Scalar, StackOut, Timeout, interpret
 from mime.lower import runner
 from mime.parser import parse
 
@@ -125,11 +126,18 @@ def run(program: Program, name: str, args: list[str], timeout: float = 10.0, bac
     f = exported(program, name)
     values = inputs(f, args)
     too_long = f'`{f.symbol}` did not finish within {timeout:g} s; a loop may never reach its exit (see --timeout)'
+    # Running out of stack is the machine's limit, like time, not the program's meaning (design/step-9.md section 5).
+    too_deep = (
+        f'`{f.symbol}` ran out of stack: the machine could not hold that many nested calls, '
+        'or a recursion never reaches its base case'
+    )
     if backend == 'interp':
         try:
-            return printed(interpret(f, values, time.monotonic() + timeout))
+            return printed(interpret(program, f, values, time.monotonic() + timeout))
         except Timeout:
             raise ToolError(too_long) from None
+        except StackOut:
+            raise ToolError(too_deep) from None
     clang = shutil.which('clang')
     if clang is None:
         msg = '`clang` is not on PATH; `mime run --backend llvm` needs it to build the program'
@@ -147,6 +155,10 @@ def run(program: Program, name: str, args: list[str], timeout: float = 10.0, bac
             ran = subprocess.run([str(exe), *numbers], capture_output=True, text=True, check=False, timeout=timeout)
         except subprocess.TimeoutExpired:
             raise ToolError(too_long) from None
+        # A native stack that overflows kills the program with a signal; mime has no memory operations yet, so no other
+        # mistake of a program raises one.
+        if ran.returncode in (-signal.SIGSEGV, -signal.SIGBUS):
+            raise ToolError(too_deep)
         if ran.returncode != 0:
             msg = f'the program exited with code {ran.returncode}'
             raise ToolError(msg)

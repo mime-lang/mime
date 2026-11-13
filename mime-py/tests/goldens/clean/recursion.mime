@@ -1,0 +1,22 @@
+@n = {type = i64, abstract = "a whole number, zero or more"}
+
+define @sum {@n} -> i64 {
+  %zero = icmp eq i64 @n, 0
+  br %zero, ^done{}, ^more{}
+^done{}:
+  ret 0
+^more{}:
+  %m = sub i64 @n, 1
+  %s = call @sum {@n = %m}
+  %t = add i64 %s, @n
+  ret %t
+}
+abstract = "the sum of the numbers from 0 to @n, by recursion"
+symbol = "sum"
+
+define @forever {@n} -> i64 {
+  %r = call @forever {@n = @n}
+  ret %r
+}
+abstract = "never returns: it calls itself with the same @n"
+symbol = "forever"

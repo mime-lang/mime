@@ -1,0 +1,12 @@
+@number = {type = i64, abstract = "a whole number"}
+
+define @same {@number} -> @number {
+  ret @number
+}
+abstract = "the @number it is given"
+
+define @caller {@number} -> @number {
+  %r = call i64 @same(i64 @number)
+  ret %r
+}
+abstract = "@same, called as LLVM would"

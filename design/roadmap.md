@@ -34,20 +34,12 @@ when it does, core.md is updated in the same step.
 | 6 | `@` words and `%` locals, numbered locals in canon | [step-6.md](step-6.md) |
 | 7 | branches: `icmp`, `i1`, blocks with parameters, `br`, `^label`s | [step-7.md](step-7.md) |
 | 8 | the reference interpreter, `mime run --backend`, running by symbol, conformance run cases | [step-8.md](step-8.md) |
+| 9 | calls by word, recursion, `declare`, running out of stack as a machine limit | [step-9.md](step-9.md) |
 
 Along the way: [diagnostics.md](diagnostics.md) (JSON only, `entry`/`key`/`text`) and [tools.md](tools.md)
 (`show`, `uses`).
 
 ## Next steps, in order
-
-### Calls and recursion
-
-- **New:** `call`, and recursion.
-- **Decide:** how a function refers to itself and to a later function, as mutual recursion needs: forward
-  declarations, or definitions as a fixed point. Entries are ordered, like everything else, until this step.
-- **Decide:** the call syntax. A function's inputs are words, so arguments can be passed by word,
-  `call @gcd {@first = %a, @second = %b}`, which no argument swap can get wrong, or by position, `call @gcd(%a, %b)`,
-  which is shorter and more familiar.
 
 ### Division and remainder
 
@@ -75,8 +67,8 @@ benchmark's mime cells for those tasks stop being `unavailable`, and the scrambl
 
 - **New:** `type = {@first, @second}`, reading a field, building a struct value.
 - **Decide:** the syntax for both, and how a data word refers to itself, as a linked list does (`@list` holding a
-  `@list`). That needs the same answer as the forward references of calls, and indirection, which lists may have
-  brought.
+  `@list`). Calls answered this for functions with `declare` (step 9); a data word may need
+  the same, and indirection, which lists may have brought.
 
 ### JavaScript backend
 
