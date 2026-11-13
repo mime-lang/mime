@@ -1,7 +1,0 @@
-@w0 = {type = i64, abstract = "a whole number"}
-
-define @w1 {@w2} -> @w0 {
-  %0 = add i64 @w0, 1
-  ret %0
-}
-abstract = "one more than the @w0"

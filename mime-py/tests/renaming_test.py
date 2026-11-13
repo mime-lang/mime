@@ -11,7 +11,8 @@ from mime.parser import parse
 from mime.printer import canon, canonical_names, rename_text, words_in
 
 GOLDENS = Path(__file__).parent / 'goldens'
-NAMES = sorted(p.stem for p in GOLDENS.glob('*.mime') if '.' not in p.stem)
+# Every golden program, clean or with mistakes, as a path relative to `GOLDENS`.
+NAMES = sorted(str(p.relative_to(GOLDENS).with_suffix('')) for p in GOLDENS.glob('*/*.mime') if '.' not in p.stem)
 
 
 def scramble(source: str) -> tuple[str, dict[str, str]]:
@@ -58,12 +59,12 @@ def test_the_canonical_form_is_a_fixed_point(name: str) -> None:
 
 
 RUNS = [
-    ('affine', '@affine', ['5']),
-    ('affine', '@affine', [str(2**63 - 1)]),
-    ('arithmetic', '@square', ['-12']),
-    ('arithmetic', '@difference', ['10', '3']),
-    ('arithmetic', '@seven', []),
-    ('same', '@same', ['42']),
+    ('clean/affine', '@affine', ['5']),
+    ('clean/affine', '@affine', [str(2**63 - 1)]),
+    ('clean/arithmetic', '@square', ['-12']),
+    ('clean/arithmetic', '@difference', ['10', '3']),
+    ('clean/arithmetic', '@seven', []),
+    ('clean/same', '@same', ['42']),
 ]
 
 

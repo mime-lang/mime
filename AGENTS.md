@@ -15,10 +15,11 @@ mime is a language for AI agents to read and write. You, the agent, are its prim
 - `mime-py/`: the Python bootstrap toolchain (parser, checker, LLVM lowering, CLI). It will be deleted once mime compiles itself, so keep every Python-specific file inside it.
   - `mime-py/src/mime/`: toolchain source
   - `mime-py/tests/`: tests, named `*_test.py`
-  - `mime-py/tests/goldens/`: golden programs. Each `NAME.mime` has an approved `NAME.ll` (what `mime llvm` prints)
-    or `NAME.check.json` (what `mime check` prints). On a mismatch the test prints a diff and writes
-    `NAME.….received`; check it, then move it over the approved file to accept it. A golden that parses also
-    approves `NAME.canon.mime` (what `mime canon` prints) and is kept in the layout of `mime fmt`.
+  - `mime-py/tests/goldens/`: golden programs, in two folders. `clean/NAME.mime` must check clean and approves
+    `NAME.ll` (what `mime llvm` prints) and `NAME.canon.mime` (what `mime canon` prints). `mistakes/NAME.mime` must
+    have mistakes and approves `NAME.check.json` (what `mime check` prints). Goldens are kept in the layout of
+    `mime fmt`. On a mismatch the test prints a diff and writes `NAME.….received`; check it, then move it over the
+    approved file to accept it.
 - `design/`: design documents that outlive the bootstrap (`docs/` is reserved for a future GitHub Pages site)
 - `bench/`: the benchmark that tests mime's bet. Read [bench/README.md](bench/README.md) (the methodology card) before you change anything there.
 

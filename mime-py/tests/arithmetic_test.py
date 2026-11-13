@@ -11,7 +11,7 @@ from mime.cli import main
 from mime.compiler import analyze
 
 NUMBER = '@number = {type = i64, abstract = "a whole number"}\n'
-GOLDENS = Path(__file__).parent / 'goldens'
+GOLDENS = Path(__file__).parent / 'goldens' / 'clean'
 needs_clang = pytest.mark.skipif(shutil.which('clang') is None, reason='mime run needs clang')
 MIN, MAX = -(2**63), 2**63 - 1
 
