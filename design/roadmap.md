@@ -38,10 +38,29 @@ when it does, core.md is updated in the same step.
 | 10 | loops with one way in: reducible control flow, `irreducible-loop` | [step-10.md](step-10.md) |
 | 11 | canonical order: data words and `declare`s above their first `define`, `unused-word`, `canon --keep-words` | [step-11.md](step-11.md) |
 
-Along the way: [diagnostics.md](diagnostics.md) (JSON only, `entry`/`key`/`text`) and [tools.md](tools.md)
-(`show`, `uses`).
+Along the way: [diagnostics.md](diagnostics.md) (JSON only, `entry`/`key`/`text`), [tools.md](tools.md)
+(`show`, which prints a function after the words in its type, and `uses`), and what an abstract says
+([layout.md](layout.md) section 4.1: the result, not the steps; `unmentioned-input`).
 
 ## Next steps, in order
+
+### First benchmark run
+
+- **New:** the mime reference for `clamp` (`bench/tasks/t1-002-clamp/ref.mime`, in place of `ref.mime.todo`), and
+  mime cells in the harness: a task with a mime reference runs through `mime check` and `mime run`, and only a task
+  without one stays `unavailable`. The scrambled-words cell is the `mime canon` of a solution, and the plain cell its
+  `mime canon --keep-words` ([step-11.md](step-11.md) section 5). [bench/README.md](../bench/README.md) stops
+  saying there is no compiler and no skill file.
+- **Decide:** how the harness finds the `mime` command without depending on Python outside `bench/`, and how a
+  mime cell reports a diagnostic, a trap, and running out of time or stack.
+- **Why here:** `clamp` needs only `icmp` and `br`, so it can be written today. Several choices already wait on a
+  measurement: whether models confuse neighbouring numbered locals ([step-6.md](step-6.md) section 10), whether
+  abstracts that state the result help where the words say nothing ([layout.md](layout.md) section 4.1), and
+  whether placing words above their first user helps ([step-11.md](step-11.md)). One task is little evidence, but it
+  runs the whole loop, from the harness through a model to `mime run`, so every later task only needs its reference.
+
+**Milestone: first benchmark run, on `clamp`.** Its mime cells stop being `unavailable`, and the scrambled-words
+ablation runs on it.
 
 ### Division and remainder
 
@@ -50,9 +69,11 @@ Along the way: [diagnostics.md](diagnostics.md) (JSON only, `entry`/`key`/`text`
 - **Decide:** the domain of each operation and what happens outside it: a trap, as [backends.md](backends.md)
   recommends, or a total definition such as `x / 0 = 0`. Never undefined behavior by default; an opt-in unchecked
   mode comes later ([backends.md](backends.md) section 1).
+- **The trap is the work.** The `i1` operations are small. Division brings the first operation with a domain: the
+  first trap a program can reach, its report on every backend ([step-8.md](step-8.md) section 4), and a guard in
+  every backend where the target's own division differs. Design the trap first.
 
-**Milestone: first benchmark run, on integers.** `clamp`, and integer programs such as gcd, can be written. The
-benchmark's mime cells for those tasks stop being `unavailable`, and the scrambled-words ablation can run on them.
+**Milestone: integer programs.** gcd and the other integer programs can be written, and join the benchmark run.
 
 ### Lists
 
@@ -71,12 +92,19 @@ benchmark's mime cells for those tasks stop being `unavailable`, and the scrambl
 - **Decide:** the syntax for both, and how a data word refers to itself, as a linked list does (`@list` holding a
   `@list`). Calls answered this for functions with `declare` (step 9); a data word may need
   the same, and indirection, which lists may have brought.
+- **Check nominal identity from the start.** [layout.md](layout.md) section 3 already promises that `@point` and
+  `@vector` are different types even with the same fields. Until the types step, a `@vector` passed where a
+  `@point` belongs would check clean, so this step checks that a struct value's word is the word expected, and
+  leaves the rest of the type checker to the types step.
 
 ### JavaScript backend
 
 - **New:** `mime run --backend js`, through the conformance tests.
 - **Decide:** `i64` as `BigInt` or as something faster, and how reducible blocks lower to labeled loops
   ([step-10.md](step-10.md)).
+- **Later, WebAssembly:** the same structured lowering, onto `block`, `loop` and `br`, with `i64` native. It is not
+  a step yet: it earns one when a user needs it, since every backend multiplies the cost of every later step
+  ([backends.md](backends.md) section 7).
 - **Why here:** lists and structs are the core data types; once they stop changing, a second compiled backend
   costs less in every later step.
 
