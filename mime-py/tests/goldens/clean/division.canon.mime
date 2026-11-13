@@ -5,28 +5,28 @@ define @w2 {@w0, @w1} -> i64 {
   %v0 = sdiv i64 @w0, @w1
   ret %v0
 }
-abstract = "@w0 divided by @w1, rounded toward zero; traps when @w1 is 0, or when @w0 is the smallest i64 and @w1 is -1"
+abstract = "@w0 divided by @w1, rounded toward zero; undefined when @w1 is 0, or when @w0 is the smallest i64 and @w1 is -1"
 symbol = "quotient"
 
 define @w3 {@w0, @w1} -> i64 {
   %v0 = srem i64 @w0, @w1
   ret %v0
 }
-abstract = "the remainder of @w0 divided by @w1, with the sign of @w0; traps when @w1 is 0, or when @w0 is the smallest i64 and @w1 is -1"
+abstract = "the remainder of @w0 divided by @w1, with the sign of @w0; undefined when @w1 is 0, or when @w0 is the smallest i64 and @w1 is -1"
 symbol = "remainder"
 
 define @w4 {@w0, @w1} -> i64 {
   %v0 = udiv i64 @w0, @w1
   ret %v0
 }
-abstract = "@w0 divided by @w1, both read as unsigned; traps when @w1 is 0"
+abstract = "@w0 divided by @w1, both read as unsigned; undefined when @w1 is 0"
 symbol = "unsigned_quotient"
 
 define @w5 {@w0, @w1} -> i64 {
   %v0 = urem i64 @w0, @w1
   ret %v0
 }
-abstract = "the remainder of @w0 divided by @w1, both read as unsigned; traps when @w1 is 0"
+abstract = "the remainder of @w0 divided by @w1, both read as unsigned; undefined when @w1 is 0"
 symbol = "unsigned_remainder"
 
 @w6 = {type = i1, abstract = "one truth value"}

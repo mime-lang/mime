@@ -111,8 +111,13 @@ body is in view, the body already says how.
 - **The result, in terms of the inputs,** as a noun phrase, naming every input with `@`: `"the greatest common
   divisor of @first and @second"`. For an `i1` output, `"whether @n is even"`.
 - **The edges a caller must know:** the inputs it does not handle (`"never returns when @n is zero or less"`), a
-  result that wraps where a caller would not expect it (`"the smallest i64 stays negative"`), and, once operations
-  can trap, when it traps. Overflow wraps everywhere ([step-3.md](step-3.md)), so an abstract does not say so for
+  result that wraps where a caller would not expect it (`"the smallest i64 stays negative"`), and the inputs it is
+  undefined for, as LangRef says ([abstract-machine.md](abstract-machine.md)). That is one phrase after the result,
+  `"; undefined when @b is 0"`, and it counts a callee's undefined inputs too, since a caller meets them the same
+  way: `gcd` says `"undefined when one is the smallest i64 and the other -1"`, for its `srem`. It never says
+  "traps": a trap is what checked mode does on those inputs, and unchecked mode does not, so it is not the
+  function's meaning. Every abstract says it in full, never "as @gcd gives", since an abstract stands where the
+  body is not in view. Overflow wraps everywhere ([step-3.md](step-3.md)), so an abstract does not say so for
   every `add`.
 - **"How" only where a caller can observe it.** Today that is recursion depth, since a deep recursion runs out of
   stack ([step-9.md](step-9.md) section 5): `"…; it recurses @n times"`. Which blocks a body has, which helpers it

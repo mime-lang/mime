@@ -12,7 +12,7 @@ define @gcd {@a, @b} -> i64 {
 ^end{%g}:
   ret %g
 }
-abstract = "the greatest common divisor of @a and @b, up to sign; traps when one is the smallest i64 and the other -1"
+abstract = "the greatest common divisor of @a and @b, up to sign; undefined when one is the smallest i64 and the other -1"
 symbol = "gcd"
 
 define @gcd_by_recursion {@a, @b} -> i64 {
@@ -25,5 +25,5 @@ define @gcd_by_recursion {@a, @b} -> i64 {
   %g = call @gcd_by_recursion {@a = @b, @b = %r}
   ret %g
 }
-abstract = "the greatest common divisor of @a and @b, up to sign, as @gcd gives, trap included; it recurses about log @b times"
+abstract = "the greatest common divisor of @a and @b, up to sign, as @gcd gives; undefined when one is the smallest i64 and the other -1; it recurses about log @b times"
 symbol = "gcd_by_recursion"

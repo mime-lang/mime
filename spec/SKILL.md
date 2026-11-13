@@ -48,8 +48,10 @@ A **function** is `define @f {@inputs} -> @output { … }` followed by `abstract
 - **An abstract says what the function gives back, not how.** Write the result as a noun phrase in terms of the
   inputs, naming each with `@` (an input left out is `unmentioned-input`): `"the greatest common divisor of @first
   and @second"`, or `"whether @n is even"` for an `i1`. Add what a caller must know at the edges: inputs it does
-  not handle (`"never returns when @n is zero or less"`), a result that wraps unexpectedly, and how deep it recurses
-  (`"it recurses @n times"`), since a deep recursion runs out of stack. Leave out the steps, the blocks, the helpers
+  not handle (`"never returns when @n is zero or less"`), a result that wraps unexpectedly, the inputs it is
+  undefined for, its own or a callee's, as `"; undefined when @b is 0"` after the result (never "traps": that is what
+  checked mode does there, not what the function means), and how deep it recurses (`"it recurses @n times"`),
+  since a deep recursion runs out of stack. Leave out the steps, the blocks, the helpers
   it calls (`"by @odd"`), and the type: the body says those, and they change. A data word's abstract says what its
   values mean, not that they are `i64`.
 - An optional `symbol = "name"` after the abstract exports the function under that name, for C, other modules and
