@@ -2,7 +2,7 @@
 
 This folder measures whether mime's bet works: **no word is trusted**. Names are optional labels, and meaning comes from forms. This card was written before the first result. Change it only in its own commit, and say why in that commit.
 
-> Status: skeleton. No model has been run yet. The harness runs Python and TypeScript baselines on mock models, and one real model is configured but not yet run: `claude-haiku-5-5`. Every mime cell is `unavailable` until the compiler exists (see [Known caveats](#known-caveats)).
+> Status: skeleton. No model has been run yet. The harness runs Python, TypeScript and mime on mock models, and one real model is configured but not yet run: `claude-haiku-5-5`. A mime cell runs only where its task has a mime reference, which today is `t1-002-clamp` on the `generate` track (see [Known caveats](#known-caveats)).
 
 ## What it measures
 
@@ -67,7 +67,7 @@ The model writes code with contracts. Each task has `mutants/`: plausible wrong 
 
 ## Known caveats
 
-1. **mime is not runnable yet.** There is no compiler and no skill file, so mime reference solutions are `ref.mime.todo` placeholders. The `repair` and `contracts` tracks need the compiler and are `unavailable`. Today the harness exercises only the baselines and itself.
+1. **mime runs on one task so far.** mime has a toolchain (`mime-py/`, until mime compiles itself) and a skill file (`spec/SKILL.md`), but no list type yet, so only `t1-002-clamp` has a mime reference (`ref.mime`); the other tasks keep a `ref.mime.todo` placeholder and their mime cells are `unavailable`. The `names` and `edit` tracks have no mime library or `before.mime` yet. The harness does not run the `repair` and `contracts` tracks yet. A mime cell runs `mime check`, then `mime run --backend interp` once per case, inside the same sandbox as the baselines; the harness takes the `mime` command from `MIME_BIN`, or packs the bootstrap toolchain into a zipapp ([design/step-12.md](../design/step-12.md)).
 2. **Token counts.** Real runs record the provider's usage numbers, with thinking tokens counted as output. The mock models and `--dry-run` use an estimate, `ceil(utf8_bytes / 4)`. The split of input into spec and non-spec tokens is always that estimate.
 3. **The baselines have a home advantage.** Models have seen huge amounts of Python and TypeScript, and none of mime. That gap is what we measure, not something we correct for.
 4. **The `names` composition rule is strict.** It removes the escape hatch "ignore the library and write it yourself". It also makes `solve` unusually small, so these tasks test helper selection, not general coding.
@@ -98,7 +98,7 @@ bench/
 │   ├── task.md            language-neutral description (no examples; those come from tests.json)
 │   ├── tests.json         entry, signature, cases (some marked "example")
 │   ├── ref.py  ref.ts     baseline references
-│   ├── ref.mime.todo      placeholder until the compiler exists (becomes ref.mime)
+│   ├── ref.mime           mime reference (ref.mime.todo: placeholder until mime can write the task)
 │   ├── mutants/*.py       plausible wrong programs; each must fail a test
 │   └── variants/          names track: names.json + honest/ none/ misleading/
 ├── repair/<id>/           broken.mime, diagnostic.json (verbatim), expected.mime
