@@ -5,7 +5,7 @@
     "key": "body",
     "text": "div",
     "message": "`div` is not a language word",
-    "hint": "the operations are `add`, `sub`, `mul` and `icmp`"
+    "hint": "write `sdiv i64` (signed) or `udiv i64` (unsigned)"
   },
   {
     "kind": "bad-value",

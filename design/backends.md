@@ -12,17 +12,22 @@ meaning, and a backend that disagrees has a bug.
 - **Each operation has one meaning on every backend.** Overflow wraps because the spec says so, not because LLVM's
   `add` does. JavaScript's numbers do not wrap at 64 bits, so its backend must make them.
 - **An operation may be partial; it is never undefined.** Mathematically, an operation that is not defined for some
-  inputs is a partial function (`sdiv` by zero, or the smallest `i64` divided by `-1`). mime keeps partial
+  inputs is a partial function (`sdiv` by zero). The smallest `i64` divided by `-1`, whose quotient does not fit,
+  wraps like any overflow ([step-13.md](step-13.md) section 2). mime keeps partial
   operations, but outside its domain an operation **traps**: the program stops with a defined error, the same on
   every backend. It is never C's or LLVM's undefined behavior, where the compiler may assume the case never
   happens and change the meaning of the whole program, even code that ran before it. The step that adds a partial
   operation decides its domain, and may instead choose a total definition (such as `x / 0 = 0`) if the trap would
   hide nothing.
-- **A trap is observable.** `mime run` reports it the same way on every backend, with its own exit code. Later,
+- **A trap is observable.** In checked mode, every backend stops at a trap and never gives a value; under `mime run`
+  it exits with its own code. Only the opt-in unchecked mode below may leave the check out. The full report, its
+  message and its line, is promised by the interpreter, where mime runs the program itself; a compiled program can
+  run outside mime, where what it prints is not mime's to decide ([step-13.md](step-13.md) section 3). Later,
   the types step can let the checker prove that a value is inside the domain, so a backend may leave the check out.
 - **Backend habits become guards.** Where a target's own operation differs from mime's meaning, its backend adds
-  the guard: LLVM's `sdiv` is undefined for the smallest `i64` divided by `-1`, JavaScript's `BigInt` division throws
-  on zero, and the JVM throws on integer division by zero. Each is turned into mime's trap or value.
+  the guard: LLVM's `sdiv` is undefined for the smallest `i64` divided by `-1`, which must wrap, JavaScript's
+  `BigInt` division throws on zero, and the JVM throws on integer division by zero. Each is turned into mime's trap
+  or value.
 
 ### Unchecked mode, later and opt-in
 

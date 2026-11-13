@@ -1,0 +1,61 @@
+@a = {type = i64, abstract = "a whole number to divide"}
+@b = {type = i64, abstract = "the whole number to divide @a by"}
+
+define @quotient {@a, @b} -> i64 {
+  %q = sdiv i64 @a, @b
+  ret %q
+}
+abstract = "@a divided by @b, rounded toward zero; traps when @b is 0"
+symbol = "quotient"
+
+define @remainder {@a, @b} -> i64 {
+  %r = srem i64 @a, @b
+  ret %r
+}
+abstract = "the remainder of @a divided by @b, with the sign of @a; traps when @b is 0"
+symbol = "remainder"
+
+define @unsigned_quotient {@a, @b} -> i64 {
+  %q = udiv i64 @a, @b
+  ret %q
+}
+abstract = "@a divided by @b, both read as unsigned; traps when @b is 0"
+symbol = "unsigned_quotient"
+
+define @unsigned_remainder {@a, @b} -> i64 {
+  %r = urem i64 @a, @b
+  ret %r
+}
+abstract = "the remainder of @a divided by @b, both read as unsigned; traps when @b is 0"
+symbol = "unsigned_remainder"
+
+@p = {type = i1, abstract = "one truth value"}
+@q = {type = i1, abstract = "another truth value"}
+
+define @both {@p, @q} -> i1 {
+  %c = and i1 @p, @q
+  ret %c
+}
+abstract = "whether @p and @q both hold"
+symbol = "both"
+
+define @either {@p, @q} -> i1 {
+  %c = or i1 @p, @q
+  ret %c
+}
+abstract = "whether @p or @q holds"
+symbol = "either"
+
+define @one_of {@p, @q} -> i1 {
+  %c = xor i1 @p, @q
+  ret %c
+}
+abstract = "whether exactly one of @p and @q holds"
+symbol = "one_of"
+
+define @negation {@p} -> i1 {
+  %c = xor i1 @p, true
+  ret %c
+}
+abstract = "the opposite of @p"
+symbol = "negation"

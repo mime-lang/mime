@@ -10,8 +10,8 @@ from pathlib import Path
 
 from mime.checker import Function, Program, check
 from mime.diag import Diagnostic, FatalError, ToolError
-from mime.interp import Scalar, StackOut, Timeout, interpret
-from mime.lower import runner
+from mime.interp import Scalar, StackOut, Timeout, interpret, trap
+from mime.lower import runner, trap_sites
 from mime.parser import parse
 
 I64_MIN, I64_MAX = -(2**63), 2**63 - 1
@@ -54,6 +54,7 @@ def name_arg(text: str) -> str:
     return '@' + domain_word(text)
 
 
+TRAPPED = 3  # the exit code of a trap, on every backend (design/step-8.md section 4)
 BACKENDS = ('interp', 'llvm')  # `mime run --backend`; the first is the default (design/step-8.md section 3)
 
 
@@ -159,6 +160,15 @@ def run(program: Program, name: str, args: list[str], timeout: float = 10.0, bac
         # mistake of a program raises one.
         if ran.returncode in (-signal.SIGSEGV, -signal.SIGBUS):
             raise ToolError(too_deep)
+        if ran.returncode == TRAPPED:
+            # The trap routine wrote the site of the line that left its domain (design/step-13.md section 4).
+            sites = trap_sites(program)
+            try:
+                g, line = sites[int(ran.stderr.strip())]
+            except (ValueError, IndexError):
+                msg = f'the program trapped, but reported no site; this is a mime bug: {ran.stderr[:200]!r}'
+                raise ToolError(msg) from None
+            raise trap(program, g, line, f'`{line.operation.text}` by zero')
         if ran.returncode != 0:
             msg = f'the program exited with code {ran.returncode}'
             raise ToolError(msg)

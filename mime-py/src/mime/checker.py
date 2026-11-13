@@ -22,16 +22,47 @@ from mime.parser import (
     item_refs,
     item_word,
 )
-from mime.words import FALSE, ICMP, KEYS, LANGUAGE_WORDS, OPERATIONS, PREDICATES, RETIRED, TRUE, TYPES
+from mime.words import (
+    FALSE,
+    ICMP,
+    KEYS,
+    LANGUAGE_WORDS,
+    LOGIC,
+    OPERATION_HABITS,
+    OPERATIONS,
+    PREDICATES,
+    RETIRED,
+    TRUE,
+    TYPES,
+)
 
 LATER_TYPES = frozenset({'i8', 'i16', 'i32'})
 SYMBOL = re.compile(r'[A-Za-z_][A-Za-z0-9_]*')
-LATER_OPERATIONS = frozenset({'sdiv', 'udiv', 'srem', 'urem', 'get'})
+LATER_OPERATIONS = frozenset({'get'})
 I64_MIN, I64_MAX = -(2**63), 2**63 - 1
 OPERAND_HINT = (
     'an operand is an input of the function, a local bound earlier in this block, an integer, or true or false'
 )
-OPERATIONS_HINT = 'the operations are `add`, `sub` and `mul`'
+OPERATIONS_HINT = (
+    'the operations are `add`, `sub`, `mul`, `sdiv`, `udiv`, `srem`, `urem` and `icmp` on `i64`, '
+    'and `and`, `or`, `xor` on `i1`'
+)
+
+
+def operand_type(operation: str) -> str:
+    """The type an operation takes (design/step-13.md section 1): `i1` for `and`, `or`, `xor`, else `i64`."""
+    return 'i1' if operation in LOGIC else 'i64'
+
+
+def result_type(line: Line) -> str | None:
+    """The type of a line's result, or None when its operation or the type after it is wrong: that line is already
+    reported, and what it meant to give is unknown, so nothing that reads its result is reported for it."""
+    op = line.operation.text
+    if op not in OPERATIONS and op != ICMP:
+        return None
+    if line.type.text != operand_type(op):
+        return None
+    return 'i1' if op == ICMP or op in LOGIC else 'i64'
 
 
 @dataclass(frozen=True)
@@ -697,8 +728,8 @@ class _Body:
                     sig = self.callees[id(line)] = self.callee(line.callee)
                     if sig is not None and sig.output_type is not None:
                         self.types[(i, line.result.text)] = sig.output_type
-                else:
-                    self.types[(i, line.result.text)] = 'i1' if line.operation.text == ICMP else 'i64'
+                elif (t := result_type(line)) is not None:
+                    self.types[(i, line.result.text)] = t
         changed = True
         while changed:
             changed = False
@@ -741,9 +772,10 @@ class _Body:
             if isinstance(line, Call):
                 self.call(i, line, bound, every, used)
             else:
-                self.operation(line)
+                # An unknown operation, or a wrong type after it, is one mistake: its operands are not judged by it.
+                expected = operand_type(line.operation.text) if self.operation(line) else None
                 for v in (line.left, line.right):
-                    self.read(i, v, line.result.text, bound, every, used, 'i64', f'`{line.operation.text}`')
+                    self.read(i, v, line.result.text, bound, every, used, expected, f'`{line.operation.text}`')
             if line.result.text in bound:
                 self.report(
                     'duplicate-word',
@@ -862,16 +894,18 @@ class _Body:
                 f"write the arguments in the order of `@{word}`'s type: {takes}",
             )
 
-    def operation(self, line: 'Line') -> None:
+    def operation(self, line: 'Line') -> bool:
+        """Check the operation, its predicate and its type; true when its operands can be checked against it."""
         op, ty = line.operation, line.type
         if op.text not in OPERATIONS and op.text != ICMP:
-            hint = 'the operations are `add`, `sub`, `mul` and `icmp`'
+            hint = OPERATION_HABITS.get(op.text, OPERATIONS_HINT)
             if op.text in LATER_OPERATIONS:
                 self.report('bad-value', f'`{op.text}` arrives in a later step', op.span, hint)
             elif op.text in LANGUAGE_WORDS:
                 self.report('bad-value', f'`{op.text}` is not an operation', op.span, hint)
             else:
                 self.report('unknown-language-word', f'`{op.text}` is not a language word', op.span, hint)
+            return False
         if line.predicate is not None and line.predicate.text not in PREDICATES:
             self.report(
                 'bad-value',
@@ -879,11 +913,17 @@ class _Body:
                 line.predicate.span,
                 'the predicates are `eq`, `ne`, `slt`, `sle`, `sgt`, `sge`, `ult`, `ule`, `ugt` and `uge`',
             )
-        if ty.text != 'i64':
+        if op.text in LOGIC and ty.text != 'i1':
+            hint = f'`{op.text}` takes `i1`; mime has no bitwise operations on `i64`'
+            self.report('bad-value', f'`{op.text}` does not take `{ty.text}`', ty.span, hint)
+            return False
+        if op.text not in LOGIC and ty.text != 'i64':
             later = f'`{ty.text}` arrives in a later step; ' if ty.text in LATER_TYPES else ''
             self.report(
                 'bad-value', f'`{op.text}` does not take `{ty.text}`', ty.span, later + f'write `{op.text} i64`'
             )
+            return False
+        return True
 
     def read(
         self,

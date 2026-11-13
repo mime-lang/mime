@@ -38,26 +38,13 @@ when it does, core.md is updated in the same step.
 | 10 | loops with one way in: reducible control flow, `irreducible-loop` | [step-10.md](step-10.md) |
 | 11 | canonical order: data words and `declare`s above their first `define`, `unused-word`, `canon --keep-words` | [step-11.md](step-11.md) |
 | 12 | first benchmark run: mime cells in the harness, `clamp`'s `ref.mime`, the mime signature skeleton | [step-12.md](step-12.md) |
+| 13 | division and remainder: `sdiv udiv srem urem`, `and or xor` on `i1`, the first trap on every backend | [step-13.md](step-13.md) |
 
 Along the way: [diagnostics.md](diagnostics.md) (JSON only, `entry`/`key`/`text`), [tools.md](tools.md)
 (`show`, which prints a function after the words in its type, and `uses`), and what an abstract says
 ([layout.md](layout.md) section 4.1: the result, not the steps; `unmentioned-input`).
 
 ## Next steps, in order
-
-### Division and remainder
-
-- **New:** `sdiv`, `udiv`, `srem`, `urem`, and `and`, `or`, `xor` on `i1`, as in LLVM. Step 7 left `i1` without
-  operations, so combining two conditions or negating one takes extra blocks.
-- **Decide:** the domain of each operation and what happens outside it: a trap, as [backends.md](backends.md)
-  recommends, or a total definition such as `x / 0 = 0`. Never undefined behavior by default; an opt-in unchecked
-  mode comes later ([backends.md](backends.md) section 1).
-- **The trap is the work.** The `i1` operations are small. Division brings the first operation with a domain: the
-  first trap a program can reach, its report on every backend ([step-8.md](step-8.md) section 4), and a guard in
-  every backend where the target's own division differs. Design the trap first.
-
-**Milestone: integer programs.** gcd and the other integer programs can be written. An integer task such as gcd
-can join the benchmark, whose mime cells run since step 12.
 
 ### Lists
 

@@ -1,0 +1,61 @@
+@w0 = {type = i64, abstract = "a whole number to divide"}
+@w1 = {type = i64, abstract = "the whole number to divide @w0 by"}
+
+define @w2 {@w0, @w1} -> i64 {
+  %v0 = sdiv i64 @w0, @w1
+  ret %v0
+}
+abstract = "@w0 divided by @w1, rounded toward zero; traps when @w1 is 0"
+symbol = "quotient"
+
+define @w3 {@w0, @w1} -> i64 {
+  %v0 = srem i64 @w0, @w1
+  ret %v0
+}
+abstract = "the remainder of @w0 divided by @w1, with the sign of @w0; traps when @w1 is 0"
+symbol = "remainder"
+
+define @w4 {@w0, @w1} -> i64 {
+  %v0 = udiv i64 @w0, @w1
+  ret %v0
+}
+abstract = "@w0 divided by @w1, both read as unsigned; traps when @w1 is 0"
+symbol = "unsigned_quotient"
+
+define @w5 {@w0, @w1} -> i64 {
+  %v0 = urem i64 @w0, @w1
+  ret %v0
+}
+abstract = "the remainder of @w0 divided by @w1, both read as unsigned; traps when @w1 is 0"
+symbol = "unsigned_remainder"
+
+@w6 = {type = i1, abstract = "one truth value"}
+@w7 = {type = i1, abstract = "another truth value"}
+
+define @w8 {@w6, @w7} -> i1 {
+  %v0 = and i1 @w6, @w7
+  ret %v0
+}
+abstract = "whether @w6 and @w7 both hold"
+symbol = "both"
+
+define @w9 {@w6, @w7} -> i1 {
+  %v0 = or i1 @w6, @w7
+  ret %v0
+}
+abstract = "whether @w6 or @w7 holds"
+symbol = "either"
+
+define @w10 {@w6, @w7} -> i1 {
+  %v0 = xor i1 @w6, @w7
+  ret %v0
+}
+abstract = "whether exactly one of @w6 and @w7 holds"
+symbol = "one_of"
+
+define @w11 {@w6} -> i1 {
+  %v0 = xor i1 @w6, true
+  ret %v0
+}
+abstract = "the opposite of @w6"
+symbol = "negation"

@@ -83,7 +83,7 @@ def test_two_functions_may_share_a_result_word() -> None:
         ('ret nope', ['unknown-language-word']),
         # checker: reports every one
         ('%r = div i64 @number, 2\nret %r', ['unknown-language-word']),
-        ('%r = sdiv i64 @number, 2\nret %r', ['bad-value']),
+        ('%r = sdiv i64 @number, 2\nret %r', []),
         ('%r = type i64 @number, 2\nret %r', ['bad-value']),
         ('%r = add i32 @number, 1\nret %r', ['bad-value']),
         ('%r = add @number @number, 1\nret %r', ['syntax']),

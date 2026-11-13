@@ -1,0 +1,29 @@
+@w0 = {type = i64, abstract = "one of two whole numbers"}
+@w1 = {type = i64, abstract = "the other whole number"}
+
+define @w2 {@w0, @w1} -> i64 {
+  br ^b0{@w0, @w1}
+^b0{%v0, %v1}:
+  %v2 = icmp eq i64 %v1, 0
+  br %v2, ^b1{%v0}, ^b2{%v0, %v1}
+^b2{%v0, %v1}:
+  %v3 = srem i64 %v0, %v1
+  br ^b0{%v1, %v3}
+^b1{%v0}:
+  ret %v0
+}
+abstract = "the greatest common divisor of @w0 and @w1, up to sign"
+symbol = "gcd"
+
+define @w3 {@w0, @w1} -> i64 {
+  %v0 = icmp eq i64 @w1, 0
+  br %v0, ^b0{}, ^b1{}
+^b0{}:
+  ret @w0
+^b1{}:
+  %v1 = srem i64 @w0, @w1
+  %v2 = call @w3 {@w0 = @w1, @w1 = %v1}
+  ret %v2
+}
+abstract = "the greatest common divisor of @w0 and @w1, up to sign, as @w2 gives; it recurses about log @w1 times"
+symbol = "gcd_by_recursion"

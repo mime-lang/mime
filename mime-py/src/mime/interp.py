@@ -9,8 +9,10 @@ import time
 from dataclasses import dataclass, field
 
 from mime.checker import Function, Program
+from mime.diag import Diagnostic, Trap
 from mime.lexer import Tok
 from mime.parser import Line, Value
+from mime.words import DIVISIONS
 
 BITS = 64
 MODULUS = 2**BITS
@@ -41,11 +43,45 @@ COMPARE = {
     'ugt': lambda a, b: unsigned(a) > unsigned(b),
     'uge': lambda a, b: unsigned(a) >= unsigned(b),
 }
+
+
+def sdiv(a: int, b: int) -> int:
+    """`a / b` rounded toward zero, as LLVM and C do, not down as Python's `//` does; wraps (design/step-13.md)."""
+    q = abs(a) // abs(b)
+    return wrap(q if (a < 0) == (b < 0) else -q)
+
+
+def srem(a: int, b: int) -> int:
+    """The remainder of `sdiv`, with the sign of `a`."""
+    return wrap(a - sdiv(a, b) * b)
+
+
 OPERATE = {
     'add': lambda a, b: wrap(a + b),
     'sub': lambda a, b: wrap(a - b),
     'mul': lambda a, b: wrap(a * b),
+    'sdiv': sdiv,
+    'srem': srem,
+    'udiv': lambda a, b: wrap(unsigned(a) // unsigned(b)),
+    'urem': lambda a, b: wrap(unsigned(a) % unsigned(b)),
 }
+LOGIC = {
+    'and': lambda a, b: a and b,
+    'or': lambda a, b: a or b,
+    'xor': lambda a, b: a != b,
+}
+
+
+def trap(program: Program, f: Function, line: Line, message: str) -> Trap:
+    """The trap of `line` in `f`, reported the same way on every backend (design/step-8.md section 4): the line is
+    named by its function and its text as written."""
+    start, end = line.result.span, line.right.span
+    text = program.module.source[start.start : end.end]
+    return Trap(Diagnostic('trap', message, start.line, start.column, None, f'@{f.word}', 'body', text))
+
+
+class _Domain(Exception):  # noqa: N818 - the line left its operation's domain; `interpret` names the line
+    pass
 
 
 # The interpreter's own limit on nested calls, not the spec's: the spec fixes no depth (design/step-9.md section 5).
@@ -83,11 +119,17 @@ class _Frame:
 
 def _line(frame: _Frame, x: Line) -> Scalar:
     left, right = frame.read(x.left), frame.read(x.right)
+    op = x.operation.text
+    if op in LOGIC:
+        return LOGIC[op](bool(left), bool(right))
     assert isinstance(left, int), 'checked: both sides are i64'  # noqa: S101
     assert isinstance(right, int), 'checked: both sides are i64'  # noqa: S101
     if x.predicate is not None:
         return COMPARE[x.predicate.text](left, right)
-    return OPERATE[x.operation.text](left, right)
+    if op in DIVISIONS and right == 0:
+        msg = f'`{op}` by zero'
+        raise _Domain(msg)
+    return OPERATE[op](left, right)
 
 
 def interpret(program: Program, f: Function, values: list[Scalar], deadline: float) -> Scalar:
@@ -106,7 +148,10 @@ def interpret(program: Program, f: Function, values: list[Scalar], deadline: flo
         if frame.line < len(b.lines):
             x = b.lines[frame.line]
             if isinstance(x, Line):
-                frame.table[x.result.text] = _line(frame, x)
+                try:
+                    frame.table[x.result.text] = _line(frame, x)
+                except _Domain as e:
+                    raise trap(program, frame.f, x, str(e)) from None
                 frame.line += 1
                 continue
             # A call: the caller resumes at this line when the callee returns.

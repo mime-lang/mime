@@ -5,7 +5,10 @@ TYPES = frozenset({'i64', 'i1'})
 DEFINE, DECLARE, RET, BR, ICMP, CALL = 'define', 'declare', 'ret', 'br', 'icmp', 'call'
 TRUE, FALSE = 'true', 'false'
 PREDICATES = frozenset({'eq', 'ne', 'slt', 'sle', 'sgt', 'sge', 'ult', 'ule', 'ugt', 'uge'})
-OPERATIONS = frozenset({'add', 'sub', 'mul'})
+ARITHMETIC = frozenset({'add', 'sub', 'mul', 'sdiv', 'udiv', 'srem', 'urem'})  # on `i64`
+DIVISIONS = frozenset({'sdiv', 'udiv', 'srem', 'urem'})  # partial: a zero divisor traps (design/step-13.md)
+LOGIC = frozenset({'and', 'or', 'xor'})  # on `i1`
+OPERATIONS = ARITHMETIC | LOGIC
 
 LANGUAGE_WORDS = frozenset(KEYS) | TYPES | OPERATIONS | PREDICATES | {DEFINE, DECLARE, RET, BR, ICMP, CALL, TRUE, FALSE}
 
@@ -26,4 +29,12 @@ LLVM_HABITS = {
     'nsw': 'overflow always wraps, so there is no flag',
     'nuw': 'overflow always wraps, so there is no flag',
     'label': 'write the block: `br ^b{}`',
+}
+# Operations of other languages, with the mime operation (design/step-13.md section 5).
+OPERATION_HABITS = {
+    'div': 'write `sdiv i64` (signed) or `udiv i64` (unsigned)',
+    'idiv': 'write `sdiv i64` (signed) or `udiv i64` (unsigned)',
+    'mod': 'write `srem i64` (signed, with the sign of the dividend) or `urem i64`',
+    'rem': 'write `srem i64` (signed, with the sign of the dividend) or `urem i64`',
+    'not': 'write `xor i1 %c, true`',
 }

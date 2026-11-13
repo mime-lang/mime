@@ -1,0 +1,50 @@
+@n = {type = i64, abstract = "a whole number"}
+@flag = {type = i1, abstract = "a truth value"}
+
+define @python_division {@n} -> i64 {
+  %a = div i64 @n, 2
+  ret %a
+}
+abstract = "half of @n, written with another language's operation"
+
+define @python_remainder {@n} -> i64 {
+  %a = mod i64 @n, 2
+  ret %a
+}
+abstract = "@n modulo 2, written with another language's operation"
+
+define @llvm_remainder {@n} -> i64 {
+  %a = rem i64 @n, 2
+  ret %a
+}
+abstract = "@n modulo 2, without saying signed or unsigned"
+
+define @typed_division {@n} -> i64 {
+  %a = sdiv i1 @n, 2
+  ret %a
+}
+abstract = "half of @n, with the wrong type after the operation"
+
+define @bitwise {@n} -> i64 {
+  %a = and i64 @n, 1
+  ret %a
+}
+abstract = "the lowest bit of @n, which mime has no operation for"
+
+define @negation {@flag} -> i1 {
+  %a = not i1 @flag, @flag
+  ret %a
+}
+abstract = "the opposite of @flag, written with `not`"
+
+define @number_for_truth {@flag} -> i1 {
+  %a = xor i1 @flag, 1
+  ret %a
+}
+abstract = "the opposite of @flag, with 1 for true"
+
+define @number_operand {@n, @flag} -> i1 {
+  %a = or i1 @n, @flag
+  ret %a
+}
+abstract = "whether @n or @flag holds, with a number where a truth value belongs"

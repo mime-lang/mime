@@ -1,0 +1,66 @@
+[
+  {
+    "kind": "unknown-language-word",
+    "entry": "@python_division",
+    "key": "body",
+    "text": "div",
+    "message": "`div` is not a language word",
+    "hint": "write `sdiv i64` (signed) or `udiv i64` (unsigned)"
+  },
+  {
+    "kind": "unknown-language-word",
+    "entry": "@python_remainder",
+    "key": "body",
+    "text": "mod",
+    "message": "`mod` is not a language word",
+    "hint": "write `srem i64` (signed, with the sign of the dividend) or `urem i64`"
+  },
+  {
+    "kind": "unknown-language-word",
+    "entry": "@llvm_remainder",
+    "key": "body",
+    "text": "rem",
+    "message": "`rem` is not a language word",
+    "hint": "write `srem i64` (signed, with the sign of the dividend) or `urem i64`"
+  },
+  {
+    "kind": "bad-value",
+    "entry": "@typed_division",
+    "key": "body",
+    "text": "i1",
+    "message": "`sdiv` does not take `i1`",
+    "hint": "write `sdiv i64`"
+  },
+  {
+    "kind": "bad-value",
+    "entry": "@bitwise",
+    "key": "body",
+    "text": "i64",
+    "message": "`and` does not take `i64`",
+    "hint": "`and` takes `i1`; mime has no bitwise operations on `i64`"
+  },
+  {
+    "kind": "unknown-language-word",
+    "entry": "@negation",
+    "key": "body",
+    "text": "not",
+    "message": "`not` is not a language word",
+    "hint": "write `xor i1 %c, true`"
+  },
+  {
+    "kind": "wrong-type",
+    "entry": "@number_for_truth",
+    "key": "body",
+    "text": "1",
+    "message": "`1` is an `i64`, but `xor` needs an `i1`",
+    "hint": "write `true` or `false`"
+  },
+  {
+    "kind": "wrong-type",
+    "entry": "@number_operand",
+    "key": "body",
+    "text": "@n",
+    "message": "`@n` is an `i64`, but `or` needs an `i1`",
+    "hint": "compare with `icmp` to get an `i1`"
+  }
+]

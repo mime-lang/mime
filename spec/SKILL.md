@@ -10,8 +10,9 @@ renaming every word consistently never changes a program. This is the whole lang
 - A **local** is `%` plus lowercase letters and digits: `%double`, `%0`. A local is a value inside one function
   body. It has no entry and no abstract.
 - A **label** is `^` plus lowercase letters and digits: `^loop`, `^0`. It names a block in a body.
-- A **language word** is a bare name fixed by mime: `type`, `abstract`, `define`, `declare`, `ret`, `br`, `add`,
-  `sub`, `mul`, `icmp`, `call`, the predicates `eq ne slt sle sgt sge ult ule ugt uge`, the types `i64` and `i1`, and `true`, `false`.
+- A **language word** is a bare name fixed by mime: `type`, `abstract`, `define`, `declare`, `ret`, `br`, the
+  operations `add sub mul sdiv udiv srem urem and or xor`, `icmp`, `call`, the predicates
+  `eq ne slt sle sgt sge ult ule ugt uge`, the types `i64` and `i1`, and `true`, `false`.
 
 `@` marks what carries meaning and must be looked up; `%` marks what is mechanical. mime has no `$`.
 
@@ -61,8 +62,13 @@ A function's type and abstract belong to its `define`. Never write `type = {@a} 
 
 A body is lines, then `ret`:
 
-- A line is `%result = operation i64 left, right`. The result is always a `%` local. The operations are `add`,
-  `sub` and `mul`.
+- A line is `%result = operation i64 left, right`. The result is always a `%` local. The operations on `i64` are
+  `add`, `sub`, `mul`, `sdiv`, `udiv`, `srem` and `urem`.
+- **Division rounds toward zero**, as in C and LLVM, not down as Python's `//` does: `sdiv i64 -7, 2` is `-3`, and
+  `srem i64 -7, 2` is `-1` (the remainder has the sign of the dividend). `udiv` and `urem` read both operands as
+  unsigned. There is no `div`, `mod` or `rem`.
+- **Dividing by zero traps**: the run stops with a `trap` naming the line (see `mime run` below). The smallest `i64`
+  divided by `-1` wraps to itself, like any overflow. If a divisor can be zero, check it first with `icmp`.
 - An operand, and the value after `ret`, is an input (`@number`), a local bound **earlier** in the body (`%double`),
   or a decimal integer (`1`, `-7`; no leading zeros).
 - **No nesting.** `%r = add i64 mul i64 @a, 2, 1` is an error: give `mul` its own line and use its local.
@@ -111,7 +117,9 @@ abstract = "@x, moved into the range from @lo to @hi"
   goes to that one block, as with `while`. A cycle entered at two blocks is an `irreducible-loop`; fix it with one
   header that takes a flag saying where to go and branches on it.
 - `%c = icmp slt i64 %a, %b` compares two `i64` and gives an `i1`. `s` predicates are signed, `u` unsigned.
-- **Types are checked.** `add`, `sub`, `mul` take `i64`; `br`'s condition is an `i1`; `ret` gives the output's type. A
+- `%c = and i1 %p, %q`, `or i1` and `xor i1` combine two `i1` and give an `i1`. There is no `not`: write
+  `xor i1 %p, true`. They take only `i1`; mime has no bitwise operations on `i64`.
+- **Types are checked.** The `i64` operations and `icmp` take `i64`, and `and`, `or`, `xor` take `i1`; `br`'s condition is an `i1`; `ret` gives the output's type. A
   block parameter's type comes from the arguments passed to it. An `i1` is `true` or `false`, never `1` or `0`.
 - The same local may be bound in two different blocks.
 - Don't pass an input or a constant through a block parameter: every block can read `@n` and write `1` directly.
@@ -205,7 +213,7 @@ program with checker errors. `show` prints a function's whole definition, from `
 after the entries of the words in its type, so you see what each input and the output mean.
 
 `mime run` exits with 0 and prints the result, or exits with 1 and prints the program's diagnostics on stderr. A
-trap, when an operation leaves its domain (none can yet), exits with 3 and prints one JSON object on stderr, with
+trap, when an operation leaves its domain (a division by zero), exits with 3 and prints one JSON object on stderr, with
 the fields below and `kind` `trap`: its `text` is the line that trapped.
 
 Each diagnostic has a `kind`, the `entry` and `key` it is in (`type`, `abstract`, or `body`), the exact source

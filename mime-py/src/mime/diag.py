@@ -25,8 +25,8 @@ class ToolError(Exception):
 
 
 class Trap(Exception):  # noqa: N818 - a trap is what the program did, not an error of the toolchain
-    """A run left an operation's domain (exit code 3, design/step-8.md section 4). Nothing can trap yet: division,
-    the first partial operation, raises it."""
+    """A run left an operation's domain (exit code 3, design/step-8.md section 4): a division by zero, so far
+    (design/step-13.md section 2)."""
 
     def __init__(self, diagnostic: Diagnostic) -> None:
         super().__init__(diagnostic.message)
