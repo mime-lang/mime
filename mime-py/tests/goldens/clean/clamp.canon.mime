@@ -1,0 +1,18 @@
+@w0 = {type = i64, abstract = "a whole number"}
+@w1 = {type = i64, abstract = "the smallest @w0 allowed"}
+@w2 = {type = i64, abstract = "the largest @w0 allowed"}
+
+define @w3 {@w0, @w1, @w2} -> i64 {
+  %0 = icmp slt i64 @w0, @w1
+  br %0, ^0{}, ^1{}
+^1{}:
+  %1 = icmp sgt i64 @w0, @w2
+  br %1, ^2{}, ^3{}
+^0{}:
+  ret @w1
+^2{}:
+  ret @w2
+^3{}:
+  ret @w0
+}
+abstract = "@w0, moved into the range from @w1 to @w2"

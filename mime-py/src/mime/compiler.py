@@ -45,17 +45,21 @@ def domain_word(text: str) -> str:
 
 
 def name_arg(text: str) -> str:
-    """A word (`@number`) or a local (`%double`) on the command line, returned with its sigil."""
-    if text.startswith('%'):
+    """A word (`@number`), a local (`%double`) or a label (`^loop`) on the command line, returned with its sigil."""
+    if text.startswith(('%', '^')):
         if not LOCAL.fullmatch(text[1:]):
-            msg = f'`{text}` is not a local; a local is `%` and lowercase letters or digits'
+            kind = 'local' if text[0] == '%' else 'label'
+            msg = f'`{text}` is not a {kind}; a {kind} is `{text[0]}` and lowercase letters or digits'
             raise ToolError(msg)
         return text
     return '@' + domain_word(text)
 
 
-def run(program: Program, word: str, args: list[str]) -> str:
-    """Compile `program` with `word` as the entry point, run it on `args`, and return what it prints."""
+def run(program: Program, word: str, args: list[str], timeout: float = 10.0) -> str:
+    """Compile `program` with `word` as the entry point, run it on `args`, and return what it prints.
+
+    A run that takes longer than `timeout` seconds is stopped: since step 7 a loop may never reach its exit.
+    """
     word = domain_word(word)
     f = next((f for f in program.functions if f.word == word), None)
     if f is None:
@@ -68,7 +72,13 @@ def run(program: Program, word: str, args: list[str]) -> str:
         msg = f'`@{word}` takes {len(f.inputs)} input{plural} ({names}), but {given} given'
         raise ToolError(msg)
     numbers = []
-    for arg in args:
+    for name, arg in zip(f.inputs, args, strict=True):
+        if f.input_types[name] == 'i1':
+            if arg not in ('true', 'false'):
+                msg = f'the input `{arg}` for `@{name}` is not `true` or `false`'
+                raise ToolError(msg)
+            numbers.append('1' if arg == 'true' else '0')
+            continue
         try:
             n = int(arg, 10)
         except ValueError:
@@ -90,7 +100,11 @@ def run(program: Program, word: str, args: list[str]) -> str:
         if built.returncode != 0:
             msg = f'clang failed; this is a mime bug:\n{built.stderr}'
             raise ToolError(msg)
-        ran = subprocess.run([str(exe), *numbers], capture_output=True, text=True, check=False)
+        try:
+            ran = subprocess.run([str(exe), *numbers], capture_output=True, text=True, check=False, timeout=timeout)
+        except subprocess.TimeoutExpired:
+            msg = f'`@{word}` did not finish within {timeout:g} s; a loop may never reach its exit (see --timeout)'
+            raise ToolError(msg) from None
         if ran.returncode != 0:
             msg = f'the program exited with code {ran.returncode}'
             raise ToolError(msg)

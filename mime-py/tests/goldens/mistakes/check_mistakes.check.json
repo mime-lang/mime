@@ -5,7 +5,7 @@
     "key": "type",
     "text": "i32",
     "message": "`i32` arrives in a later step",
-    "hint": "the only type is `i64`"
+    "hint": "the types are `i64` and `i1`"
   },
   {
     "kind": "key-order",
@@ -45,7 +45,7 @@
     "key": "type",
     "text": "{@first, @second}",
     "message": "struct types arrive with structs",
-    "hint": "the only type is `i64`"
+    "hint": "the types are `i64` and `i1`"
   },
   {
     "kind": "undeclared-word",

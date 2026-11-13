@@ -114,7 +114,7 @@ def test_hints_point_at_the_fix() -> None:
     assert hint('@number = {sort = i64, abstract = "x"}') == 'renamed: write `type`'
     assert hint('@number = {type = i64, description = "x"}') == 'renamed: write `abstract`'
     assert hint(NUMBER + define('{@numbr} -> @number', 'ret 1')) == 'did you mean `@number`?'
-    assert hint('@number = {type = i32, abstract = "x"}') == 'the only type is `i64`'
+    assert hint('@number = {type = i32, abstract = "x"}') == 'the types are `i64` and `i1`'
     assert hint('@f = {type = {@n} -> @n}').startswith('write the type: `define @f')
     assert hint(NUMBER + 'define @f(@number) -> @number {ret @number} abstract = "x"').startswith('write the type')
     assert hint(NUMBER + define('{@number} -> @number', 'ret 1')) == 'remove `@number` from the type, or use it'

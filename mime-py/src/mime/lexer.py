@@ -11,6 +11,7 @@ from mime.diag import Diagnostic, FatalError
 class Tok(Enum):
     WORD = 'word'
     LOCAL = 'local'
+    LABEL = 'label'
     NAME = 'language word'
     STRING = 'string'
     LBRACE = '`{`'
@@ -72,6 +73,7 @@ COMMENT_HINT = 'mime has no comments; put the English in an `abstract`'
 ARITHMETIC_HINT = 'arithmetic is written as an operation: `%x = add i64 %a, %b`, with `sub` or `mul` alike'
 ARITHMETIC = frozenset('+-*/')
 DOLLAR_HINT = 'words are written `@name` and locals `%name`; mime has no `$`'
+LABEL_HINT = 'a label is `^` followed by lowercase letters and digits, such as `^loop` or `^0`'
 LOCAL_HINT = 'a local is `%` followed by lowercase letters and digits, such as `%double` or `%0`'
 ARROW_HINT = 'write `->`'
 
@@ -148,6 +150,19 @@ def tokens(source: str) -> Iterator[Token]:
                     'syntax', f'`{source[j]}` cannot appear in a local', LOCAL_HINT, i, _run_end(source, j), col + j - i
                 )
             yield Token(Tok.LOCAL, source[i + 1 : j], Span(line, col, i, j))
+            col += j - i
+            i = j
+        elif c == '^':
+            j = i + 1
+            while j < len(source) and ('a' <= source[j] <= 'z' or _digit(source[j])):
+                j += 1
+            if j == i + 1:
+                fail('syntax', 'expected a label after `^`', LABEL_HINT, i, _run_end(source, i + 1))
+            if j < len(source) and (_glued(source[j]) or source[j] == '_'):
+                fail(
+                    'syntax', f'`{source[j]}` cannot appear in a label', LABEL_HINT, i, _run_end(source, j), col + j - i
+                )
+            yield Token(Tok.LABEL, source[i + 1 : j], Span(line, col, i, j))
             col += j - i
             i = j
         elif c == '@':

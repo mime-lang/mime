@@ -65,6 +65,9 @@ RUNS = [
     ('clean/arithmetic', '@difference', ['10', '3']),
     ('clean/arithmetic', '@seven', []),
     ('clean/same', '@same', ['42']),
+    ('clean/clamp', '@clamp', ['50', '0', '10']),
+    ('clean/branches', '@sum', ['10']),
+    ('clean/branches', '@negate', ['true']),
 ]
 
 

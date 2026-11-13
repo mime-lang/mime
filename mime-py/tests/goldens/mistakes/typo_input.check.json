@@ -13,6 +13,6 @@
     "key": "body",
     "text": "@number",
     "message": "`@number` is a data word that is not an input of this function",
-    "hint": "a body reads its inputs, its earlier locals, and integers; to read it, list it in the inputs"
+    "hint": "a body reads its inputs, its block's locals, and constants; to read it, list it in the inputs"
   }
 ]

@@ -111,9 +111,9 @@ The body follows LLVM IR, the low-level code models know best, with five deliber
   because the definition gives the function's type.
 - **Overflow wraps,** as in step 3.
 
-**Blocks (with branches).** Control flow adds blocks, which step 4 does not implement. The lines after `{` are the entry
-block, which has no label. Every other block starts with a label, `$name($x, $y):`, or `$name():` with no
-parameters. `br $block(args)` jumps to a block, and `br $c, $then(args), $else(args)` jumps to one of two. A block
+**Blocks (step 7, [step-7.md](step-7.md)).** Control flow adds blocks, which step 4 does not implement. The lines after `{` are the entry
+block, which has no label. Every other block starts with a label, `^name{%x, %y}:`, or `^name{}:` with no
+parameters. `br ^block{args}` jumps to a block, and `br %c, ^then{args}, ^else{args}` jumps to one of two. A block
 sees its own parameters, its own earlier results and the function's parameters. Anything else is passed as a block
 argument, so there are no dominance rules: each block can be checked and read on its own, like a small function. A
 block that no `br` reaches is an error (`unreachable-block`), and nothing can jump to the entry block, as in LLVM.

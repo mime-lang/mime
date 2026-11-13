@@ -1,0 +1,23 @@
+@n = {type = i64, abstract = "a whole number"}
+@flag = {type = i1, abstract = "a truth value"}
+
+define @f {@n, @flag} -> i64 {
+  %c = icmp slt i64 @n, 0
+  %d = add i64 %c, 1
+  br @n, ^yes{%d}, ^nope{}
+^yes{%v, %w}:
+  %e = icmp lt i64 %v, %d
+  br %e, ^done{%v}, ^done{true}
+^done{%r}:
+  ret %r
+^dead{}:
+  ret 1
+^yes{}:
+  ret 0
+}
+abstract = "x"
+
+define @g {@n} -> @flag {
+  ret 1
+}
+abstract = "x"

@@ -63,7 +63,7 @@ def test_llvm_and_run_report_the_same_json(broken: Path, capsys: pytest.CaptureF
 
 def test_llvm(prog: Path, capsys: pytest.CaptureFixture[str]) -> None:
     assert main(['llvm', str(prog)]) == 0
-    assert capsys.readouterr().out == 'define i64 @"mime.same"(i64 %"@number") {\n  ret i64 %"@number"\n}\n'
+    assert capsys.readouterr().out == 'define i64 @"mime.same"(i64 %"@number") {\nentry:\n  ret i64 %"@number"\n}\n'
 
 
 def test_llvm_refuses_a_broken_program(broken: Path, capsys: pytest.CaptureFixture[str]) -> None:

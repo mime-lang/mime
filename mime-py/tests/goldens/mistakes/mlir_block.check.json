@@ -1,0 +1,10 @@
+[
+  {
+    "kind": "syntax",
+    "entry": "@f",
+    "key": "body",
+    "text": "(",
+    "message": "a block takes its values in braces, as a function does",
+    "hint": "write `^next{…}`, not `^next(…)`"
+  }
+]

@@ -1,4 +1,5 @@
 define i64 @"mime.affine"(i64 %"@number") {
+entry:
   %"%double" = add i64 %"@number", %"@number"
   %"%triple" = add i64 %"%double", %"@number"
   %"%result" = add i64 %"%triple", 1

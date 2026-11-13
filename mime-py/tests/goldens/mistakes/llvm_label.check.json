@@ -1,0 +1,10 @@
+[
+  {
+    "kind": "syntax",
+    "entry": "@f",
+    "key": "body",
+    "text": "label",
+    "message": "`label` is not a language word",
+    "hint": "write the block: `br ^b{}`"
+  }
+]

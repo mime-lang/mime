@@ -5,15 +5,15 @@
     "key": "body",
     "text": "div",
     "message": "`div` is not a language word",
-    "hint": "the operations are `add`, `sub` and `mul`"
+    "hint": "the operations are `add`, `sub`, `mul` and `icmp`"
   },
   {
     "kind": "bad-value",
     "entry": "@a",
     "key": "body",
     "text": "i32",
-    "message": "`i32` is not a type",
-    "hint": "`i32` arrives in a later step; the only type is `i64`"
+    "message": "`add` does not take `i32`",
+    "hint": "`i32` arrives in a later step; write `add i64`"
   },
   {
     "kind": "duplicate-word",
@@ -37,7 +37,7 @@
     "key": "body",
     "text": "@other",
     "message": "`@other` is a data word that is not an input of this function",
-    "hint": "a body reads its inputs, its earlier locals, and integers; to read it, list it in the inputs"
+    "hint": "a body reads its inputs, its block's locals, and constants; to read it, list it in the inputs"
   },
   {
     "kind": "forward-reference",
@@ -45,7 +45,7 @@
     "key": "body",
     "text": "%w",
     "message": "`%w` is bound by this line, so its own operation cannot read it",
-    "hint": "an operand is an input of the function, a local bound earlier in this block, or an integer"
+    "hint": "an operand is an input of the function, a local bound earlier in this block, an integer, or true or false"
   },
   {
     "kind": "bad-value",
@@ -60,7 +60,7 @@
     "entry": "@a",
     "key": "body",
     "text": "%nope",
-    "message": "nothing binds `%nope`",
-    "hint": "an operand is an input of the function, a local bound earlier in this block, or an integer"
+    "message": "nothing binds `%nope` in this block",
+    "hint": "an operand is an input of the function, a local bound earlier in this block, an integer, or true or false"
   }
 ]

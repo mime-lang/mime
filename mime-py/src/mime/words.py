@@ -1,11 +1,13 @@
 """The language words (design/step-4.md). They are fixed by the spec and never renamed."""
 
 KEYS = ('type', 'abstract')  # a declaration's keys, in this order
-TYPES = frozenset({'i64'})
-DEFINE, RET = 'define', 'ret'
+TYPES = frozenset({'i64', 'i1'})
+DEFINE, RET, BR, ICMP = 'define', 'ret', 'br', 'icmp'
+TRUE, FALSE = 'true', 'false'
+PREDICATES = frozenset({'eq', 'ne', 'slt', 'sle', 'sgt', 'sge', 'ult', 'ule', 'ugt', 'uge'})
 OPERATIONS = frozenset({'add', 'sub', 'mul'})
 
-LANGUAGE_WORDS = frozenset(KEYS) | TYPES | OPERATIONS | {DEFINE, RET}
+LANGUAGE_WORDS = frozenset(KEYS) | TYPES | OPERATIONS | PREDICATES | {DEFINE, RET, BR, ICMP, TRUE, FALSE}
 
 # Words of steps 1 to 3 that step 4 replaced, with the hint that names the replacement.
 RETIRED = {
@@ -20,8 +22,8 @@ RETIRED = {
 }
 # LLVM words a model may bring along, with the mime form.
 LLVM_HABITS = {
-    'phi': 'use block parameters; they arrive with branches',
+    'phi': 'use block parameters: `^loop{%a, %b}:`, and pass values with `br ^loop{%x, %y}`',
     'nsw': 'overflow always wraps, so there is no flag',
     'nuw': 'overflow always wraps, so there is no flag',
-    'label': "write the block's word",
+    'label': 'write the block: `br ^b{}`',
 }

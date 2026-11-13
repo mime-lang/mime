@@ -6,13 +6,15 @@ from typing import TypedDict
 
 from mime.diag import Diagnostic
 from mime.lexer import Span, Tok
-from mime.parser import Definition, Entry, Field, Module, Struct, Value
-from mime.words import KEYS, LANGUAGE_WORDS, OPERATIONS, RETIRED, TYPES
+from mime.parser import Block, Definition, Entry, Field, Line, Module, Struct, Value
+from mime.words import FALSE, ICMP, KEYS, LANGUAGE_WORDS, OPERATIONS, PREDICATES, RETIRED, TRUE, TYPES
 
-LATER_TYPES = frozenset({'i1', 'i8', 'i16', 'i32'})
-LATER_OPERATIONS = frozenset({'sdiv', 'udiv', 'srem', 'urem', 'icmp', 'call', 'br', 'get'})
+LATER_TYPES = frozenset({'i8', 'i16', 'i32'})
+LATER_OPERATIONS = frozenset({'sdiv', 'udiv', 'srem', 'urem', 'call', 'get'})
 I64_MIN, I64_MAX = -(2**63), 2**63 - 1
-OPERAND_HINT = 'an operand is an input of the function, a local bound earlier in this block, or an integer'
+OPERAND_HINT = (
+    'an operand is an input of the function, a local bound earlier in this block, an integer, or true or false'
+)
 OPERATIONS_HINT = 'the operations are `add`, `sub` and `mul`'
 
 
@@ -22,6 +24,9 @@ class Function:
     inputs: tuple[str, ...]
     output: str
     definition: Definition
+    input_types: dict[str, str]  # input word -> `i64` or `i1`
+    output_type: str
+    local_types: dict[tuple[int, str], str]  # (block index, local) -> `i64` or `i1`
 
 
 @dataclass(frozen=True)
@@ -42,7 +47,8 @@ def _keys(names: tuple[str, ...]) -> str:
 
 
 def _value_text(v: Value) -> str:
-    return f'@{v.text}' if v.kind == Tok.WORD else v.text
+    sigil = {Tok.WORD: '@', Tok.LOCAL: '%', Tok.LABEL: '^'}.get(v.kind, '')
+    return sigil + v.text
 
 
 class _Checker:
@@ -54,6 +60,7 @@ class _Checker:
         self.kinds: dict[str, str] = {}  # word -> 'data' or 'function'
         self.fields: dict[str, dict[str, Field]] = {}  # data word -> valid key -> first field with it
         self.locals: dict[str, list[str]] = {}  # result word -> the functions whose bodies bind it
+        self.local_types: dict[str, dict[tuple[int, str], str]] = {}  # function -> (block, local) -> type
 
     def report(self, kind: str, message: str, at: Span, hint: str | None = None, *, entry: str, key: str | None = None,
                missing: bool = False) -> None:  # fmt: skip
@@ -79,10 +86,11 @@ class _Checker:
             else:
                 self.index[word], self.kinds[word] = i, kind
         for d in (x for x in self.items if isinstance(x, Definition)):
-            for line in d.lines:
-                owners = self.locals.setdefault(line.result.text, [])
-                if d.word.text not in owners:
-                    owners.append(d.word.text)
+            for b in d.blocks:
+                for v in (*b.params, *(line.result for line in b.lines)):
+                    owners = self.locals.setdefault(v.text, [])
+                    if d.word.text not in owners:
+                        owners.append(d.word.text)
         for i, x in enumerate(self.items):
             if isinstance(x, Definition):
                 self.definition(x, i)
@@ -150,15 +158,17 @@ class _Checker:
                 self.report('bad-value', 'an abstract cannot be empty', v.span, 'say what the word means', **at)
             return
         if isinstance(v, Struct):
-            self.report('bad-value', 'struct types arrive with structs', v.span, 'the only type is `i64`', **at)
+            self.report('bad-value', 'struct types arrive with structs', v.span, 'the types are `i64` and `i1`', **at)
         elif v.kind == Tok.NAME and v.text in TYPES:
             return
         elif v.kind == Tok.NAME and v.text in LATER_TYPES:
-            self.report('bad-value', f'`{v.text}` arrives in a later step', v.span, 'the only type is `i64`', **at)
+            self.report(
+                'bad-value', f'`{v.text}` arrives in a later step', v.span, 'the types are `i64` and `i1`', **at
+            )
         elif v.kind == Tok.WORD:
             self.report('bad-value', f'`@{v.text}` is not a type', v.span, 'a type is a primitive such as `i64`', **at)
         else:
-            self.report('bad-value', f'`{_value_text(v)}` is not a type', v.span, 'the only type is `i64`', **at)
+            self.report('bad-value', f'`{_value_text(v)}` is not a type', v.span, 'the types are `i64` and `i1`', **at)
 
     # Definitions
 
@@ -183,16 +193,25 @@ class _Checker:
                 'bad-value',
                 f'`{d.output.text}` arrives in a later step',
                 d.output.span,
-                'the only type is `i64`',
+                'the types are `i64` and `i1`',
                 **head,
             )
         elif d.output.text not in TYPES:
             kind = 'bad-value' if d.output.text in LANGUAGE_WORDS else 'unknown-language-word'
             self.report(
-                kind, f'`{d.output.text}` is not a type', d.output.span, 'the output is a word or `i64`', **head
+                kind, f'`{d.output.text}` is not a type', d.output.span, 'the output is a word, `i64` or `i1`', **head
             )
-        self.body(d, inputs, rejected)
+        input_types = {w: t for w, v in inputs.items() if (t := self.word_type(w)) is not None}
+        output_type = self.word_type(d.output.text) if d.output.kind == Tok.WORD else d.output.text
+        _Body(self, d, inputs, input_types, output_type if output_type in TYPES else None, rejected).check()
         self.references(word, position, d.abstract)
+
+    def word_type(self, word: str) -> str | None:
+        """The type of a data word (`i64` or `i1`), or None when it has no valid one."""
+        f = self.fields.get(word, {}).get('type')
+        if f is None or not isinstance(f.value, Value) or f.value.kind != Tok.NAME or f.value.text not in TYPES:
+            return None
+        return f.value.text
 
     def data_word(self, v: Value, owner: str, position: int, at: Where, role: str) -> bool:
         """Check that `v` names an earlier data word; true when the body may read it as an input.
@@ -224,137 +243,6 @@ class _Checker:
             )
             return True
         return True
-
-    def body(self, d: Definition, inputs: dict[str, Value], rejected: set[str]) -> None:
-        """Check the lines of a body (design/step-4.md, step-6.md): operations, operands, locals, and every read."""
-        at: Where = {'entry': d.word.text, 'key': 'body'}
-        every = {line.result.text for line in d.lines}  # every local this body binds
-        bound: dict[str, Value] = {}  # local -> where it is bound
-        used: set[str] = set()  # inputs and locals read, by kind and name: '@number', '%double'
-        for line in d.lines:
-            self.operation(line.operation, line.type, at)
-            for v in (line.left, line.right):
-                self.atom(v, line.result.text, inputs, rejected, bound, every, used, at)
-            r = line.result
-            if r.text in bound:
-                self.report(
-                    'duplicate-word',
-                    f'`%{r.text}` is already bound in this block',
-                    r.span,
-                    'pick a new local for the result',
-                    **at,
-                )
-            else:
-                bound[r.text] = r
-        self.atom(d.ret, None, inputs, rejected, bound, every, used, at)
-        for local, v in bound.items():
-            if f'%{local}' not in used:
-                self.report(
-                    'unused-local',
-                    f'nothing reads `%{local}`',
-                    v.span,
-                    'use it, or remove its line; a body often returns the wrong local',
-                    **at,
-                )
-        for word, v in inputs.items():
-            if f'@{word}' not in used:
-                self.report(
-                    'unused-local',
-                    f'nothing reads the input `@{word}`',
-                    v.span,
-                    f'remove `@{word}` from the type, or use it',
-                    entry=d.word.text,
-                    key='type',
-                )
-
-    def operation(self, op: Value, ty: Value, at: Where) -> None:
-        name = op.text
-        if name not in OPERATIONS:
-            if name in LATER_OPERATIONS:
-                self.report('bad-value', f'`{name}` arrives in a later step', op.span, OPERATIONS_HINT, **at)
-            elif name in LANGUAGE_WORDS:
-                self.report('bad-value', f'`{name}` is not an operation', op.span, OPERATIONS_HINT, **at)
-            else:
-                self.report('unknown-language-word', f'`{name}` is not a language word', op.span, OPERATIONS_HINT, **at)
-        if ty.text not in TYPES:
-            hint = f'`{ty.text}` arrives in a later step; ' if ty.text in LATER_TYPES else ''
-            self.report('bad-value', f'`{ty.text}` is not a type', ty.span, hint + 'the only type is `i64`', **at)
-
-    def atom(
-        self,
-        v: Value,
-        result: str | None,
-        inputs: dict[str, Value],
-        rejected: set[str],
-        bound: dict[str, Value],
-        every: set[str],
-        used: set[str],
-        at: Where,
-    ) -> None:
-        """Check an operand or the returned value. `result` is the local the enclosing line binds."""
-        if v.kind == Tok.INT:
-            if not I64_MIN <= int(v.text) <= I64_MAX:
-                self.report(
-                    'bad-value', f'`{v.text}` does not fit in `i64`', v.span, 'an `i64` is from -2^63 to 2^63-1', **at
-                )
-            return
-        if v.kind == Tok.WORD:
-            self.word_operand(v, inputs, rejected, used, at)
-            return
-        if v.text in bound:
-            used.add(f'%{v.text}')
-        elif v.text == result:
-            used.add(f'%{v.text}')  # reported here, not again as unused
-            self.report(
-                'forward-reference',
-                f'`%{v.text}` is bound by this line, so its own operation cannot read it',
-                v.span,
-                OPERAND_HINT,
-                **at,
-            )
-        elif v.text in every:
-            used.add(f'%{v.text}')
-            self.report(
-                'forward-reference',
-                f'`%{v.text}` is bound later in this block',
-                v.span,
-                f'move the line for `%{v.text}` above this one',
-                **at,
-            )
-        elif v.text in inputs:
-            # Only the hint uses the shared spelling. The input stays unread, so what is reported does not depend on
-            # how a local and a word happen to be spelled (design/step-5.md section 1).
-            self.report(
-                'undeclared-word',
-                f'nothing binds `%{v.text}`',
-                v.span,
-                f'an input is its word: write `@{v.text}`',
-                **at,
-            )
-        else:
-            close = difflib.get_close_matches(v.text, list(bound), n=1)
-            hint = f'did you mean `%{close[0]}`?' if close else OPERAND_HINT
-            self.report('undeclared-word', f'nothing binds `%{v.text}`', v.span, hint, **at)
-
-    def word_operand(self, v: Value, inputs: dict[str, Value], rejected: set[str], used: set[str], at: Where) -> None:
-        """A `@word` in a body: one of the function's inputs."""
-        if v.text in inputs:
-            used.add(f'@{v.text}')
-        elif v.text in rejected:
-            return  # a rejected input, or the word it most likely means; the input is already reported
-        elif v.text in self.index:
-            kind = 'function' if self.kinds[v.text] == 'function' else 'data word'
-            self.report(
-                'not-a-value',
-                f'`@{v.text}` is a {kind} that is not an input of this function',
-                v.span,
-                'a body reads its inputs, its earlier locals, and integers; to read it, list it in the inputs',
-                **at,
-            )
-        else:
-            close = difflib.get_close_matches(v.text, list(inputs), n=1)
-            hint = f'did you mean `@{close[0]}`?' if close else OPERAND_HINT
-            self.report('undeclared-word', f'no entry declares `@{v.text}`', v.span, hint, **at)
 
     # References in abstracts
 
@@ -426,12 +314,303 @@ class _Checker:
                 msg = f'the type of `@{w}` is not a primitive in a checked program'
                 raise TypeError(msg)
             types[w] = v.text
-        functions = tuple(
-            Function(d.word.text, tuple(x.text for x in d.inputs), d.output.text, d)
-            for d in self.items
-            if isinstance(d, Definition)
-        )
+        functions = []
+        for d in self.items:
+            if isinstance(d, Definition):
+                inputs = tuple(x.text for x in d.inputs)
+                output = types[d.output.text] if d.output.kind == Tok.WORD else d.output.text
+                local_types = self.local_types[d.word.text]
+                functions.append(
+                    Function(d.word.text, inputs, d.output.text, d, {w: types[w] for w in inputs}, output, local_types)
+                )
+        functions = tuple(functions)
         return Program(types, functions)
+
+
+class _Body:
+    """Check one function body (design/step-4.md, step-7.md): blocks, jumps, locals, operations and types."""
+
+    def __init__(
+        self,
+        checker: '_Checker',
+        d: Definition,
+        inputs: dict[str, Value],
+        input_types: dict[str, str],
+        output_type: str | None,
+        rejected: set[str],
+    ) -> None:
+        self.c = checker
+        self.d = d
+        self.inputs = inputs
+        self.input_types = input_types
+        self.output_type = output_type
+        self.rejected = rejected
+        self.at: Where = {'entry': d.word.text, 'key': 'body'}
+        self.labels: dict[str, int] = {}  # label -> index of its first block
+        self.types: dict[tuple[int, str], str] = {}  # (block, local) -> type, params and results
+        self.used_inputs: set[str] = set()
+        self.miscounted: set[int] = set()  # blocks some jump passes the wrong number of arguments; reported once
+
+    def report(self, kind: str, message: str, at: Span, hint: str | None = None) -> None:
+        self.c.report(kind, message, at, hint, **self.at)
+
+    def check(self) -> None:
+        for i, b in enumerate(self.d.blocks):
+            if b.label is None:
+                continue
+            if b.label.text in self.labels:
+                self.report(
+                    'duplicate-word', f'`^{b.label.text}` already labels a block', b.label.span, 'pick a new label'
+                )
+            else:
+                self.labels[b.label.text] = i
+        self.jumps()
+        self.reachable()
+        self.infer_params()
+        for i, b in enumerate(self.d.blocks):
+            self.block(i, b)
+        self.c.local_types[self.d.word.text] = self.types
+        for word, v in self.inputs.items():
+            if word not in self.used_inputs:
+                self.c.report(
+                    'unused-local',
+                    f'nothing reads the input `@{word}`',
+                    v.span,
+                    f'remove `@{word}` from the type, or use it',
+                    entry=self.d.word.text,
+                    key='type',
+                )
+
+    def jumps(self) -> None:
+        """Every jump names a block and passes as many arguments as it has parameters."""
+        for b in self.d.blocks:
+            for t in b.end.targets:
+                if t.label.text not in self.labels:
+                    close = difflib.get_close_matches(t.label.text, list(self.labels), n=1)
+                    hint = f'did you mean `^{close[0]}`?' if close else 'every `br` jumps to a block of this body'
+                    self.report('undeclared-word', f'no block is labelled `^{t.label.text}`', t.label.span, hint)
+                    continue
+                params = self.d.blocks[self.labels[t.label.text]].params
+                if len(t.args) != len(params):
+                    self.miscounted.add(self.labels[t.label.text])
+                    names = ', '.join(f'%{p.text}' for p in params)
+                    self.report(
+                        'bad-value',
+                        f'`^{t.label.text}` takes {len(params)} arguments, not {len(t.args)}',
+                        t.label.span,
+                        f'write `^{t.label.text}{{{names}}}` with a value for each parameter',
+                    )
+
+    def reachable(self) -> None:
+        seen, todo = {0}, [0]
+        while todo:
+            for t in self.d.blocks[todo.pop()].end.targets:
+                i = self.labels.get(t.label.text)
+                if i is not None and i not in seen:
+                    seen.add(i)
+                    todo.append(i)
+        for i, b in enumerate(self.d.blocks):
+            if i not in seen and b.label is not None and self.labels.get(b.label.text) == i:
+                self.report(
+                    'unreachable-block',
+                    f'no `br` reaches `^{b.label.text}`',
+                    b.label.span,
+                    'jump to it from a block that runs, or remove it',
+                )
+
+    def infer_params(self) -> None:
+        """Give each block parameter the type of the arguments jumps pass to it (design/step-7.md section 4)."""
+        for i, b in enumerate(self.d.blocks):
+            for line in b.lines:
+                self.types[(i, line.result.text)] = 'i1' if line.operation.text == ICMP else 'i64'
+        changed = True
+        while changed:
+            changed = False
+            for i, b in enumerate(self.d.blocks):
+                for t in b.end.targets:
+                    j = self.labels.get(t.label.text)
+                    if j is None or len(t.args) != len(self.d.blocks[j].params):
+                        continue
+                    for arg, p in zip(t.args, self.d.blocks[j].params, strict=True):
+                        known = self.value_type(i, arg)
+                        if known is not None and (j, p.text) not in self.types:
+                            self.types[(j, p.text)] = known
+                            changed = True
+
+    def value_type(self, block: int, v: Value) -> str | None:
+        if v.kind == Tok.INT:
+            return 'i64'
+        if v.kind == Tok.NAME:
+            return 'i1' if v.text in (TRUE, FALSE) else None
+        if v.kind == Tok.WORD:
+            return self.input_types.get(v.text)
+        return self.types.get((block, v.text))
+
+    def block(self, i: int, b: Block) -> None:
+        bound: dict[str, Value] = {}
+        used: set[str] = set()
+        every = {p.text for p in b.params} | {line.result.text for line in b.lines}
+        for p in b.params:
+            if p.text in bound:
+                self.report('duplicate-word', f'`%{p.text}` is already a parameter of this block', p.span)
+            bound[p.text] = p
+            if (i, p.text) not in self.types and i not in self.miscounted:
+                self.report(
+                    'wrong-type',
+                    f'nothing gives the parameter `%{p.text}` a type',
+                    p.span,
+                    'pass it a value in some jump, other than itself',
+                )
+        for line in b.lines:
+            self.operation(line)
+            for v in (line.left, line.right):
+                self.read(i, v, line.result.text, bound, every, used, 'i64', f'`{line.operation.text}`')
+            if line.result.text in bound:
+                self.report(
+                    'duplicate-word',
+                    f'`%{line.result.text}` is already bound in this block',
+                    line.result.span,
+                    'pick a new local for the result',
+                )
+            else:
+                bound[line.result.text] = line.result
+        end = b.end
+        if end.keyword.text == 'ret' and end.value is not None:
+            self.read(i, end.value, None, bound, every, used, self.output_type, '`ret`')
+        elif end.value is not None:
+            self.read(i, end.value, None, bound, every, used, 'i1', 'the condition of `br`')
+        for t in end.targets:
+            j = self.labels.get(t.label.text)
+            params = self.d.blocks[j].params if j is not None else ()
+            for k, arg in enumerate(t.args):
+                expected = self.types.get((j, params[k].text)) if j is not None and k < len(params) else None
+                self.read(i, arg, None, bound, every, used, expected, f'`^{t.label.text}`')
+        for name, v in bound.items():
+            if name not in used:
+                self.report(
+                    'unused-local',
+                    f'nothing reads `%{name}`',
+                    v.span,
+                    'use it, or remove it; a block often returns the wrong local',
+                )
+
+    def operation(self, line: 'Line') -> None:
+        op, ty = line.operation, line.type
+        if op.text not in OPERATIONS and op.text != ICMP:
+            hint = 'the operations are `add`, `sub`, `mul` and `icmp`'
+            if op.text in LATER_OPERATIONS:
+                self.report('bad-value', f'`{op.text}` arrives in a later step', op.span, hint)
+            elif op.text in LANGUAGE_WORDS:
+                self.report('bad-value', f'`{op.text}` is not an operation', op.span, hint)
+            else:
+                self.report('unknown-language-word', f'`{op.text}` is not a language word', op.span, hint)
+        if line.predicate is not None and line.predicate.text not in PREDICATES:
+            self.report(
+                'bad-value',
+                f'`{line.predicate.text}` is not a predicate',
+                line.predicate.span,
+                'the predicates are `eq`, `ne`, `slt`, `sle`, `sgt`, `sge`, `ult`, `ule`, `ugt` and `uge`',
+            )
+        if ty.text != 'i64':
+            later = f'`{ty.text}` arrives in a later step; ' if ty.text in LATER_TYPES else ''
+            self.report(
+                'bad-value', f'`{op.text}` does not take `{ty.text}`', ty.span, later + f'write `{op.text} i64`'
+            )
+
+    def read(
+        self,
+        i: int,
+        v: Value,
+        result: str | None,
+        bound: dict[str, Value],
+        every: set[str],
+        used: set[str],
+        expected: str | None,
+        where: str,
+    ) -> None:
+        """Check a value a block reads, and that it has the `expected` type there."""
+        if v.kind == Tok.INT:
+            if not I64_MIN <= int(v.text) <= I64_MAX:
+                self.report(
+                    'bad-value', f'`{v.text}` does not fit in `i64`', v.span, 'an `i64` is from -2^63 to 2^63-1'
+                )
+        elif v.kind == Tok.WORD:
+            if v.text in self.inputs:
+                self.used_inputs.add(v.text)
+            elif v.text not in self.rejected:
+                self.word_operand(v)
+                return
+            else:
+                return
+        elif v.kind == Tok.LOCAL and not self.local(v, result, bound, every, used):
+            return
+        actual = self.value_type(i, v)
+        if expected is not None and actual is not None and actual != expected:
+            hint = (
+                'write `true` or `false`'
+                if v.kind == Tok.INT and expected == 'i1'
+                else 'an `i1` is a truth value, not a number; branch on it with `br`'
+                if actual == 'i1'
+                else 'compare with `icmp` to get an `i1`'
+            )
+            self.report(
+                'wrong-type', f'`{_value_text(v)}` is an `{actual}`, but {where} needs an `{expected}`', v.span, hint
+            )
+
+    def local(self, v: Value, result: str | None, bound: dict[str, Value], every: set[str], used: set[str]) -> bool:
+        """Check a local a block reads; true when it is bound, so its type can be checked."""
+        if v.text in bound:
+            used.add(v.text)
+            return True
+        if v.text == result:
+            used.add(v.text)
+            self.report(
+                'forward-reference',
+                f'`%{v.text}` is bound by this line, so its own operation cannot read it',
+                v.span,
+                OPERAND_HINT,
+            )
+        elif v.text in every:
+            used.add(v.text)
+            self.report(
+                'forward-reference',
+                f'`%{v.text}` is bound later in this block',
+                v.span,
+                f'move the line for `%{v.text}` above this one',
+            )
+        elif v.text in self.inputs:
+            self.report(
+                'undeclared-word', f'nothing binds `%{v.text}`', v.span, f'an input is its word: write `@{v.text}`'
+            )
+        else:
+            elsewhere = [
+                b.label.text if b.label is not None else None
+                for b in self.d.blocks
+                if v.text in {p.text for p in b.params} | {line.result.text for line in b.lines}
+            ]
+            if elsewhere:
+                place = 'the entry block' if elsewhere[0] is None else f'`^{elsewhere[0]}`'
+                hint = f'`%{v.text}` is bound in {place}; a block sees only its own locals, so pass it as an argument'
+            else:
+                close = difflib.get_close_matches(v.text, list(bound), n=1)
+                hint = f'did you mean `%{close[0]}`?' if close else OPERAND_HINT
+            self.report('undeclared-word', f'nothing binds `%{v.text}` in this block', v.span, hint)
+        return False
+
+    def word_operand(self, v: Value) -> None:
+        """A `@word` in a body that is not an input of the function."""
+        if v.text in self.c.index:
+            kind = 'function' if self.c.kinds[v.text] == 'function' else 'data word'
+            self.report(
+                'not-a-value',
+                f'`@{v.text}` is a {kind} that is not an input of this function',
+                v.span,
+                "a body reads its inputs, its block's locals, and constants; to read it, list it in the inputs",
+            )
+        else:
+            close = difflib.get_close_matches(v.text, list(self.inputs), n=1)
+            hint = f'did you mean `@{close[0]}`?' if close else OPERAND_HINT
+            self.report('undeclared-word', f'no entry declares `@{v.text}`', v.span, hint)
 
 
 def check(module: Module) -> tuple[Program | None, list[Diagnostic]]:

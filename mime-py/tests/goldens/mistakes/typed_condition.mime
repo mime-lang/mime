@@ -1,0 +1,11 @@
+@n = {type = i64, abstract = "a whole number"}
+
+define @f {@n} -> i64 {
+  %c = icmp eq i64 @n, 0
+  br i1 %c, ^a{}, ^b{}
+^a{}:
+  ret 1
+^b{}:
+  ret @n
+}
+abstract = "x"

@@ -1,0 +1,106 @@
+[
+  {
+    "kind": "unused-local",
+    "entry": "@f",
+    "key": "type",
+    "text": "@flag",
+    "message": "nothing reads the input `@flag`",
+    "hint": "remove `@flag` from the type, or use it"
+  },
+  {
+    "kind": "wrong-type",
+    "entry": "@f",
+    "key": "body",
+    "text": "%c",
+    "message": "`%c` is an `i1`, but `add` needs an `i64`",
+    "hint": "an `i1` is a truth value, not a number; branch on it with `br`"
+  },
+  {
+    "kind": "wrong-type",
+    "entry": "@f",
+    "key": "body",
+    "text": "@n",
+    "message": "`@n` is an `i64`, but the condition of `br` needs an `i1`",
+    "hint": "compare with `icmp` to get an `i1`"
+  },
+  {
+    "kind": "bad-value",
+    "entry": "@f",
+    "key": "body",
+    "text": "^yes",
+    "message": "`^yes` takes 2 arguments, not 1",
+    "hint": "write `^yes{%v, %w}` with a value for each parameter"
+  },
+  {
+    "kind": "undeclared-word",
+    "entry": "@f",
+    "key": "body",
+    "text": "^nope",
+    "message": "no block is labelled `^nope`",
+    "hint": "every `br` jumps to a block of this body"
+  },
+  {
+    "kind": "unused-local",
+    "entry": "@f",
+    "key": "body",
+    "text": "%w",
+    "message": "nothing reads `%w`",
+    "hint": "use it, or remove it; a block often returns the wrong local"
+  },
+  {
+    "kind": "bad-value",
+    "entry": "@f",
+    "key": "body",
+    "text": "lt",
+    "message": "`lt` is not a predicate",
+    "hint": "the predicates are `eq`, `ne`, `slt`, `sle`, `sgt`, `sge`, `ult`, `ule`, `ugt` and `uge`"
+  },
+  {
+    "kind": "undeclared-word",
+    "entry": "@f",
+    "key": "body",
+    "text": "%d",
+    "message": "nothing binds `%d` in this block",
+    "hint": "`%d` is bound in the entry block; a block sees only its own locals, so pass it as an argument"
+  },
+  {
+    "kind": "wrong-type",
+    "entry": "@f",
+    "key": "body",
+    "text": "%r",
+    "message": "`%r` is an `i1`, but `ret` needs an `i64`",
+    "hint": "an `i1` is a truth value, not a number; branch on it with `br`"
+  },
+  {
+    "kind": "unreachable-block",
+    "entry": "@f",
+    "key": "body",
+    "text": "^dead",
+    "message": "no `br` reaches `^dead`",
+    "hint": "jump to it from a block that runs, or remove it"
+  },
+  {
+    "kind": "duplicate-word",
+    "entry": "@f",
+    "key": "body",
+    "text": "^yes",
+    "message": "`^yes` already labels a block",
+    "hint": "pick a new label"
+  },
+  {
+    "kind": "unused-local",
+    "entry": "@g",
+    "key": "type",
+    "text": "@n",
+    "message": "nothing reads the input `@n`",
+    "hint": "remove `@n` from the type, or use it"
+  },
+  {
+    "kind": "wrong-type",
+    "entry": "@g",
+    "key": "body",
+    "text": "1",
+    "message": "`1` is an `i64`, but `ret` needs an `i1`",
+    "hint": "write `true` or `false`"
+  }
+]

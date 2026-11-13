@@ -32,6 +32,7 @@ def _parser() -> argparse.ArgumentParser:
     # The word is optional to argparse so that a word the shell expanded away gets a hint, not a bare usage error.
     p.add_argument('word', nargs='?', help='the function to run, written as in the source: @same')
     p.add_argument('inputs', nargs='*', help='one decimal integer per input, in the order of the type')
+    p.add_argument('--timeout', type=float, default=10.0, help='stop a run after this many seconds (default: 10)')
 
     word = 'the word, written as in the source: @number'
     p = sub.add_parser('show', help='print the entry for a word, exactly as written')
@@ -170,7 +171,7 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == 'llvm':
             sys.stdout.write(lower(program))
         else:
-            sys.stdout.write(run(program, args.word, args.inputs))
+            sys.stdout.write(run(program, args.word, args.inputs, args.timeout))
     except ToolError as e:
         sys.stderr.write(f'mime: {e}\n')
         return USAGE

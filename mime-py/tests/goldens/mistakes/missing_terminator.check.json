@@ -1,0 +1,10 @@
+[
+  {
+    "kind": "syntax",
+    "entry": "@f",
+    "key": "body",
+    "text": "^next",
+    "message": "the entry block has no terminator",
+    "hint": "end it with `ret` or `br` before the next block"
+  }
+]

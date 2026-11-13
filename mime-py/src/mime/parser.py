@@ -1,10 +1,10 @@
-"""Parse tokens into a module (design/step-4.md, section 2). Stops at the first syntax error."""
+"""Parse tokens into a module (design/step-4.md section 2, step-7.md section 2). Stops at the first syntax error."""
 
 from dataclasses import dataclass, replace
 
 from mime.diag import Diagnostic, FatalError
 from mime.lexer import ARITHMETIC_HINT, ARROW_HINT, Ref, Span, Tok, Token, tokens
-from mime.words import DEFINE, LANGUAGE_WORDS, LLVM_HABITS, OPERATIONS, RET, RETIRED, TYPES
+from mime.words import BR, DEFINE, FALSE, ICMP, LANGUAGE_WORDS, LLVM_HABITS, OPERATIONS, RET, RETIRED, TRUE, TYPES
 
 DEFINE_HINT = 'write the type: `define @f {@a, @b} -> @r {…}`'
 LINE_HINT = 'a line is `%x = add i64 %a, %b`, with `sub` or `mul` alike'
@@ -45,24 +45,51 @@ class Entry:
 
 @dataclass(frozen=True)
 class Line:
-    """`%result = operation type left, right`."""
+    """`%result = operation type left, right`, or `%result = icmp predicate type left, right`."""
 
     result: Value
     operation: Value
+    predicate: Value | None
     type: Value
     left: Value
     right: Value
 
 
 @dataclass(frozen=True)
+class Target:
+    """`^label{args}`: a block a `br` jumps to, and the values it passes to the block's parameters."""
+
+    label: Value
+    args: tuple[Value, ...]
+
+
+@dataclass(frozen=True)
+class Terminator:
+    """`ret value`, `br ^b{args}`, or `br condition, ^t{args}, ^f{args}`."""
+
+    keyword: Value  # `ret` or `br`
+    value: Value | None  # the returned value, or the condition of a two-way `br`
+    targets: tuple[Target, ...]
+
+
+@dataclass(frozen=True)
+class Block:
+    """The entry block (no label), or `^label{params}:` and its lines, ending in one terminator."""
+
+    label: Value | None
+    params: tuple[Value, ...]
+    lines: tuple[Line, ...]
+    end: Terminator
+
+
+@dataclass(frozen=True)
 class Definition:
-    """`define @word {inputs} -> output {lines ret value} abstract = "…"`."""
+    """`define @word {inputs} -> output {blocks} abstract = "…"`."""
 
     word: Value
     inputs: tuple[Value, ...]
     output: Value
-    lines: tuple[Line, ...]
-    ret: Value
+    blocks: tuple[Block, ...]
     abstract: Value
     span: Span  # the `define`
     end: int  # the offset just after the abstract
@@ -82,12 +109,21 @@ class Module:
         return tuple(x for x in self.items if isinstance(x, Definition))
 
 
-def atoms(d: Definition) -> list[Value]:
-    """Every operand in a body and its returned value, in source order. Results being bound are not included."""
+def block_values(b: Block) -> list[Value]:
+    """Every value a block reads, in source order: operands, the `ret` value or `br` condition, and jump arguments."""
     found = []
-    for line in d.lines:
+    for line in b.lines:
         found += [line.left, line.right]
-    return [*found, d.ret]
+    if b.end.value is not None:
+        found.append(b.end.value)
+    for t in b.end.targets:
+        found += t.args
+    return found
+
+
+def atoms(d: Definition) -> list[Value]:
+    """Every value a body reads, in source order. Locals being bound are not included."""
+    return [v for b in d.blocks for v in block_values(b)]
 
 
 def _show(t: Token) -> str:
@@ -256,26 +292,15 @@ class _Parser:
             raise self.fail(self.peek(), 'a function returns one value', 'put the inputs in a struct: `{@a, @b} -> @c`')
         self.key = 'body'
         self.expect(Tok.LBRACE, 'to start the body')
-        lines = []
-        while True:
-            t = self.peek()
-            if t.kind == Tok.NAME and t.text == RET:
-                self.take()
-                ret = self.atom('after `ret`')
-                after = self.peek()
-                if after.kind == Tok.NAME and after.text == 'abstract':
-                    raise self.fail(
-                        after,
-                        'the abstract goes after the body',
-                        'close the body with `}`, then write `abstract = "…"`',
-                    )
-                if after.kind != Tok.RBRACE:
-                    raise self.fail(after, 'nothing follows `ret` in a body', _infix(after) or 'end the body with `}`')
-                self.take()
-                break
-            if t.kind == Tok.RBRACE:
-                raise self.fail(t, 'a body ends with `ret`', 'return the result: `ret %result`')
-            lines.append(self.line())
+        blocks = [self.block(None, ())]
+        while self.peek().kind != Tok.RBRACE:
+            label = self.take()
+            if label.kind != Tok.LABEL:
+                raise self.fail(
+                    label, 'nothing follows a terminator in its block', 'start a new block with `^label{}:`'
+                )
+            blocks.append(self.block(_value(label), self.params(label)))
+        self.take()
         self.key = 'abstract'
         a = self.take()
         if a.kind != Tok.NAME or a.text != 'abstract':
@@ -285,7 +310,101 @@ class _Parser:
         if s.kind != Tok.STRING:
             raise self.fail(s, f'expected the abstract as a string, found {_show(s)}', 'write the meaning in `"…"`')
         self.entry_word = self.key = None
-        return Definition(_value(w), inputs, _value(out), tuple(lines), ret, _value(s), keyword.span, s.span.end)
+        return Definition(_value(w), inputs, _value(out), tuple(blocks), _value(s), keyword.span, s.span.end)
+
+    def block(self, label: Value | None, params: tuple[Value, ...]) -> Block:
+        """Lines up to and including the block's one terminator."""
+        lines = []
+        while True:
+            t = self.peek()
+            if t.kind == Tok.NAME and t.text in (RET, BR):
+                end = self.terminator()
+                after = self.peek()
+                if after.kind == Tok.NAME and after.text == 'abstract':
+                    raise self.fail(
+                        after,
+                        'the abstract goes after the body',
+                        'close the body with `}`, then write `abstract = "…"`',
+                    )
+                if after.kind not in (Tok.RBRACE, Tok.LABEL):
+                    hint = _infix(after) or 'a terminator ends its block; start a new block with `^label{}:`'
+                    raise self.fail(after, 'nothing follows a terminator in its block', hint)
+                return Block(label, params, tuple(lines), end)
+            if t.kind == Tok.RBRACE:
+                where = 'a body' if label is None else f'the block `^{label.text}`'
+                raise self.fail(
+                    t, f'{where} ends with `ret` or `br`', 'return a value with `ret %x`, or jump with `br`'
+                )
+            if t.kind == Tok.LABEL:
+                where = 'the entry block' if label is None else f'the block `^{label.text}`'
+                hint = (
+                    'the lines after `{` are the entry block, which has no label'
+                    if label is None and not lines
+                    else 'end it with `ret` or `br` before the next block'
+                )
+                raise self.fail(t, f'{where} has no terminator', hint)
+            lines.append(self.line())
+
+    def params(self, label: Token) -> tuple[Value, ...]:
+        """`{%a, %b}:` after a block's label: its inputs, in braces like a function's."""
+        hint = f'write `^{label.text}{{}}:`, or `^{label.text}{{%a, %b}}:` with parameters'
+        found = self.group(label, 'a parameter such as `%a`', f'^{label.text}{{}}:', parameters=True)
+        self.expect(Tok.COLON, f'after the parameters of `^{label.text}`', hint)
+        return found
+
+    def group(self, label: Token, what: str, form: str, *, parameters: bool) -> tuple[Value, ...]:
+        """`{…}` after a label: a block's parameters, or the arguments a jump passes to it."""
+        if self.peek().kind == Tok.LPAREN:
+            raise self.fail(
+                self.peek(),
+                'a block takes its values in braces, as a function does',
+                f'write `^{label.text}{{…}}`, not `^{label.text}(…)`',
+            )
+        if self.peek().kind != Tok.LBRACE:
+            raise self.fail(self.peek(), f'expected `{{` after `^{label.text}`', f'write `{form}`')
+        self.take()
+        found = []
+        while self.peek().kind != Tok.RBRACE:
+            if parameters:
+                p = self.take()
+                if p.kind != Tok.LOCAL:
+                    raise self.fail(p, f'expected {what}, found {_show(p)}', 'a parameter is a local')
+                found.append(_value(p))
+            else:
+                found.append(self.atom(f'in the arguments of `^{label.text}`'))
+            if self.peek().kind == Tok.COMMA:
+                comma = self.take()
+                if self.peek().kind == Tok.RBRACE:
+                    raise self.fail(comma, 'a trailing comma is not allowed', 'remove the `,`', kind='trailing-comma')
+            elif self.peek().kind != Tok.RBRACE:
+                raise self.fail(self.peek(), f'expected `,` or `}}` after {what}, found {_show(self.peek())}')
+        self.take()
+        return tuple(found)
+
+    def terminator(self) -> Terminator:
+        keyword = _value(self.take())
+        if keyword.text == RET:
+            return Terminator(keyword, self.atom('after `ret`'), ())
+        if self.peek().kind == Tok.LABEL:
+            return Terminator(keyword, None, (self.target(),))
+        nxt = self.peek()
+        if nxt.kind == Tok.NAME and nxt.text == 'label':
+            raise self.fail(nxt, '`label` is not a language word', 'write the block: `br ^b{}`')
+        if nxt.kind == Tok.NAME and nxt.text in TYPES:
+            raise self.fail(nxt, 'the condition of `br` takes no type', 'write `br %c, ^then{}, ^else{}`')
+        condition = self.atom('after `br`')
+        self.expect(Tok.COMMA, 'after the condition of `br`', 'write `br %c, ^then{}, ^else{}`')
+        first = self.target()
+        self.expect(Tok.COMMA, 'between the two blocks of `br`', 'write `br %c, ^then{}, ^else{}`')
+        return Terminator(keyword, condition, (first, self.target()))
+
+    def target(self) -> Target:
+        label = self.take()
+        if label.kind == Tok.LOCAL:
+            raise self.fail(label, f'`%{label.text}` is a local, not a block', f'write `^{label.text}{{}}`')
+        if label.kind != Tok.LABEL:
+            raise self.fail(label, f'expected a block such as `^next{{}}`, found {_show(label)}')
+        return Target(_value(label), self.group(label, 'an argument', f'^{label.text}{{}}', parameters=False))
 
     def inputs(self) -> tuple[Value, ...]:
         t = self.take()
@@ -315,6 +434,8 @@ class _Parser:
 
     def line(self) -> Line:
         r = self.take()
+        if r.kind in (Tok.NAME, Tok.LOCAL) and self.peek().kind == Tok.COLON:
+            raise self.fail(r, 'a block label is written with `^`', f'write `^{r.text}{{}}:`')
         if r.kind == Tok.NAME and (r.text in RETIRED or r.text in LLVM_HABITS):
             raise self.fail(r, f'`{r.text}` is not a language word', RETIRED.get(r.text) or LLVM_HABITS[r.text])
         if r.kind == Tok.WORD:
@@ -322,8 +443,6 @@ class _Parser:
         if r.kind != Tok.LOCAL:
             raise self.fail(r, f'expected a line or `ret`, found {_show(r)}', LINE_HINT)
         eq = self.take()
-        if eq.kind == Tok.COLON:
-            raise self.fail(eq, 'blocks arrive with branches', 'until then a body is one list of lines ending in `ret`')
         if eq.kind != Tok.EQUALS:
             raise self.fail(eq, f'expected `=` after `%{r.text}`, found {_show(eq)}', LINE_HINT)
         op = self.take()
@@ -334,6 +453,14 @@ class _Parser:
         nxt = self.peek()
         if nxt.kind in (Tok.LBRACE, Tok.LPAREN):
             raise self.fail(nxt, f'the operands of `{op.text}` take no brackets', LINE_HINT)
+        predicate = None
+        if op.text == ICMP:
+            p = self.take()
+            if p.kind != Tok.NAME:
+                raise self.fail(
+                    p, f'expected a predicate after `icmp`, found {_show(p)}', 'write `icmp slt i64 %a, %b`'
+                )
+            predicate = _value(p)
         ty = self.take()
         if ty.kind != Tok.NAME:
             raise self.fail(ty, f'expected a type after `{op.text}`, found {_show(ty)}', LINE_HINT)
@@ -344,7 +471,7 @@ class _Parser:
         right = self.atom('after `,`')
         if self.peek().kind == Tok.COMMA:
             raise self.fail(self.peek(), f'`{op.text}` takes two operands', LINE_HINT)
-        return Line(_value(r), _value(op), _value(ty), left, right)
+        return Line(_value(r), _value(op), predicate, _value(ty), left, right)
 
     def atom(self, context: str) -> Value:
         t = self.take()
@@ -354,9 +481,11 @@ class _Parser:
             raise self.fail(
                 t, f'expected an operand {context}, found {_show(t)}', 'an operand is a word, a local or an integer'
             )
+        if t.text in (TRUE, FALSE):
+            return _value(t)
         if t.text in TYPES:
             raise self.fail(t, f'`{t.text}` is a type, not an operand', 'the type comes from the definition')
-        if t.text in OPERATIONS:
+        if t.text in OPERATIONS or t.text == ICMP:
             raise self.fail(
                 t,
                 f'`{t.text}` is an operation inside an operand',

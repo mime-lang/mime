@@ -1,0 +1,34 @@
+@n = {type = i64, abstract = "how far to count"}
+@flag = {type = i1, abstract = "a truth value"}
+
+define @sum {@n} -> i64 {
+  br ^loop{0, 0, @n}
+^loop{%i, %total, %limit}:
+  %done = icmp sgt i64 %i, %limit
+  %next = add i64 %i, 1
+  %more = add i64 %total, %i
+  br %done, ^end{%total}, ^loop{%next, %more, %limit}
+^end{%result}:
+  ret %result
+}
+abstract = "the sum of the numbers from 0 to @n"
+
+define @positive {@n} -> @flag {
+  %yes = icmp sgt i64 @n, 0
+  ret %yes
+}
+abstract = "whether @n is above zero"
+
+define @pick {@flag} -> i64 {
+  br @flag, ^out{1}, ^out{2}
+^out{%v}:
+  ret %v
+}
+abstract = "1 when @flag holds, otherwise 2"
+
+define @negate {@flag} -> i1 {
+  br @flag, ^out{false}, ^out{true}
+^out{%v}:
+  ret %v
+}
+abstract = "the opposite of @flag"

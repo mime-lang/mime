@@ -1,0 +1,8 @@
+@n = {type = i64, abstract = "a whole number"}
+
+define @f {@n} -> i64 {
+  br label %next
+%next:
+  ret @n
+}
+abstract = "x"

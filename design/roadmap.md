@@ -32,31 +32,20 @@ when it does, core.md is updated in the same step.
 | 4 | the module layout: `{type, abstract}` data words, `define` with LLVM-style lines | [step-4.md](step-4.md), [layout.md](layout.md) |
 | 5 | renaming and canonical form: `fmt`, `canon`, `rename`, the renaming test | [step-5.md](step-5.md) |
 | 6 | `@` words and `%` locals, numbered locals in canon | [step-6.md](step-6.md) |
+| 7 | branches: `icmp`, `i1`, blocks with parameters, `br`, `^label`s | [step-7.md](step-7.md) |
 
 Along the way: [diagnostics.md](diagnostics.md) (JSON only, `entry`/`key`/`text`) and [tools.md](tools.md)
 (`show`, `uses`).
 
 ## Next steps, in order
 
-### Branches
-
-- **New:** `icmp` with its predicates, the `i1` type for its result, and the blocks and `br` of
-  [layout.md](layout.md) section 5: labelled blocks with parameters, closed blocks, `unreachable-block`.
-- **Decide:** the form of block labels (step 6 left it open, since locals took `%0`, `%1`, …), how `i1` values are
-  written (`true`/`false` or `1`/`0`), and whether a function may return `i1` or only words of type `i1`.
-- **Also:** canon's rule that a pass-through block parameter keeps its value's number ([step-6.md](step-6.md)
-  section 5).
-- **Why first:** without a branch, a recursive call can never stop, so branches come before calls. Loops arrive
-  here too, as blocks that jump back.
-- **Benchmark:** `clamp`, the one task with only integers, can now be written.
-
 ### Reference interpreter
 
 - **New:** a second backend, an interpreter in the bootstrap toolchain, and the conformance tests: every clean
   golden carries its run cases, and every backend must give the same answers ([backends.md](backends.md)).
 - **Decide:** the checked form that backends share, how `mime run` chooses a backend, and how a trap is reported.
-- **Why here:** with blocks, loops and branches, a body has real control flow, so a second backend starts paying
-  for itself, while there is still little to implement twice.
+- **Why here:** with blocks, loops and branches (step 7), a body has real control flow, so a second backend starts
+  paying for itself, while there is still little to implement twice.
 
 ### Calls and recursion
 
@@ -69,7 +58,8 @@ Along the way: [diagnostics.md](diagnostics.md) (JSON only, `entry`/`key`/`text`
 
 ### Division and remainder
 
-- **New:** `sdiv`, `udiv`, `srem`, `urem`.
+- **New:** `sdiv`, `udiv`, `srem`, `urem`, and `and`, `or`, `xor` on `i1`, as in LLVM. Step 7 left `i1` without
+  operations, so combining two conditions or negating one takes extra blocks.
 - **Decide:** the domain of each operation and what happens outside it: a trap, as [backends.md](backends.md)
   recommends, or a total definition such as `x / 0 = 0`. Never undefined behavior by default; an opt-in unchecked
   mode comes later ([backends.md](backends.md) section 1).

@@ -5,14 +5,14 @@
     "key": "body",
     "text": "%double",
     "message": "nothing reads `%double`",
-    "hint": "use it, or remove its line; a body often returns the wrong local"
+    "hint": "use it, or remove it; a block often returns the wrong local"
   },
   {
     "kind": "undeclared-word",
     "entry": "@twice",
     "key": "body",
     "text": "%doubel",
-    "message": "nothing binds `%doubel`",
+    "message": "nothing binds `%doubel` in this block",
     "hint": "did you mean `%double`?"
   }
 ]
