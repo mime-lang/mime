@@ -1,50 +1,53 @@
 @w0 = {type = i64, abstract = "a whole number"}
-@w1 = {type = i64, abstract = "the first of two numbers"}
-@w2 = {type = i64, abstract = "the second of two numbers"}
-@w3 = {type = i64, abstract = "how many of something"}
-@w4 = {type = i1, abstract = "a truth value"}
 
-define @w5 {@w0} -> @w0 {
+define @w1 {@w0} -> @w0 {
   %v0 = add i64 @w0, @w0
   ret %v0
 }
 abstract = "twice a @w0"
 
-define @w6 {@w1, @w2} -> i64 {
-  %v0 = sub i64 @w1, @w2
+@w2 = {type = i64, abstract = "the first of two numbers"}
+@w3 = {type = i64, abstract = "the second of two numbers"}
+
+define @w4 {@w2, @w3} -> i64 {
+  %v0 = sub i64 @w2, @w3
   ret %v0
 }
-abstract = "the @w1 minus the @w2"
+abstract = "the @w2 minus the @w3"
 
-define @w7 {} -> @w0 {
+define @w5 {} -> @w0 {
   ret 10
 }
 abstract = "always ten"
 
-define @w8 {@w0} -> @w4 {
+@w6 = {type = i1, abstract = "a truth value"}
+
+define @w7 {@w0} -> @w6 {
   %v0 = icmp slt i64 @w0, 0
   ret %v0
 }
 abstract = "whether a @w0 is below zero"
 
-define @w9 {@w3} -> @w0 {
-  %v0 = call @w5 {@w0 = @w3}
-  %v1 = call @w5 {@w0 = %v0}
-  %v2 = call @w7 {}
-  %v3 = call @w6 {@w1 = %v1, @w2 = %v2}
+@w8 = {type = i64, abstract = "how many of something"}
+
+define @w9 {@w8} -> @w0 {
+  %v0 = call @w1 {@w0 = @w8}
+  %v1 = call @w1 {@w0 = %v0}
+  %v2 = call @w5 {}
+  %v3 = call @w4 {@w2 = %v1, @w3 = %v2}
   ret %v3
 }
-abstract = "four times @w3, minus the ten of @w7, by @w5 and @w6"
+abstract = "four times @w8, minus the ten of @w5, by @w1 and @w4"
 symbol = "quadruple"
 
 define @w10 {@w0} -> @w0 {
-  %v0 = call @w8 {@w0 = @w0}
+  %v0 = call @w7 {@w0 = @w0}
   br %v0, ^b0{}, ^b1{}
 ^b0{}:
-  %v1 = call @w6 {@w1 = 0, @w2 = @w0}
+  %v1 = call @w4 {@w2 = 0, @w3 = @w0}
   ret %v1
 ^b1{}:
   ret @w0
 }
-abstract = "a @w0 without its sign, by @w8 and @w6"
+abstract = "a @w0 without its sign, by @w7 and @w4"
 symbol = "magnitude"

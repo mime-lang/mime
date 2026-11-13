@@ -1,7 +1,6 @@
 @w0 = {type = i64, abstract = "how far to count"}
-@w1 = {type = i1, abstract = "a truth value"}
 
-define @w2 {@w0} -> i64 {
+define @w1 {@w0} -> i64 {
   br ^b0{0, 0}
 ^b0{%v0, %v1}:
   %v2 = icmp sgt i64 %v0, @w0
@@ -14,25 +13,27 @@ define @w2 {@w0} -> i64 {
 abstract = "the sum of the numbers from 0 to @w0"
 symbol = "sum"
 
-define @w3 {@w0} -> @w1 {
+@w2 = {type = i1, abstract = "a truth value"}
+
+define @w3 {@w0} -> @w2 {
   %v0 = icmp sgt i64 @w0, 0
   ret %v0
 }
 abstract = "whether @w0 is above zero"
 symbol = "positive"
 
-define @w4 {@w1} -> i64 {
-  br @w1, ^b0{1}, ^b0{2}
+define @w4 {@w2} -> i64 {
+  br @w2, ^b0{1}, ^b0{2}
 ^b0{%v0}:
   ret %v0
 }
-abstract = "1 when @w1 holds, otherwise 2"
+abstract = "1 when @w2 holds, otherwise 2"
 symbol = "pick"
 
-define @w5 {@w1} -> i1 {
-  br @w1, ^b0{false}, ^b0{true}
+define @w5 {@w2} -> i1 {
+  br @w2, ^b0{false}, ^b0{true}
 ^b0{%v0}:
   ret %v0
 }
-abstract = "the opposite of @w1"
+abstract = "the opposite of @w2"
 symbol = "negate"

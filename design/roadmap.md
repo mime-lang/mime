@@ -36,6 +36,7 @@ when it does, core.md is updated in the same step.
 | 8 | the reference interpreter, `mime run --backend`, running by symbol, conformance run cases | [step-8.md](step-8.md) |
 | 9 | calls by word, recursion, `declare`, running out of stack as a machine limit | [step-9.md](step-9.md) |
 | 10 | loops with one way in: reducible control flow, `irreducible-loop` | [step-10.md](step-10.md) |
+| 11 | canonical order: data words and `declare`s above their first `define`, `unused-word`, `canon --keep-words` | [step-11.md](step-11.md) |
 
 Along the way: [diagnostics.md](diagnostics.md) (JSON only, `entry`/`key`/`text`) and [tools.md](tools.md)
 (`show`, `uses`).

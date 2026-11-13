@@ -31,6 +31,24 @@ TIDY = (
     'abstract = "always seven"\n'
 )
 
+# TIDY in canonical order: `@count` is first needed by `@seven`, so it stands just above it (design/step-11.md).
+PLACED = (
+    '@number = {type = i64, abstract = "a whole number, $5"}\n'
+    '\n'
+    'define @double {@number} -> @number {\n'
+    '  %r = add i64 @number, @number\n'
+    '  ret %r\n'
+    '}\n'
+    'abstract = "twice the @number"\n'
+    '\n'
+    '@count = {type = i64, abstract = "how many"}\n'
+    '\n'
+    'define @seven {} -> @count {\n'
+    '  ret 7\n'
+    '}\n'
+    'abstract = "always seven"\n'
+)
+
 
 @pytest.fixture
 def prog(tmp_path: Path) -> Path:
@@ -62,18 +80,34 @@ def test_fmt_keeps_mistakes_the_checker_reports() -> None:
 def test_canon_renames_every_word_and_keeps_the_english(prog: Path, capsys: pytest.CaptureFixture[str]) -> None:
     assert main(['canon', str(prog)]) == 0
     out = capsys.readouterr().out
-    assert out == TIDY.replace('@number', '@w0').replace('@count', '@w1').replace('@double', '@w2').replace(
+    assert out == PLACED.replace('@number', '@w0').replace('@double', '@w1').replace('@count', '@w2').replace(
         '%r', '%v0'
     ).replace('@seven', '@w3')
     assert prog.read_text() == MESSY  # canon only prints
 
 
-def test_canon_locals_numbers_only_the_locals(prog: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    assert main(['canon', '--locals', str(prog)]) == 0
-    assert prog.read_text() == MESSY.replace('%r', '%v0')
-    assert capsys.readouterr().out == MESSY.replace('%r', '%v0')
-    assert main(['canon', '--locals', str(prog)]) == 0  # idempotent
-    assert prog.read_text() == MESSY.replace('%r', '%v0')
+def test_canon_keep_words_places_words_and_numbers_locals(prog: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    kept = PLACED.replace('%r', '%v0')
+    assert main(['canon', '--keep-words', str(prog)]) == 0
+    assert prog.read_text() == kept
+    assert capsys.readouterr().out == kept
+    assert main(['canon', '--keep-words', str(prog)]) == 0  # idempotent
+    assert prog.read_text() == kept
+
+
+def test_canon_after_keep_words_is_canon(prog: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    assert main(['canon', str(prog)]) == 0
+    before = capsys.readouterr().out
+    assert main(['canon', '--keep-words', str(prog)]) == 0
+    capsys.readouterr()
+    assert main(['canon', str(prog)]) == 0
+    assert capsys.readouterr().out == before
+
+
+def test_the_retired_locals_flag_names_keep_words(prog: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    assert main(['canon', '--locals', str(prog)]) == 2
+    assert '`--locals` is now `--keep-words`' in capsys.readouterr().err
+    assert prog.read_text() == MESSY
 
 
 def test_canon_numbers_locals_per_body_in_order_of_appearance() -> None:

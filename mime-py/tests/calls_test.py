@@ -21,7 +21,9 @@ def caller(body: str, word: str = '@f') -> str:
 
 
 def kinds(source: str) -> list[str]:
-    return [d.kind for d in analyze(source)[1]]
+    # These programs test other mistakes, so a data word they leave unused is not reported here; `unused-word` has
+    # tests of its own (check_test.py).
+    return [d.kind for d in analyze(source)[1] if d.kind != 'unused-word']
 
 
 @pytest.mark.parametrize(
@@ -105,9 +107,11 @@ def test_layout_and_canon_keep_a_declaration() -> None:
 
 def test_show_prints_the_define_not_the_declaration() -> None:
     source = N + 'declare @g {@n} -> i64\n' + caller('%r = call @g {@n = @n}\nret %r')
-    assert show(parse(source), 'g') == 'declare @g {@n} -> i64\n'
+    assert show(parse(source), 'g').endswith('\n\ndeclare @g {@n} -> i64\n')
     source += 'define @g {@n} -> i64 {\n  ret @n\n}\nabstract = "x"\n'
-    assert show(parse(source), 'g').startswith('define @g {@n} -> i64 {')
+    shown = show(parse(source), 'g')
+    assert 'declare' not in shown
+    assert '\n\ndefine @g {@n} -> i64 {' in shown  # after its head word @n
 
 
 def test_uses_lists_calls_and_argument_keys() -> None:

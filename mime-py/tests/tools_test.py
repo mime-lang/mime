@@ -41,8 +41,35 @@ def test_show_prints_a_data_word_as_written(prog: Path, capsys: pytest.CaptureFi
 def test_show_prints_a_whole_definition(prog: Path, capsys: pytest.CaptureFixture[str]) -> None:
     assert main(['show', str(prog), '@same']) == 0
     text = out(capsys)
-    assert text.startswith('define @same {@number} -> @number {\n')
+    assert text.startswith('@number = {type = i64, abstract = "a whole number, $5 at most"}\n\ndefine @same {@number}')
     assert text.endswith('}\nabstract = "the @number it is given"\n')
+    assert '@count' not in text  # not in the head
+
+
+def test_show_prints_a_functions_head_words_in_source_order(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    p = tmp_path / 'head.mime'
+    p.write_text(
+        '@b = {type = i64, abstract = "b"}\n@a = {type = i64, abstract = "a"}\n@unused = {type = i64, abstract = "u"}\n'
+        'define @f {@a, @b} -> @a {\n  %s = add i64 @a, @b\n  ret %s\n}\nabstract = "x"\n'
+    )
+    assert main(['show', str(p), '@f']) == 0
+    text = out(capsys)
+    assert text.startswith('@b = {type = i64, abstract = "b"}\n\n@a = {type = i64, abstract = "a"}\n\ndefine @f')
+    assert '@unused' not in text
+
+
+def test_show_skips_primitives_and_words_with_no_entry(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    p = tmp_path / 'typo.mime'
+    p.write_text('define @f {@numbr} -> i64 {\n  ret @numbr\n}\nabstract = "x"\n')
+    assert main(['show', str(p), '@f']) == 0
+    assert out(capsys).startswith('define @f {')
+
+
+def test_show_prints_a_declarations_head_words(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    p = tmp_path / 'decl.mime'
+    p.write_text('@n = {type = i64, abstract = "n"}\ndeclare @f {@n} -> @n\n')
+    assert main(['show', str(p), '@f']) == 0
+    assert out(capsys) == '@n = {type = i64, abstract = "n"}\n\ndeclare @f {@n} -> @n\n'
 
 
 def test_show_prints_both_entries_of_a_duplicate_word(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:

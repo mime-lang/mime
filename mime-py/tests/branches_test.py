@@ -7,12 +7,18 @@ import pytest
 
 from mime.cli import main
 from mime.compiler import analyze
+from mime.diag import Diagnostic
 from mime.parser import parse
-from mime.printer import canon, canon_locals
+from mime.printer import canon, keep_words
 from tests.run_cases import BACKENDS
 
 CLEAN = Path(__file__).parent / 'goldens' / 'clean'
 N = '@n = {type = i64, abstract = "a whole number"}\n@flag = {type = i1, abstract = "a truth value"}\n'
+
+
+def mistakes(source: str) -> list[Diagnostic]:
+    """The mistakes in `source` besides `unused-word`, which these programs are not about."""
+    return [d for d in analyze(source)[1] if d.kind != 'unused-word']
 
 
 def function(body: str, head: str = '{@n} -> i64') -> str:
@@ -20,7 +26,9 @@ def function(body: str, head: str = '{@n} -> i64') -> str:
 
 
 def kinds(source: str) -> list[str]:
-    return [d.kind for d in analyze(source)[1]]
+    # These programs test other mistakes, so a data word they leave unused is not reported here; `unused-word` has
+    # tests of its own (check_test.py).
+    return [d.kind for d in analyze(source)[1] if d.kind != 'unused-word']
 
 
 def test_an_i1_input_must_be_true_or_false(capsys: pytest.CaptureFixture[str]) -> None:
@@ -39,7 +47,7 @@ def test_signed_and_unsigned_predicates_check(signed: str, unsigned: str) -> Non
 
 def test_a_block_sees_only_its_own_locals() -> None:
     source = function('%a = add i64 @n, 1\nbr ^next{}\n^next{}:\nret %a')
-    unread, d = analyze(source)[1]  # %a is also unread in the entry block, which is true
+    unread, d = mistakes(source)  # %a is also unread in the entry block, which is true
     assert (unread.kind, unread.text) == ('unused-local', '%a')
     assert (d.kind, d.text) == ('undeclared-word', '%a')
     assert d.hint == '`%a` is bound in the entry block; a block sees only its own locals, so pass it as an argument'
@@ -83,7 +91,7 @@ def test_a_parameter_no_jump_gives_a_type() -> None:
 
 
 def test_an_integer_where_an_i1_belongs() -> None:
-    (d,) = analyze(function('ret 1', '{} -> @flag'))[1]
+    (d,) = mistakes(function('ret 1', '{} -> @flag'))
     assert (d.kind, d.hint) == ('wrong-type', 'write `true` or `false`')
 
 
@@ -96,15 +104,15 @@ def test_canon_numbers_labels_and_keeps_a_carried_value() -> None:
     assert '^b1{%v1}:\n  ret %v1' in form  # %r only ever receives %acc, so it keeps %acc's number
 
 
-def test_canon_locals_numbers_labels_too(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+def test_canon_keep_words_numbers_labels_too(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     p = tmp_path / 'p.mime'
     p.write_text(
         function('br ^loop{@n}\n^loop{%x}:\n%c = icmp eq i64 %x, 0\nbr %c, ^done{}, ^loop{%x}\n^done{}:\nret 1')
     )
-    assert main(['canon', '--locals', str(p)]) == 0
+    assert main(['canon', '--keep-words', str(p)]) == 0
     text = p.read_text()
-    assert 'br ^b0{@n}\n^b0{%v0}:\n%v1 = icmp eq i64 %v0, 0\nbr %v1, ^b1{}, ^b0{%v0}\n^b1{}:' in text
-    assert canon_locals(parse(text)) == text  # idempotent
+    assert '  br ^b0{@n}\n^b0{%v0}:\n  %v1 = icmp eq i64 %v0, 0\n  br %v1, ^b1{}, ^b0{%v0}\n^b1{}:' in text
+    assert keep_words(parse(text)) == text  # idempotent
     capsys.readouterr()
 
 
@@ -128,7 +136,8 @@ def test_uses_lists_a_local_read_in_a_jump(tmp_path: Path, capsys: pytest.Captur
 @pytest.mark.parametrize('backend', BACKENDS)
 def test_a_run_that_never_finishes_is_stopped(backend: str, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     p = tmp_path / 'forever.mime'
-    p.write_text(function('br ^loop{@n}\n^loop{%x}:\n%y = add i64 %x, 1\nbr ^loop{%y}') + 'symbol = "forever"\n')
+    source = function('br ^loop{@n}\n^loop{%x}:\n%y = add i64 %x, 1\nbr ^loop{%y}') + 'symbol = "forever"\n'
+    p.write_text(source.replace('@flag = {type = i1, abstract = "a truth value"}\n', ''))  # every word is used
     assert main(['run', '--backend', backend, '--timeout', '0.5', str(p), 'forever', '1']) == 2
     assert capsys.readouterr().err == (
         'mime: `forever` did not finish within 0.5 s; a loop may never reach its exit (see --timeout)\n'
@@ -154,11 +163,11 @@ def test_a_parameter_that_only_carries_an_input_or_a_constant(body: str, expecte
 
 
 def test_the_hint_says_what_to_write() -> None:
-    (d,) = analyze(
+    (d,) = mistakes(
         function(
             'br ^loop{0, @n}\n^loop{%i, %limit}:\n%done = icmp sgt i64 %i, %limit\n%next = add i64 %i, 1\nbr %done, ^end{}, ^loop{%next, %limit}\n^end{}:\nret 0'
         )
-    )[1]
+    )
     assert (d.kind, d.text, d.hint) == (
         'redundant-parameter',
         '%limit',

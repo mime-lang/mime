@@ -2,8 +2,9 @@
 
 import difflib
 from collections.abc import Iterator
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 
+from mime.checker import check
 from mime.diag import FatalError, ToolError
 from mime.lexer import Span, Tok, tokens
 from mime.parser import (
@@ -11,6 +12,7 @@ from mime.parser import (
     Declaration,
     Definition,
     Entry,
+    Item,
     Line,
     Module,
     Struct,
@@ -18,6 +20,8 @@ from mime.parser import (
     Terminator,
     Value,
     atoms,
+    item_refs,
+    item_word,
     line_values,
 )
 
@@ -243,23 +247,63 @@ def canonical_names(module: Module) -> Names:
     return names
 
 
+def placed(module: Module) -> Module:
+    """The module with each data word and `declare` just above the first `define` that needs it, and the `define`s in
+    source order (design/step-11.md section 2).
+
+    A program with mistakes keeps the order it is written in, so no mistake moves away from what explains it, and the
+    checker reports the same mistakes before and after (section 4).
+    """
+    if check(module)[1]:
+        return module
+    pulled: dict[str, Item] = {}  # word -> the entry a reference to it pulls: its data word or its declaration
+    for x in module.items:
+        if not isinstance(x, Definition):
+            pulled.setdefault(item_word(x), x)
+    out: list[Item] = []
+    printed: set[int] = set()  # ids of the items in out
+
+    def pull(x: Item) -> None:
+        if id(x) in printed:
+            return
+        printed.add(id(x))
+        for w in item_refs(x):
+            if w in pulled:
+                pull(pulled[w])
+        out.append(x)
+
+    defines = [x for x in module.items if isinstance(x, Definition)]
+    for d in defines:
+        for w in item_refs(d):
+            if w in pulled:
+                pull(pulled[w])
+        out.append(d)
+        printed.add(id(d))
+    # A clean program pulls every entry: an unused data word is `unused-word`, an unneeded `declare` is
+    # `redundant-declaration`.
+    if len(out) != len(module.items):
+        msg = 'canon would drop an entry of a clean program; this is a bug in mime'
+        raise RuntimeError(msg)
+    return replace(module, items=tuple(out))
+
+
 def canon(module: Module) -> str:
+    """The canonical form: placed, every word renamed `@w0`, `@w1`, …, every body's locals and labels numbered."""
+    module = placed(module)
     return layout(module, canonical_names(module))
 
 
-def canon_locals(module: Module) -> str:
-    """The source with each body's locals and labels numbered, and nothing else changed (design/step-6.md section 6)."""
-    edits: list[tuple[Span, str]] = []
-    for x in module.items:
+def keep_words(module: Module) -> str:
+    """The canonical form with every word kept as written, in the layout of `fmt` (design/step-11.md section 5).
+
+    It is the program a model goes on editing: placed, and each body's locals and labels numbered.
+    """
+    module = placed(module)
+    names = Names()
+    for i, x in enumerate(module.items):
         if isinstance(x, Definition):
-            locals_, labels = local_numbers(x)
-            for i, v in _body_names(x):
-                new = '^' + labels[v.text] if v.kind == Tok.LABEL else '%' + locals_[(i, v.text)]
-                edits.append((v.span, new))
-    out = module.source
-    for span, text in sorted(edits, key=lambda e: e[0].start, reverse=True):
-        out = out[: span.start] + text + out[span.end :]
-    return out
+            names.locals[i], names.labels[i] = local_numbers(x)
+    return layout(module, names)
 
 
 def _occurrences(source: str) -> Iterator[tuple[str, Span]]:

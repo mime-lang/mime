@@ -3,12 +3,18 @@
 import pytest
 
 from mime.compiler import analyze
+from mime.diag import Diagnostic
 
 NUMBER = '@number = {type = i64, abstract = "a whole number"}\n'
 
 
+def mistakes(source: str) -> list[Diagnostic]:
+    """The mistakes in `source` besides `unused-word`, which these programs are not about."""
+    return [d for d in analyze(source)[1] if d.kind != 'unused-word']
+
+
 def where(source: str) -> list[tuple[str | None, str | None, str | None]]:
-    return [(d.entry, d.key, d.text) for d in analyze(source)[1]]
+    return [(d.entry, d.key, d.text) for d in mistakes(source)]
 
 
 def define(lines: str) -> str:
@@ -47,5 +53,5 @@ def test_where_a_mistake_is(source: str, expected: tuple[str | None, str | None,
 
 
 def test_positions_are_still_recorded() -> None:
-    (d,) = analyze('@number = {type = i64X, abstract = "x"}')[1]
+    (d,) = mistakes('@number = {type = i64X, abstract = "x"}')
     assert (d.line, d.column) == (1, 22)

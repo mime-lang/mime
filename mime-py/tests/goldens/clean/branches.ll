@@ -17,9 +17,9 @@ define i1 @positive(i64 %w0) {
   ret i1 %v0
 }
 
-define i64 @pick(i1 %w1) {
+define i64 @pick(i1 %w2) {
 entry:
-  br i1 %w1, label %entry.e0, label %entry.e1
+  br i1 %w2, label %entry.e0, label %entry.e1
 entry.e0:
   br label %b0
 entry.e1:
@@ -29,9 +29,9 @@ b0:
   ret i64 %v0
 }
 
-define i1 @negate(i1 %w1) {
+define i1 @negate(i1 %w2) {
 entry:
-  br i1 %w1, label %entry.e0, label %entry.e1
+  br i1 %w2, label %entry.e0, label %entry.e1
 entry.e0:
   br label %b0
 entry.e1:

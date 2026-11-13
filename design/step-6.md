@@ -112,7 +112,8 @@ abstract = "three times the @number it is given, plus one"
 - **`mime fmt FILE`** is unchanged: the one layout, every word and name kept.
 - **`mime canon FILE`** prints the canonical form: words become `@w0`, `@w1`, … in order of first occurrence, and
   each body's locals are numbered (section 5). Abstracts keep their English, with their references renamed.
-- **`mime canon --locals FILE`** rewrites the file with each local numbered, and nothing else changed:
+- **`mime canon --locals FILE`** (replaced by `--keep-words` in [step-11.md](step-11.md), which also places data
+  words and declarations) rewrites the file with each local numbered, and nothing else changed:
   words, English and layout stay as written. It then prints the rewritten program, so an agent has the new text
   in front of it rather than a memory of the old names. It is idempotent.
 - **`mime rename FILE @old @new`** renames a word. `mime rename FILE %old %new` renames a local, in every body that

@@ -1,5 +1,13 @@
 [
   {
+    "kind": "unused-word",
+    "entry": "@number",
+    "key": null,
+    "text": "@number",
+    "message": "nothing refers to `@number`",
+    "hint": "use it in a type, a body or an abstract, or remove it"
+  },
+  {
     "kind": "unknown-key",
     "entry": "@number",
     "key": "description",

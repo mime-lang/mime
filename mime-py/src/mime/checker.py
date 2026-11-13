@@ -7,7 +7,21 @@ from typing import TypedDict
 
 from mime.diag import Diagnostic
 from mime.lexer import Span, Tok
-from mime.parser import Block, Call, Declaration, Definition, Entry, Field, Item, Line, Module, Struct, Value, item_word
+from mime.parser import (
+    Block,
+    Call,
+    Declaration,
+    Definition,
+    Entry,
+    Field,
+    Item,
+    Line,
+    Module,
+    Struct,
+    Value,
+    item_refs,
+    item_word,
+)
 from mime.words import FALSE, ICMP, KEYS, LANGUAGE_WORDS, OPERATIONS, PREDICATES, RETIRED, TRUE, TYPES
 
 LATER_TYPES = frozenset({'i8', 'i16', 'i32'})
@@ -134,10 +148,24 @@ class _Checker:
             if 'abstract' in valid:
                 self.references(x.word, i, valid['abstract'].value)
         self.declarations()
+        self.unused_words()
         self.diags.sort(key=lambda d: (d.line, d.column))
         if self.diags:
             return None
         return self.program()
+
+    def unused_words(self) -> None:
+        """A data word nothing refers to has no first user, so canon could not place it (design/step-11.md)."""
+        used = {w for x in self.items for w in item_refs(x)}
+        for i, x in enumerate(self.items):
+            if isinstance(x, Entry) and x.word not in used and self.index.get(x.word) == i:
+                self.report(
+                    'unused-word',
+                    f'nothing refers to `@{x.word}`',
+                    x.span,
+                    'use it in a type, a body or an abstract, or remove it',
+                    entry=x.word,
+                )
 
     # Declarations
 

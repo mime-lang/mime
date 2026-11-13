@@ -78,7 +78,9 @@ abstract = "twice the $w0"
   when every mention of a word is marked with `$`. SKILL.md asks models to do that. No checker can enforce it
   without reading the English.
 - The output of a clean program is itself a clean program with the same behavior, and `canon` is idempotent.
-- Two programs are the same up to renaming exactly when their canonical forms are equal.
+- Two programs are the same up to renaming exactly when their canonical forms are equal. Since step 11
+  ([step-11.md](step-11.md)), up to renaming and the placement of data words and declarations: canon places each
+  just above the first `define` that needs it.
 
 ## 4. `mime rename FILE '$old' '$new'`
 

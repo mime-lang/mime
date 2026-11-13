@@ -113,7 +113,8 @@ The body follows LLVM IR, the low-level code models know best, with five deliber
 - **Results** are domain words with no abstract. Each is bound once in its body and is not a module word. Two
   functions may use the same result word.
 - **Every word is used.** A result that nothing reads is an error (`unused-local`), and so is a parameter: an input
-  the body ignores should not be in the type. A function that needs no input has type `{} -> …`.
+  the body ignores should not be in the type. A function that needs no input has type `{} -> …`. A data word that
+  nothing refers to is `unused-word` ([step-11.md](step-11.md)).
 - **Types on operations only.** An operation names its type, `add i64`, as in LLVM. Operands and `ret` carry none,
   because the definition gives the function's type.
 - **Overflow wraps,** as in step 3.

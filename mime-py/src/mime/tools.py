@@ -31,15 +31,24 @@ def show(module: Module, word: str) -> str:
 
     A function's entry is its whole definition, from `define` through its abstract. Its `declare` is shown only while
     there is no `define`, since the `define` repeats its type (design/step-9.md section 8).
+
+    A function comes after the entries of the data words in its type, in source order (design/tools.md section 2.1).
     """
     found = [x for x in module.items if item_word(x) == word]
     if any(isinstance(x, Definition) for x in found):
         found = [x for x in found if not isinstance(x, Declaration)]
-    texts = [module.source[x.span.start : x.end] for x in found]
-    if not texts:
+    if not found:
         msg = f'no entry declares `@{word}`{_did_you_mean(module, word)}'
         raise ToolError(msg)
-    return '\n\n'.join(texts) + '\n'
+    head = {
+        v.text
+        for x in found
+        if isinstance(x, Definition | Declaration)
+        for v in (*x.inputs, x.output)
+        if v.kind == Tok.WORD
+    }
+    shown = [x for x in module.items if isinstance(x, Entry) and x.word in head] + found
+    return '\n\n'.join(module.source[x.span.start : x.end] for x in shown) + '\n'
 
 
 def _refs(v: Value, word: str) -> list[Span]:

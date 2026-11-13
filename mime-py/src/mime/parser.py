@@ -188,6 +188,33 @@ def atoms(d: Definition) -> list[Value]:
     return [v for b in d.blocks for v in block_values(b)]
 
 
+def item_refs(x: Item) -> list[str]:
+    """The words an entry refers to, without their `@`, each once, in reading order (design/step-11.md).
+
+    A data word: its fields as written, so its type before its abstract. A declaration: its inputs, then its output. A
+    definition: its inputs, its output, its body line by line, then its abstract. The entry's own word is left out.
+    """
+    found: list[str] = []
+
+    def value(v: Value) -> None:
+        if v.kind == Tok.WORD:
+            found.append(v.text)
+        elif v.kind == Tok.STRING:
+            found.extend(r.word for r in v.refs if r.word is not None and r.stray is None)
+
+    if isinstance(x, Entry):
+        for f in x.fields:
+            for v in f.value.words if isinstance(f.value, Struct) else (f.value,):
+                value(v)
+    else:
+        for v in (*x.inputs, x.output, *(atoms(x) if isinstance(x, Definition) else ())):
+            value(v)
+        if isinstance(x, Definition):
+            value(x.abstract)
+    own = item_word(x)
+    return [w for w in dict.fromkeys(found) if w != own]
+
+
 def _show(t: Token) -> str:
     if t.kind == Tok.WORD:
         return f'`@{t.text}`'

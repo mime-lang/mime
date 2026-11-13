@@ -40,7 +40,9 @@ def _parser() -> argparse.ArgumentParser:
     )
 
     word = 'the word, written as in the source: @number'
-    p = sub.add_parser('show', help='print the entry for a word, exactly as written')
+    p = sub.add_parser(
+        'show', help='print the entry for a word, exactly as written; a function after the words in its type'
+    )
     p.add_argument('file')
     p.add_argument('word', nargs='?', help=word)
 
@@ -52,9 +54,18 @@ def _parser() -> argparse.ArgumentParser:
     p = sub.add_parser('fmt', help='rewrite a program in its one layout, keeping its words and English')
     p.add_argument('file')
 
-    p = sub.add_parser('canon', help='print the canonical form: every word renamed @w0, @w1, ..., every local numbered')
+    p = sub.add_parser(
+        'canon',
+        help='print the canonical form: each word and declaration placed above its first user, every word renamed '
+        '@w0, @w1, ..., every local numbered',
+    )
     p.add_argument('file')
-    p.add_argument('--locals', action='store_true', help='rewrite the file with only its locals numbered, and print it')
+    p.add_argument(
+        '--keep-words',
+        action='store_true',
+        help='rewrite the file in canonical form with every word kept as written, and print it',
+    )
+    p.add_argument('--locals', action='store_true', help=argparse.SUPPRESS)  # retired: gets a hint
 
     p = sub.add_parser('rename', help='rename one word or local everywhere and rewrite the file')
     p.add_argument('file')
@@ -116,16 +127,19 @@ def _form(args: argparse.Namespace) -> int:
             msg = 'mime rename needs the old and the new name: mime rename FILE @OLD @NEW'
             raise ToolError(msg)
         old, new = name_arg(args.word), name_arg(args.new)
+    if args.command == 'canon' and args.locals:
+        msg = '`--locals` is now `--keep-words`, which also places each word above its first user: mime canon --keep-words FILE'
+        raise ToolError(msg)
     source = _read(args.file)
     try:
         module = parse(source)
     except FatalError as e:
         sys.stderr.write(diag.to_json([e.diagnostic]))
         return PROGRAM_ERRORS
-    if args.command == 'canon' and args.locals:
-        numbered = printer.canon_locals(module)
-        _write(args.file, numbered)
-        sys.stdout.write(numbered)
+    if args.command == 'canon' and args.keep_words:
+        kept = printer.keep_words(module)
+        _write(args.file, kept)
+        sys.stdout.write(kept)
     elif args.command == 'canon':
         sys.stdout.write(printer.canon(module))
     elif args.command == 'fmt':

@@ -110,9 +110,14 @@ abstract = "@x, moved into the range from @lo to @hi"
 - Don't pass an input or a constant through a block parameter: every block can read `@n` and write `1` directly.
   A parameter that only ever carries one of them is a `redundant-parameter`.
 
-When a function is finished, run `mime canon --locals prog.mime`. It renumbers every local `%v0`, `%v1`, … in order
-of appearance, and every label `^b0`, `^b1`, …, so the stored program carries no local names. A stored body you edit later may mix numbered locals
-with new named ones; run the command again when you are done.
+When a function is finished, run `mime canon --keep-words prog.mime`. It renumbers every local `%v0`, `%v1`, … in
+order of appearance, and every label `^b0`, `^b1`, …, so the stored program carries no local names. It also moves
+each data word and `declare` to just above the first `define` that needs it, so a function's words stand right above
+it; the `define`s stay in your order, and every word keeps its name. It moves entries only once the program checks
+clean.
+A stored body you edit later may mix numbered locals with new named ones; run the command again when you are done.
+
+- **Every data word is used.** A data word nothing refers to, in a type, a body or an abstract, is `unused-word`.
 
 ## Calls
 
@@ -179,17 +184,18 @@ mime run prog.mime affine 5          # run the function exported as `affine` on 
                                      # a run stops after 10 s (--timeout SECONDS), in case a loop never exits
 mime run --backend llvm prog.mime affine 5   # the same, built natively with clang; the default, interp, needs none
 mime llvm prog.mime                  # print the LLVM IR
-mime show prog.mime @affine          # print the entry for @affine, exactly as written
+mime show prog.mime @affine          # print @affine's entry as written, after the words in its type
 mime uses prog.mime @number          # list every reference to @number (or to a local, %double), as JSON
 mime rename prog.mime @a @b          # rename @a to @b everywhere, abstracts included; also %x %y and ^a ^b
 mime fmt prog.mime                   # rewrite the file in its one layout
-mime canon --locals prog.mime        # rewrite the file with its locals numbered, and print it
-mime canon prog.mime                 # print the canonical form: words @w0, @w1, ..., locals numbered
+mime canon --keep-words prog.mime    # rewrite the file: locals numbered, words above their first user; print it
+mime canon prog.mime                 # print the canonical form: the same, and words renamed @w0, @w1, ...
 ```
 
 Words need no quotes on the command line. Use `show`, `uses` and `rename` instead of `grep` or `sed`: they follow
 mime's rules, so `\@number` in an abstract is not a use, and each use names its `entry` and `key`. They work on a
-program with checker errors. `show` prints a function's whole definition, from `define` through its abstract.
+program with checker errors. `show` prints a function's whole definition, from `define` through its abstract,
+after the entries of the words in its type, so you see what each input and the output mean.
 
 `mime run` exits with 0 and prints the result, or exits with 1 and prints the program's diagnostics on stderr. A
 trap, when an operation leaves its domain (none can yet), exits with 3 and prints one JSON object on stderr, with

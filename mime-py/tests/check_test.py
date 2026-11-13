@@ -3,13 +3,21 @@
 import pytest
 
 from mime.compiler import analyze
+from mime.diag import Diagnostic
 
 NUMBER = '@number = {type = i64, abstract = "a whole number"}\n'
 SAME = 'define @same {@number} -> @number {\n  ret @number\n}\nabstract = "the @number it is given"\n'
 
 
+def mistakes(source: str) -> list[Diagnostic]:
+    """The mistakes in `source` besides `unused-word`, which these programs are not about."""
+    return [d for d in analyze(source)[1] if d.kind != 'unused-word']
+
+
 def kinds(source: str) -> list[str]:
-    return [d.kind for d in analyze(source)[1]]
+    # These programs test other mistakes, so a data word they leave unused is not reported here; `unused-word` has
+    # tests of its own (check_test.py).
+    return [d.kind for d in analyze(source)[1] if d.kind != 'unused-word']
 
 
 def define(head: str, body: str = 'ret @number', word: str = '@f') -> str:
@@ -107,7 +115,7 @@ def test_the_checker_reports_every_mistake_in_order() -> None:
 
 def test_hints_point_at_the_fix() -> None:
     def hint(source: str) -> str:
-        (d,) = analyze(source)[1]
+        (d,) = mistakes(source)
         assert d.hint is not None
         return d.hint
 
@@ -121,9 +129,9 @@ def test_hints_point_at_the_fix() -> None:
 
 
 def test_positions_are_one_based_lines_and_columns() -> None:
-    (d,) = analyze(NUMBER + define('{@numbr} -> @number', 'ret 1'))[1]
+    (d,) = mistakes(NUMBER + define('{@numbr} -> @number', 'ret 1'))
     assert (d.line, d.column) == (2, 12)
-    (d,) = analyze('@number = {type = i64, abstract = "costs @ 5"}')[1]
+    (d,) = mistakes('@number = {type = i64, abstract = "costs @ 5"}')
     assert (d.line, d.column) == (1, 42)
 
 
@@ -144,7 +152,7 @@ def test_data_words_and_definitions_interleave() -> None:
 
 def test_an_input_declared_later_is_one_mistake() -> None:
     source = define('{@late} -> @late', 'ret @late') + '@late = {type = i64, abstract = "x"}'
-    diagnostics = analyze(source)[1]
+    diagnostics = mistakes(source)
     assert [d.kind for d in diagnostics] == ['forward-reference', 'forward-reference']
     assert {d.hint for d in diagnostics} == {'move the entry for `@late` above `@f`'}
 
@@ -168,18 +176,39 @@ def test_a_function_as_an_input_is_one_mistake() -> None:
 
 
 def test_a_misspelled_input_hints_the_word() -> None:
-    typo, _ = analyze(NUMBER + define('{@numbr} -> @number', '%r = add i64 @number, 1\nret %r'))[1]
+    typo, _ = mistakes(NUMBER + define('{@numbr} -> @number', '%r = add i64 @number, 1\nret %r'))
     assert (typo.kind, typo.text, typo.hint) == ('undeclared-word', '@numbr', 'did you mean `@number`?')
 
 
 def test_an_undeclared_word_with_no_close_match_says_how_to_declare_it() -> None:
-    (d,) = analyze(NUMBER + define('{@number} -> @total'))[1]
+    (d,) = mistakes(NUMBER + define('{@number} -> @total'))
     assert d.hint == 'declare it above `@f`: `@total = {type = i64, abstract = "…"}`'
 
 
 def test_the_abstract_inside_the_body() -> None:
-    (d,) = analyze(NUMBER + 'define @f {@number} -> @number { ret @number abstract = "x" }')[1]
+    (d,) = mistakes(NUMBER + 'define @f {@number} -> @number { ret @number abstract = "x" }')
     assert (d.message, d.hint) == (
         'the abstract goes after the body',
         'close the body with `}`, then write `abstract = "…"`',
     )
+
+
+def test_a_data_word_nothing_refers_to_is_unused() -> None:
+    (d,) = analyze(
+        '@n = {type = i64, abstract = "x"}\n@m = {type = i64, abstract = "x"}\n' + define('{@n} -> @n', 'ret @n')
+    )[1]
+    assert (d.kind, d.entry, d.key, d.text) == ('unused-word', '@m', None, '@m')
+    assert d.hint == 'use it in a type, a body or an abstract, or remove it'
+
+
+@pytest.mark.parametrize(
+    'use',
+    [
+        '@other = {type = i64, abstract = "more than @m"}\n'
+        + define('{@other} -> @other', 'ret @other'),  # an abstract
+        define('{} -> i64', 'ret 1').replace('abstract = "x"', 'abstract = "one, never @m"'),  # a function's abstract
+        define('{@m} -> i64', 'ret @m'),  # a type
+    ],
+)
+def test_a_reference_anywhere_uses_a_data_word(use: str) -> None:
+    assert analyze('@m = {type = i64, abstract = "x"}\n' + use)[1] == []

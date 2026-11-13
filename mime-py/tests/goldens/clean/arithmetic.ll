@@ -18,8 +18,8 @@ define i64 @sum(i64 %w0) {
   ret i64 %v0
 }
 
-define i64 @difference(i64 %w1, i64 %w2) {
-  %v0 = sub i64 %w1, %w2
+define i64 @difference(i64 %w5, i64 %w6) {
+  %v0 = sub i64 %w5, %w6
   ret i64 %v0
 }
 

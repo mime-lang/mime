@@ -41,6 +41,40 @@ $ mime show prog.mime @number
 - From step 4 ([layout.md](layout.md)), a function word's entry is its definition, from `define` through its
   `abstract`, so `show` prints all of it: type, body and abstract in one place.
 
+### 2.1 A function's head words
+
+A function's inputs and output are data words, declared at the top of the module and often far from the
+`define`. A model shown only the `define` sees `{@n} -> @flag` without what `@n` and `@flag` mean. So for a
+function, `show` first prints the entry of every data word in its type, then the function:
+
+```
+$ mime show even_odd.mime @odd
+@n = {type = i64, abstract = "a whole number, zero or more"}
+
+@flag = {type = i1, abstract = "a truth value"}
+
+define @odd {@n} -> @flag {
+  …
+}
+abstract = "whether @n is odd, the opposite of @even"
+```
+
+- **Only the head.** The words of the function's inputs and output, each once. Not the words its body or abstract
+  name, nor the words inside a head word's own type: one level, so the output stays short and predictable.
+- **In source order,** with a blank line between entries, as for a duplicate word. So the output keeps the rule of
+  [layout.md](layout.md) section 1: every entry printed refers only to entries printed above it, or to words
+  outside the head.
+- A head word with no entry, such as a typo in a program with checker errors, or a primitive such as `i64`, is
+  skipped. A function word in a head is skipped too; the checker reports it.
+- The same applies to a `declare` shown while there is no `define`.
+- A data word is still printed alone: its entry already holds its type and abstract.
+- The words stay in one place in the module ([layout.md](layout.md) section 3), so they stay shared and nominal.
+  Only what the tool prints gets closer.
+
+*Easy for a model:* "go to definition" that also brings the hover text of each parameter, as an editor does. One
+command gives everything needed to read or change a function, so a model need not chase words up the file, and
+never edits a function without seeing what its inputs mean.
+
 ## 3. `mime uses FILE @word`
 
 Prints every reference to `@word` in source order: in a type, a function's inputs or output, a body, and an

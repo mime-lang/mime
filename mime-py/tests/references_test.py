@@ -3,8 +3,14 @@
 import pytest
 
 from mime.compiler import analyze
+from mime.diag import Diagnostic
 
 NUMBER = '@number = {type = i64, abstract = "a whole number"}\n'
+
+
+def mistakes(source: str) -> list[Diagnostic]:
+    """The mistakes in `source` besides `unused-word`, which these programs are not about."""
+    return [d for d in analyze(source)[1] if d.kind != 'unused-word']
 
 
 def same(abstract: str, word: str = '@same') -> str:
@@ -12,7 +18,9 @@ def same(abstract: str, word: str = '@same') -> str:
 
 
 def kinds(source: str) -> list[str]:
-    return [d.kind for d in analyze(source)[1]]
+    # These programs test other mistakes, so a data word they leave unused is not reported here; `unused-word` has
+    # tests of its own (check_test.py).
+    return [d.kind for d in analyze(source)[1] if d.kind != 'unused-word']
 
 
 @pytest.mark.parametrize(
@@ -68,17 +76,17 @@ def test_only_abstracts_are_scanned() -> None:
 
 
 def test_hints() -> None:
-    (d,) = analyze(NUMBER + same('the @numbr it is given'))[1]
+    (d,) = mistakes(NUMBER + same('the @numbr it is given'))
     assert d.hint == 'did you mean `@number`?'
-    (d,) = analyze(NUMBER + same('the @same it is'))[1]
+    (d,) = mistakes(NUMBER + same('the @same it is'))
     assert d.message == 'the abstract of `@same` refers to `@same` itself'
     later = '@number = {type = i64, abstract = "less than @limit"}\n@limit = {type = i64, abstract = "x"}'
-    (d,) = analyze(later)[1]
+    (d,) = mistakes(later)
     assert d.message == '`@limit` is declared after `@number`'
     assert d.hint == 'an abstract may refer only to earlier entries; move the entry for `@limit` above `@number`'
-    (d,) = analyze(NUMBER + same('at @ 5'))[1]
+    (d,) = mistakes(NUMBER + same('at @ 5'))
     assert d.hint == 'write `\\@` for an at sign'
-    (d,) = analyze(NUMBER + same('a @numberX'))[1]
+    (d,) = mistakes(NUMBER + same('a @numberX'))
     assert d.message == '`@number` is followed by `X`, which cannot appear in a name'
 
 
@@ -87,7 +95,7 @@ def test_an_abstract_that_names_a_result() -> None:
         'define @f {@number} -> @number {\n  %double = add i64 @number, @number\n  ret %double\n}\n'
         'abstract = "the @double of it"\n'
     )
-    (d,) = analyze(source)[1]
+    (d,) = mistakes(source)
     assert (d.kind, d.key, d.text) == ('undeclared-word', 'abstract', '@double')
     assert d.hint == '`%double` is a local in the body of `@f`; an abstract refers only to entries'
 
@@ -100,13 +108,13 @@ def test_a_glued_character_is_read_as_in_code() -> None:
 
 def test_a_typo_for_a_later_word_says_to_move_it() -> None:
     source = '@number = {type = i64, abstract = "less than @limt"}\n@limit = {type = i64, abstract = "x"}'
-    (d,) = analyze(source)[1]
+    (d,) = mistakes(source)
     assert d.hint == 'did you mean `@limit`? It is declared later, so also move its entry above `@number`'
 
 
 def test_the_position_is_the_dollar_sign_in_the_source() -> None:
     # `\"` counts as two columns, as it does in the source text.
-    (d,) = analyze('@number = {type = i64, abstract = "a \\"whole\\" @numbr"}')[1]
+    (d,) = mistakes('@number = {type = i64, abstract = "a \\"whole\\" @numbr"}')
     assert (d.line, d.column) == (1, 48)
 
 
@@ -132,5 +140,5 @@ def test_a_data_word_may_refer_to_an_earlier_function() -> None:
 
 
 def test_a_reference_to_a_later_function_says_to_move_it() -> None:
-    (d,) = analyze('@number = {type = i64, abstract = "used by @same"}\n' + same('x'))[1]
+    (d,) = mistakes('@number = {type = i64, abstract = "used by @same"}\n' + same('x'))
     assert d.hint == 'an abstract may refer only to earlier entries; move the entry for `@same` above `@number`'

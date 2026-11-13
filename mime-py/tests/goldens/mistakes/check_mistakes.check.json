@@ -16,6 +16,14 @@
     "hint": "write them in this order: `type`, `abstract`"
   },
   {
+    "kind": "unused-word",
+    "entry": "@later",
+    "key": null,
+    "text": "@later",
+    "message": "nothing refers to `@later`",
+    "hint": "use it in a type, a body or an abstract, or remove it"
+  },
+  {
     "kind": "unknown-key",
     "entry": "@later",
     "key": "sort",
@@ -38,6 +46,14 @@
     "text": "\"\"",
     "message": "an abstract cannot be empty",
     "hint": "say what the word means"
+  },
+  {
+    "kind": "unused-word",
+    "entry": "@pair",
+    "key": null,
+    "text": "@pair",
+    "message": "nothing refers to `@pair`",
+    "hint": "use it in a type, a body or an abstract, or remove it"
   },
   {
     "kind": "bad-value",

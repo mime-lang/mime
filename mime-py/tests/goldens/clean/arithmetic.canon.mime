@@ -1,40 +1,41 @@
 @w0 = {type = i64, abstract = "a whole number"}
-@w1 = {type = i64, abstract = "the first of two numbers"}
-@w2 = {type = i64, abstract = "the second of two numbers"}
 
-define @w3 {@w0} -> @w0 {
+define @w1 {@w0} -> @w0 {
   %v0 = mul i64 @w0, @w0
   ret %v0
 }
 abstract = "a @w0 times itself"
 symbol = "square"
 
-define @w4 {@w0} -> @w0 {
+define @w2 {@w0} -> @w0 {
   %v0 = sub i64 @w0, 1
   ret %v0
 }
 abstract = "one less than a @w0"
 symbol = "less"
 
-define @w5 {@w0} -> @w0 {
+define @w3 {@w0} -> @w0 {
   %v0 = sub i64 0, @w0
   ret %v0
 }
 abstract = "zero minus a @w0"
 symbol = "negate"
 
-define @w6 {@w0} -> @w0 {
+define @w4 {@w0} -> @w0 {
   %v0 = add i64 @w0, -9223372036854775808
   ret %v0
 }
 abstract = "a @w0 plus the smallest i64"
 symbol = "sum"
 
-define @w7 {@w1, @w2} -> i64 {
-  %v0 = sub i64 @w1, @w2
+@w5 = {type = i64, abstract = "the first of two numbers"}
+@w6 = {type = i64, abstract = "the second of two numbers"}
+
+define @w7 {@w5, @w6} -> i64 {
+  %v0 = sub i64 @w5, @w6
   ret %v0
 }
-abstract = "the @w1 minus the @w2, like @w4 but for any two"
+abstract = "the @w5 minus the @w6, like @w2 but for any two"
 symbol = "difference"
 
 define @w8 {} -> @w0 {
