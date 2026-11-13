@@ -34,3 +34,6 @@ quote-style = "single"
 
 [tool.pytest.ini_options]
 python_files = ["*_test.py"]
+
+[tool.pyrefly]
+search-path = ["src", "."]

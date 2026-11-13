@@ -1,7 +1,7 @@
 # mime
 
 mime is a language where a word means only what its type and definition say. Its spelling carries nothing:
-renaming every word consistently never changes a program. This is the whole language as of roadmap step 7.
+renaming every word consistently never changes a program. This is the whole language as of roadmap step 8.
 
 ## Names
 
@@ -44,8 +44,9 @@ A **function** is `define @f {@inputs} -> @output { … }` followed by `abstract
 - **The inputs are the parameters.** Inside the body, `@number` is the value passed for `@number`. An input is
   always its `@` word, never a `%` local, and there is no parameter list.
 - The abstract comes **after** the body, so you write it once you know what the body does.
-- An optional `symbol = "name"` after the abstract exports the function under that name, for C or other modules to
-  call. It must be a C identifier and unique, and renaming never changes it. Without it, the function is internal.
+- An optional `symbol = "name"` after the abstract exports the function under that name, for C, other modules and
+  `mime run` to call. It must be a C identifier and unique, and renaming never changes it. Without it, the function
+  is internal. **To run a function, export it.**
 
 A function's type and abstract belong to its `define`. Never write `type = {@a} -> @b` in a declaration.
 
@@ -134,8 +135,10 @@ Inside an `abstract`, `@word` is a **checked reference**. The English around it 
 
 ```
 mime check prog.mime                 # report every mistake, as a JSON array
-mime run prog.mime @affine 5         # run @affine on 5: one argument per input; true or false for an i1
+mime run prog.mime affine 5          # run the function exported as `affine` on 5, by its symbol, not its
+                                     # word: one argument per input; true or false for an i1
                                      # a run stops after 10 s (--timeout SECONDS), in case a loop never exits
+mime run --backend llvm prog.mime affine 5   # the same, built natively with clang; the default, interp, needs none
 mime llvm prog.mime                  # print the LLVM IR
 mime show prog.mime @affine          # print the entry for @affine, exactly as written
 mime uses prog.mime @number          # list every reference to @number (or to a local, %double), as JSON
@@ -148,6 +151,10 @@ mime canon prog.mime                 # print the canonical form: words @w0, @w1,
 Words need no quotes on the command line. Use `show`, `uses` and `rename` instead of `grep` or `sed`: they follow
 mime's rules, so `\@number` in an abstract is not a use, and each use names its `entry` and `key`. They work on a
 program with checker errors. `show` prints a function's whole definition, from `define` through its abstract.
+
+`mime run` exits with 0 and prints the result, or exits with 1 and prints the program's diagnostics on stderr. A
+trap, when an operation leaves its domain (none can yet), exits with 3 and prints one JSON object on stderr, with
+the fields below and `kind` `trap`: its `text` is the line that trapped.
 
 Each diagnostic has a `kind`, the `entry` and `key` it is in (`type`, `abstract`, or `body`), the exact source
 `text` at fault, a `message`, and usually a `hint` that names the fix. A field that does not apply is `null`. To

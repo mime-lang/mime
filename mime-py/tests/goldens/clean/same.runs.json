@@ -1,0 +1,6 @@
+[
+  {"symbol": "same", "inputs": ["42"], "output": "42"},
+  {"symbol": "same", "inputs": ["0"], "output": "0"},
+  {"symbol": "same", "inputs": ["-9223372036854775808"], "output": "-9223372036854775808"},
+  {"symbol": "same", "inputs": ["9223372036854775807"], "output": "9223372036854775807"}
+]

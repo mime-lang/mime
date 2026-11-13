@@ -4,3 +4,4 @@ define @same {@number} -> @number {
   ret @number
 }
 abstract = "the @number it is given"
+symbol = "same"

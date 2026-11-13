@@ -1,0 +1,12 @@
+[
+  {"symbol": "square", "inputs": ["-12"], "output": "144"},
+  {"symbol": "square", "inputs": ["4294967296"], "output": "0"},
+  {"symbol": "less", "inputs": ["0"], "output": "-1"},
+  {"symbol": "less", "inputs": ["-9223372036854775808"], "output": "9223372036854775807"},
+  {"symbol": "negate", "inputs": ["9"], "output": "-9"},
+  {"symbol": "negate", "inputs": ["-9223372036854775808"], "output": "-9223372036854775808"},
+  {"symbol": "sum", "inputs": ["-1"], "output": "9223372036854775807"},
+  {"symbol": "difference", "inputs": ["10", "3"], "output": "7"},
+  {"symbol": "difference", "inputs": ["-9223372036854775808", "1"], "output": "9223372036854775807"},
+  {"symbol": "seven", "inputs": [], "output": "7"}
+]

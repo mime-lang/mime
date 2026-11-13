@@ -16,7 +16,9 @@ mime is a language for AI agents to read and write. You, the agent, are its prim
   - `mime-py/src/mime/`: toolchain source
   - `mime-py/tests/`: tests, named `*_test.py`
   - `mime-py/tests/goldens/`: golden programs, in two folders. `clean/NAME.mime` must check clean and approves
-    `NAME.canon.mime` (what `mime canon` prints) and `NAME.ll` (the LLVM IR of that canonical form). `mistakes/NAME.mime` must
+    `NAME.canon.mime` (what `mime canon` prints) and `NAME.ll` (the LLVM IR of that canonical form). It also carries
+    `NAME.runs.json`, its run cases, written by hand: every function is exported with a `symbol` and has a case,
+    and every backend must print each case's `output`. `mistakes/NAME.mime` must
     have mistakes and approves `NAME.check.json` (what `mime check` prints). Goldens are kept in the layout of
     `mime fmt`. On a mismatch the test prints a diff and writes `NAME.….received`; check it, then move it over the
     approved file to accept it.

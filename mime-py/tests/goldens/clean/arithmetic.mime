@@ -7,32 +7,38 @@ define @square {@number} -> @number {
   ret %p
 }
 abstract = "a @number times itself"
+symbol = "square"
 
 define @less {@number} -> @number {
   %d = sub i64 @number, 1
   ret %d
 }
 abstract = "one less than a @number"
+symbol = "less"
 
 define @negate {@number} -> @number {
   %n = sub i64 0, @number
   ret %n
 }
 abstract = "zero minus a @number"
+symbol = "negate"
 
 define @sum {@number} -> @number {
   %total = add i64 @number, -9223372036854775808
   ret %total
 }
 abstract = "a @number plus the smallest i64"
+symbol = "sum"
 
 define @difference {@first, @second} -> i64 {
   %d = sub i64 @first, @second
   ret %d
 }
 abstract = "the @first minus the @second, like @less but for any two"
+symbol = "difference"
 
 define @seven {} -> @number {
   ret 7
 }
 abstract = "always seven"
+symbol = "seven"

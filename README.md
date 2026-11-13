@@ -69,13 +69,14 @@ define @affine {@number} -> @number {
   ret %result
 }
 abstract = "three times the @number it is given, plus one"
+symbol = "affine"
 ```
 
 ```bash
-mime run prog.mime @affine 5    # prints 16
+mime run prog.mime affine 5    # prints 16
 ```
 
-Renaming `@number` to `@w0` and `@affine` to `@w1` everywhere gives the same program, and `mime canon` numbers the locals `%0`, `%1`, `%2`. A function's abstract comes after its body: the type is the contract, the body is the meaning, and the abstract, written last, stands in for the body wherever the body is not in view.
+`mime run` calls a function by its `symbol`, the name it is exported under. Renaming `@number` to `@w0` and `@affine` to `@w1` everywhere gives the same program, which still runs as `affine`, and `mime canon` numbers the locals `%v0`, `%v1`, `%v2`. A function's abstract comes after its body: the type is the contract, the body is the meaning, and the abstract, written last, stands in for the body wherever the body is not in view.
 
 ## Architecture (planned)
 

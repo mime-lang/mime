@@ -4,10 +4,12 @@ import re
 import shutil
 import subprocess
 import tempfile
+import time
 from pathlib import Path
 
-from mime.checker import Program, check
+from mime.checker import Function, Program, check
 from mime.diag import Diagnostic, FatalError, ToolError
+from mime.interp import Scalar, Timeout, interpret
 from mime.lower import runner
 from mime.parser import parse
 
@@ -51,29 +53,50 @@ def name_arg(text: str) -> str:
     return '@' + domain_word(text)
 
 
-def run(program: Program, word: str, args: list[str], timeout: float = 10.0) -> str:
-    """Compile `program` with `word` as the entry point, run it on `args`, and return what it prints.
+BACKENDS = ('interp', 'llvm')  # `mime run --backend`; the first is the default (design/step-8.md section 3)
 
-    A run that takes longer than `timeout` seconds is stopped: since step 7 a loop may never reach its exit.
-    """
-    word = domain_word(word)
-    f = next((f for f in program.functions if f.word == word), None)
-    if f is None:
-        msg = f'no definition defines `@{word}`'
+
+def exported(program: Program, name: str) -> Function:
+    """The function exported as `name`. `mime run` names a function by its symbol, which no renaming changes."""
+    f = next((f for f in program.functions if f.symbol == name), None)
+    if f is not None:
+        return f
+    if name.startswith('@'):
+        g = next((g for g in program.functions if g.word == name[1:]), None)
+        if g is not None and g.symbol is not None:
+            msg = f'`mime run` takes a symbol, not a word: write `{g.symbol}`'
+            raise ToolError(msg)
+        if g is not None:
+            msg = f'`{name}` has no symbol; to run it, add `symbol = "{g.word}"` after its abstract'
+            raise ToolError(msg)
+    word = next((g for g in program.functions if g.word == name and g.symbol is None), None)
+    if word is not None:
+        msg = f'no function is exported as `{name}`; to run `@{name}`, add `symbol = "{name}"` after its abstract'
         raise ToolError(msg)
+    if name in ('true', 'false'):
+        msg = f'`{name}` looks like an input, so the symbol is missing: mime run FILE SYMBOL INPUT...'
+        raise ToolError(msg)
+    symbols = ', '.join(f'`{g.symbol}`' for g in program.functions if g.symbol is not None)
+    exports = f'the program exports {symbols}' if symbols else 'the program exports nothing; give a function a `symbol`'
+    msg = f'no function is exported as `{name}`; {exports}'
+    raise ToolError(msg)
+
+
+def inputs(f: Function, args: list[str]) -> list[Scalar]:
+    """The values of `args`, one per input of `f`, read the same way for every backend."""
     if len(args) != len(f.inputs):
         names = ', '.join(f'`@{w}`' for w in f.inputs) or 'none'
         given = '1 was' if len(args) == 1 else f'{len(args)} were'
         plural = '' if len(f.inputs) == 1 else 's'
-        msg = f'`@{word}` takes {len(f.inputs)} input{plural} ({names}), but {given} given'
+        msg = f'`{f.symbol}` takes {len(f.inputs)} input{plural} ({names}), but {given} given'
         raise ToolError(msg)
-    numbers = []
+    values: list[Scalar] = []
     for name, arg in zip(f.inputs, args, strict=True):
         if f.input_types[name] == 'i1':
             if arg not in ('true', 'false'):
                 msg = f'the input `{arg}` for `@{name}` is not `true` or `false`'
                 raise ToolError(msg)
-            numbers.append('1' if arg == 'true' else '0')
+            values.append(arg == 'true')
             continue
         try:
             n = int(arg, 10)
@@ -83,14 +106,38 @@ def run(program: Program, word: str, args: list[str], timeout: float = 10.0) -> 
         if not I64_MIN <= n <= I64_MAX:
             msg = f'the input {arg} does not fit in an i64'
             raise ToolError(msg)
-        numbers.append(str(n))
+        values.append(n)
+    return values
+
+
+def printed(value: Scalar) -> str:
+    """What `mime run` prints for a result, on every backend: an `i64` in decimal, an `i1` as `true` or `false`."""
+    if isinstance(value, bool):
+        return 'true\n' if value else 'false\n'
+    return f'{value}\n'
+
+
+def run(program: Program, name: str, args: list[str], timeout: float = 10.0, backend: str = 'interp') -> str:
+    """Run the function exported as `name` on `args` and return what it prints.
+
+    A run that takes longer than `timeout` seconds is stopped: since step 7 a loop may never reach its exit.
+    """
+    f = exported(program, name)
+    values = inputs(f, args)
+    too_long = f'`{f.symbol}` did not finish within {timeout:g} s; a loop may never reach its exit (see --timeout)'
+    if backend == 'interp':
+        try:
+            return printed(interpret(f, values, time.monotonic() + timeout))
+        except Timeout:
+            raise ToolError(too_long) from None
     clang = shutil.which('clang')
     if clang is None:
-        msg = '`clang` is not on PATH; mime run needs it to build the program'
+        msg = '`clang` is not on PATH; `mime run --backend llvm` needs it to build the program'
         raise ToolError(msg)
+    numbers = [str(int(v)) for v in values]  # the runner reads an `i1` as 1 or 0
     with tempfile.TemporaryDirectory(prefix='mime-') as tmp:
         ll, exe = Path(tmp) / 'program.ll', Path(tmp) / 'program'
-        ll.write_text(runner(program, word))
+        ll.write_text(runner(program, f.word))
         command = [clang, '-O0', '-w', str(ll), '-o', str(exe)]
         built = subprocess.run(command, capture_output=True, text=True, check=False)
         if built.returncode != 0:
@@ -99,8 +146,7 @@ def run(program: Program, word: str, args: list[str], timeout: float = 10.0) -> 
         try:
             ran = subprocess.run([str(exe), *numbers], capture_output=True, text=True, check=False, timeout=timeout)
         except subprocess.TimeoutExpired:
-            msg = f'`@{word}` did not finish within {timeout:g} s; a loop may never reach its exit (see --timeout)'
-            raise ToolError(msg) from None
+            raise ToolError(too_long) from None
         if ran.returncode != 0:
             msg = f'the program exited with code {ran.returncode}'
             raise ToolError(msg)

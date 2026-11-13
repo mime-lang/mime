@@ -1,0 +1,7 @@
+[
+  {"symbol": "leave", "inputs": ["3"], "output": "12"},
+  {"symbol": "chain", "inputs": ["4"], "output": "5"},
+  {"symbol": "invariant", "inputs": ["6"], "output": "105"},
+  {"symbol": "differ", "inputs": ["0"], "output": "1"},
+  {"symbol": "differ", "inputs": ["5"], "output": "4"}
+]

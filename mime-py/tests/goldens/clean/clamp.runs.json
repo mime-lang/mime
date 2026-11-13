@@ -1,0 +1,5 @@
+[
+  {"symbol": "clamp", "inputs": ["-5", "0", "10"], "output": "0"},
+  {"symbol": "clamp", "inputs": ["5", "0", "10"], "output": "5"},
+  {"symbol": "clamp", "inputs": ["50", "0", "10"], "output": "10"}
+]

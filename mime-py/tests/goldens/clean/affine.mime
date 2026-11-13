@@ -7,3 +7,4 @@ define @affine {@number} -> @number {
   ret %result
 }
 abstract = "three times the @number it is given, plus one"
+symbol = "affine"

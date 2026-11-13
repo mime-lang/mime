@@ -1,4 +1,4 @@
-define internal i64 @mime.w2(i64 %w0) {
+define i64 @sum(i64 %w0) {
 entry:
   br label %b0
 b0:
@@ -12,12 +12,12 @@ b1:
   ret i64 %v1
 }
 
-define internal i1 @mime.w3(i64 %w0) {
+define i1 @positive(i64 %w0) {
   %v0 = icmp sgt i64 %w0, 0
   ret i1 %v0
 }
 
-define internal i64 @mime.w4(i1 %w1) {
+define i64 @pick(i1 %w1) {
 entry:
   br i1 %w1, label %entry.e0, label %entry.e1
 entry.e0:
@@ -29,7 +29,7 @@ b0:
   ret i64 %v0
 }
 
-define internal i1 @mime.w5(i1 %w1) {
+define i1 @negate(i1 %w1) {
 entry:
   br i1 %w1, label %entry.e0, label %entry.e1
 entry.e0:

@@ -1,6 +1,5 @@
 """`symbol = "name"`: the name a function is exported under (design/layout.md section 4, step-7.md section 7)."""
 
-import shutil
 from pathlib import Path
 
 import pytest
@@ -10,6 +9,7 @@ from mime.compiler import analyze
 from mime.lower import lower
 from mime.parser import parse
 from mime.printer import canon, rename
+from tests.run_cases import BACKENDS
 
 N = '@n = {type = i64, abstract = "a whole number"}\n'
 
@@ -67,9 +67,9 @@ def test_show_prints_the_symbol(tmp_path: Path, capsys: pytest.CaptureFixture[st
     assert capsys.readouterr().out.endswith('abstract = "x"\nsymbol = "next_number"\n')
 
 
-@pytest.mark.skipif(shutil.which('clang') is None, reason='mime run needs clang')
-def test_run_calls_an_exported_function(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+@pytest.mark.parametrize('backend', BACKENDS)
+def test_run_calls_an_exported_function(backend: str, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     p = tmp_path / 'p.mime'
     p.write_text(N + function('next_number'))
-    assert main(['run', str(p), '@f', '7']) == 0
+    assert main(['run', '--backend', backend, str(p), 'next_number', '7']) == 0
     assert capsys.readouterr().out == '7\n'

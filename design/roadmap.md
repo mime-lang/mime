@@ -33,19 +33,12 @@ when it does, core.md is updated in the same step.
 | 5 | renaming and canonical form: `fmt`, `canon`, `rename`, the renaming test | [step-5.md](step-5.md) |
 | 6 | `@` words and `%` locals, numbered locals in canon | [step-6.md](step-6.md) |
 | 7 | branches: `icmp`, `i1`, blocks with parameters, `br`, `^label`s | [step-7.md](step-7.md) |
+| 8 | the reference interpreter, `mime run --backend`, running by symbol, conformance run cases | [step-8.md](step-8.md) |
 
 Along the way: [diagnostics.md](diagnostics.md) (JSON only, `entry`/`key`/`text`) and [tools.md](tools.md)
 (`show`, `uses`).
 
 ## Next steps, in order
-
-### Reference interpreter
-
-- **New:** a second backend, an interpreter in the bootstrap toolchain, and the conformance tests: every clean
-  golden carries its run cases, and every backend must give the same answers ([backends.md](backends.md)).
-- **Decide:** the checked form that backends share, how `mime run` chooses a backend, and how a trap is reported.
-- **Why here:** with blocks, loops and branches (step 7), a body has real control flow, so a second backend starts
-  paying for itself, while there is still little to implement twice.
 
 ### Calls and recursion
 
@@ -127,3 +120,8 @@ benchmark's mime cells for those tasks stop being `unavailable`, and the scrambl
 Submit mime to the [agentlanguages.dev](https://agentlanguages.dev/) catalogue. Write an interpreter in mime, the
 first large mime program, and make it a backend (`mime run --backend interp`), replacing the reference interpreter
 ([backends.md](backends.md) section 5). Then write the mime compiler in mime.
+
+**Before the bootstrap, decide whether positions are needed at all.** Every diagnostic, and from step 8 every trap,
+already names its `entry`, `key` and `text`, which is enough to find a mistake and fix it. Line and column are only
+printed with `--positions` ([diagnostics.md](diagnostics.md)). If no tool or model needs them by then, drop the
+flag, and the mime compiler need not track a position for anything.

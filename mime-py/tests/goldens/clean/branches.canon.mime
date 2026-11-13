@@ -12,12 +12,14 @@ define @w2 {@w0} -> i64 {
   ret %v1
 }
 abstract = "the sum of the numbers from 0 to @w0"
+symbol = "sum"
 
 define @w3 {@w0} -> @w1 {
   %v0 = icmp sgt i64 @w0, 0
   ret %v0
 }
 abstract = "whether @w0 is above zero"
+symbol = "positive"
 
 define @w4 {@w1} -> i64 {
   br @w1, ^b0{1}, ^b0{2}
@@ -25,6 +27,7 @@ define @w4 {@w1} -> i64 {
   ret %v0
 }
 abstract = "1 when @w1 holds, otherwise 2"
+symbol = "pick"
 
 define @w5 {@w1} -> i1 {
   br @w1, ^b0{false}, ^b0{true}
@@ -32,3 +35,4 @@ define @w5 {@w1} -> i1 {
   ret %v0
 }
 abstract = "the opposite of @w1"
+symbol = "negate"

@@ -2,7 +2,6 @@
 
 import json
 import re
-import shutil
 from pathlib import Path
 
 import pytest
@@ -12,7 +11,6 @@ from mime.compiler import analyze
 
 NUMBER = '@number = {type = i64, abstract = "a whole number"}\n'
 GOLDENS = Path(__file__).parent / 'goldens' / 'clean'
-needs_clang = pytest.mark.skipif(shutil.which('clang') is None, reason='mime run needs clang')
 MIN, MAX = -(2**63), 2**63 - 1
 
 
@@ -135,31 +133,6 @@ def test_renaming_results_keeps_a_program_clean() -> None:
     renamed = re.sub(r'([@%])([a-z][a-z0-9_]*)', lambda m: m.group(1) + names.get(m.group(2), m.group(2)), source)
     assert renamed != source
     assert kinds(renamed) == []
-
-
-@needs_clang
-@pytest.mark.parametrize(
-    ('golden', 'word', 'args', 'expected'),
-    [
-        ('affine', '@affine', ['5'], 16),
-        ('affine', '@affine', ['-1'], -2),
-        ('arithmetic', '@square', ['-12'], 144),
-        ('arithmetic', '@less', ['0'], -1),
-        ('arithmetic', '@negate', ['9'], -9),
-        ('arithmetic', '@difference', ['10', '3'], 7),
-        ('arithmetic', '@seven', [], 7),
-        # overflow wraps
-        ('arithmetic', '@less', [str(MIN)], MAX),
-        ('arithmetic', '@negate', [str(MIN)], MIN),
-        ('arithmetic', '@sum', ['-1'], MAX),
-        ('arithmetic', '@square', [str(2**32)], 0),
-        ('arithmetic', '@difference', [str(MIN), '1'], MAX),
-        ('affine', '@affine', [str(MAX)], MAX - 1),
-    ],
-)
-def test_run(golden: str, word: str, args: list[str], expected: int, capsys: pytest.CaptureFixture[str]) -> None:
-    assert main(['run', str(GOLDENS / f'{golden}.mime'), word, *args]) == 0
-    assert int(capsys.readouterr().out) == expected
 
 
 def test_uses_finds_results(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:

@@ -1,6 +1,5 @@
 """The renaming invariant, checked on every golden (design/step-5.md section 6)."""
 
-import shutil
 from pathlib import Path
 
 import pytest
@@ -8,7 +7,8 @@ import pytest
 from mime.compiler import analyze, run
 from mime.diag import FatalError
 from mime.parser import parse
-from mime.printer import canon, canonical_names, rename_text, words_in
+from mime.printer import canon, rename_text, words_in
+from tests.run_cases import BACKENDS, every_case
 
 GOLDENS = Path(__file__).parent / 'goldens'
 # Every golden program, clean or with mistakes, as a path relative to `GOLDENS`.
@@ -58,34 +58,11 @@ def test_the_canonical_form_is_a_fixed_point(name: str) -> None:
     assert [d.kind for d in analyze(form)[1]] == [d.kind for d in analyze(source)[1]]
 
 
-RUNS = [
-    ('clean/affine', '@affine', ['5']),
-    ('clean/affine', '@affine', [str(2**63 - 1)]),
-    ('clean/arithmetic', '@square', ['-12']),
-    ('clean/arithmetic', '@difference', ['10', '3']),
-    ('clean/arithmetic', '@seven', []),
-    ('clean/same', '@same', ['42']),
-    ('clean/clamp', '@clamp', ['50', '0', '10']),
-    ('clean/branches', '@sum', ['10']),
-    ('clean/branches', '@negate', ['true']),
-    ('clean/pass_through', '@exit', ['3']),
-    ('clean/pass_through', '@chain', ['4']),
-    ('clean/pass_through', '@invariant', ['6']),
-    ('clean/pass_through', '@differ', ['0']),
-]
-
-
-@pytest.mark.skipif(shutil.which('clang') is None, reason='mime run needs clang')
-@pytest.mark.parametrize(('name', 'word', 'args'), RUNS)
-def test_renaming_keeps_the_behavior(name: str, word: str, args: list[str]) -> None:
-    source = (GOLDENS / f'{name}.mime').read_text()
-    renamed, mapping = scramble(source)
-    program, _ = analyze(source)
-    scrambled, _ = analyze(renamed)
-    canonical, _ = analyze(canon(parse(source)))
+@pytest.mark.parametrize('backend', BACKENDS)
+@pytest.mark.parametrize(('name', 'symbol', 'inputs', 'output'), every_case())
+def test_renaming_keeps_the_behavior(name: str, symbol: str, inputs: list[str], output: str, backend: str) -> None:
+    # A symbol is data, which no renaming changes, so the same run case names the same function after renaming.
+    renamed, _ = scramble((GOLDENS / 'clean' / f'{name}.mime').read_text())
+    program, _ = analyze(renamed)
     assert program is not None
-    assert scrambled is not None
-    assert canonical is not None
-    expected = run(program, word, args)
-    assert run(scrambled, mapping[word], args) == expected
-    assert run(canonical, '@' + canonical_names(parse(source)).words[word[1:]], args) == expected
+    assert run(program, symbol, inputs, backend=backend) == output + '\n'

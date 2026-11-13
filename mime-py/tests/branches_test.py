@@ -1,7 +1,6 @@
 """Branches: `icmp`, `i1`, blocks and `br` (design/step-7.md)."""
 
 import json
-import shutil
 from pathlib import Path
 
 import pytest
@@ -10,10 +9,10 @@ from mime.cli import main
 from mime.compiler import analyze
 from mime.parser import parse
 from mime.printer import canon, canon_locals
+from tests.run_cases import BACKENDS
 
 CLEAN = Path(__file__).parent / 'goldens' / 'clean'
 N = '@n = {type = i64, abstract = "a whole number"}\n@flag = {type = i1, abstract = "a truth value"}\n'
-needs_clang = pytest.mark.skipif(shutil.which('clang') is None, reason='mime run needs clang')
 
 
 def function(body: str, head: str = '{@n} -> i64') -> str:
@@ -24,34 +23,8 @@ def kinds(source: str) -> list[str]:
     return [d.kind for d in analyze(source)[1]]
 
 
-@needs_clang
-@pytest.mark.parametrize(
-    ('golden', 'word', 'args', 'out'),
-    [
-        ('clamp', '@clamp', ['-5', '0', '10'], '0'),
-        ('clamp', '@clamp', ['5', '0', '10'], '5'),
-        ('clamp', '@clamp', ['50', '0', '10'], '10'),
-        ('branches', '@sum', ['0'], '0'),
-        ('branches', '@sum', ['10'], '55'),
-        ('branches', '@positive', ['3'], 'true'),
-        ('branches', '@positive', ['-3'], 'false'),
-        ('branches', '@pick', ['true'], '1'),
-        ('branches', '@pick', ['false'], '2'),
-        ('branches', '@negate', ['true'], 'false'),
-        ('pass_through', '@exit', ['3'], '12'),
-        ('pass_through', '@chain', ['4'], '5'),
-        ('pass_through', '@invariant', ['6'], '105'),
-        ('pass_through', '@differ', ['0'], '1'),
-        ('pass_through', '@differ', ['5'], '4'),
-    ],
-)
-def test_run(golden: str, word: str, args: list[str], out: str, capsys: pytest.CaptureFixture[str]) -> None:
-    assert main(['run', str(CLEAN / f'{golden}.mime'), word, *args]) == 0
-    assert capsys.readouterr().out == out + '\n'
-
-
 def test_an_i1_input_must_be_true_or_false(capsys: pytest.CaptureFixture[str]) -> None:
-    assert main(['run', str(CLEAN / 'branches.mime'), '@pick', '1']) == 2
+    assert main(['run', str(CLEAN / 'branches.mime'), 'pick', '1']) == 2
     assert 'is not `true` or `false`' in capsys.readouterr().err
 
 
@@ -152,13 +125,13 @@ def test_uses_lists_a_local_read_in_a_jump(tmp_path: Path, capsys: pytest.Captur
     assert json.loads(capsys.readouterr().out) == [{'entry': '@f', 'key': 'body', 'text': '%a'}]
 
 
-@needs_clang
-def test_a_run_that_never_finishes_is_stopped(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+@pytest.mark.parametrize('backend', BACKENDS)
+def test_a_run_that_never_finishes_is_stopped(backend: str, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     p = tmp_path / 'forever.mime'
-    p.write_text(function('br ^loop{@n}\n^loop{%x}:\n%y = add i64 %x, 1\nbr ^loop{%y}'))
-    assert main(['run', '--timeout', '0.5', str(p), '@f', '1']) == 2
+    p.write_text(function('br ^loop{@n}\n^loop{%x}:\n%y = add i64 %x, 1\nbr ^loop{%y}') + 'symbol = "forever"\n')
+    assert main(['run', '--backend', backend, '--timeout', '0.5', str(p), 'forever', '1']) == 2
     assert capsys.readouterr().err == (
-        'mime: `@f` did not finish within 0.5 s; a loop may never reach its exit (see --timeout)\n'
+        'mime: `forever` did not finish within 0.5 s; a loop may never reach its exit (see --timeout)\n'
     )
 
 

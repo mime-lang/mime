@@ -1,0 +1,5 @@
+[
+  {"symbol": "affine", "inputs": ["5"], "output": "16"},
+  {"symbol": "affine", "inputs": ["-1"], "output": "-2"},
+  {"symbol": "affine", "inputs": ["9223372036854775807"], "output": "9223372036854775806"}
+]

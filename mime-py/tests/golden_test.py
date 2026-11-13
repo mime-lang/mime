@@ -4,6 +4,8 @@
   the LLVM IR of that canonical form. Lowering the canonical form keeps the IR independent of how the golden names
   its words and locals, so a golden's `.ll` changes only when its structure or the lowering does. (`mime llvm` itself
   lowers a program as written, so its IR stays readable while debugging.)
+  It also carries `NAME.runs.json`, its run cases, written by hand: every exported function has one, and every
+  backend must print each case's `output`, for the golden and for its canonical form (design/step-8.md section 5).
 - `goldens/mistakes/NAME.mime` must have mistakes. It approves `NAME.check.json`, what `mime check` prints.
 
 Every golden that parses is kept in its one layout, as `mime fmt` writes it (design/step-5.md). A golden that is not
@@ -22,15 +24,17 @@ from approvaltests.core.options import Options
 from approvaltests.reporters.python_native_reporter import PythonNativeReporter
 
 from mime import diag
-from mime.compiler import analyze
+from mime.compiler import analyze, run
 from mime.diag import FatalError
 from mime.lower import lower
 from mime.parser import parse
 from mime.printer import canon, layout
+from tests.run_cases import BACKENDS, every_case, load
+from tests.run_cases import layout as runs_layout
 
 GOLDENS = Path(__file__).parent / 'goldens'
 CLEAN, MISTAKES = GOLDENS / 'clean', GOLDENS / 'mistakes'
-OUTPUTS = {CLEAN: ('.ll', '.canon.mime'), MISTAKES: ('.check.json',)}
+OUTPUTS = {CLEAN: ('.ll', '.canon.mime', '.runs.json'), MISTAKES: ('.check.json',)}
 # Print the difference in the test output instead of opening a diff tool, so an agent sees it.
 QUIET = Options().with_reporter(PythonNativeReporter())
 
@@ -80,6 +84,28 @@ def test_clean_golden(name: str) -> None:
     assert program is not None
     verify(form, namer=ApprovalNamer(CLEAN / f'{name}.canon.mime'), options=QUIET)
     verify(lower(program), namer=ApprovalNamer(CLEAN / f'{name}.ll'), options=QUIET)
+
+
+@pytest.mark.parametrize('name', sources(CLEAN))
+def test_every_function_is_exported_and_run(name: str) -> None:
+    text = (CLEAN / f'{name}.mime').read_text(encoding='utf-8')
+    program, _ = analyze(text)
+    assert program is not None
+    internal = [f'@{f.word}' for f in program.functions if f.symbol is None]
+    assert internal == [], f'give every function of {name} a `symbol`, so its run cases can name it'
+    cases = load(name)
+    assert (CLEAN / f'{name}.runs.json').read_text(encoding='utf-8') == runs_layout(cases), 'one case per line'
+    assert {str(c['symbol']) for c in cases} == {f.symbol for f in program.functions}, 'every function needs a case'
+
+
+@pytest.mark.parametrize('backend', BACKENDS)
+@pytest.mark.parametrize(('name', 'symbol', 'inputs', 'output'), every_case())
+def test_run_case(name: str, symbol: str, inputs: list[str], output: str, backend: str) -> None:
+    text = (CLEAN / f'{name}.mime').read_text(encoding='utf-8')
+    for form in (text, canon(parse(text))):
+        program, _ = analyze(form)
+        assert program is not None
+        assert run(program, symbol, inputs, backend=backend) == output + '\n'
 
 
 @pytest.mark.parametrize('name', sources(MISTAKES))

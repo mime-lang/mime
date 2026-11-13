@@ -1,7 +1,8 @@
 # Backends
 
-> Status: settled direction. LLVM is the only backend today. This note says how more are added: a reference
-> interpreter, JavaScript, the JVM, and an interpreter written in mime. Each arrives in its own roadmap step.
+> Status: settled direction. LLVM (step 4) and the reference interpreter (step 8) are the backends today. This note
+> says how more are added: JavaScript, the JVM, and an interpreter written in mime. Each arrives in its own roadmap
+> step.
 
 ## 1. The spec defines the meaning
 
@@ -46,8 +47,7 @@ being wrong.
 
 The checker produces one backend-neutral form of a program: its functions, their inputs and outputs, their lines,
 and later their blocks. Every backend reads that form, and nothing in it is specific to one target. Today the LLVM
-lowering reads the checker's output directly. When the second backend arrives, that output is named and documented
-as the form backends share.
+lowering and the reference interpreter read it, as `Program`; [step-8.md](step-8.md) section 1 documents it.
 
 ```
 mime text ──parse──▶ module ──check──▶ checked form ──┬─▶ LLVM IR ──clang──▶ native
@@ -67,8 +67,8 @@ only when it behaves the same on every backend that exists.
 
 | Backend | Maps easily | Hard parts |
 |---|---|---|
-| **LLVM** (today) | everything so far | guards for LLVM's undefined behavior, such as division edge cases |
-| **Reference interpreter** | everything: it is the simplest backend | speed only |
+| **LLVM** (step 4) | everything so far | guards for LLVM's undefined behavior, such as division edge cases |
+| **Reference interpreter** (step 8) | everything: it is the simplest backend | speed only |
 | **JavaScript** | `i1` as a boolean; lists as arrays | `i64` needs `BigInt` with `BigInt.asIntN(64, …)` to wrap, which is exact but slow. JavaScript has no `goto`, so blocks lower to a loop around a `switch` on the next block. There are no guaranteed tail calls, so deep recursion can overflow the stack |
 | **JVM** | `long` wraps natively; bytecode has `goto`, so blocks map directly | integer division by zero throws and needs a guard; modules map onto classes |
 
@@ -87,8 +87,9 @@ only when it behaves the same on every backend that exists.
   the JVM; pointers would be costly on both.
 - **Blocks stay general**: any block may jump to any other. The cost falls on the JavaScript backend's loop and
   `switch`, not on the language.
-- **The backend is chosen on the command line**, as `mime run --backend llvm|interp|js|jvm`, with LLVM the default.
-  Its exact form is decided with the reference interpreter.
+- **The backend is chosen on the command line**, as `mime run --backend interp|llvm|js|jvm`, with the interpreter
+  the default, so `mime run` needs no clang ([step-8.md](step-8.md) section 3). A run names its function by its
+  `symbol`, which no renaming changes.
 
 ## 7. The cost to keep in mind
 

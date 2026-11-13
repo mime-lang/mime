@@ -1,0 +1,10 @@
+[
+  {"symbol": "sum", "inputs": ["0"], "output": "0"},
+  {"symbol": "sum", "inputs": ["10"], "output": "55"},
+  {"symbol": "positive", "inputs": ["3"], "output": "true"},
+  {"symbol": "positive", "inputs": ["-3"], "output": "false"},
+  {"symbol": "pick", "inputs": ["true"], "output": "1"},
+  {"symbol": "pick", "inputs": ["false"], "output": "2"},
+  {"symbol": "negate", "inputs": ["true"], "output": "false"},
+  {"symbol": "negate", "inputs": ["false"], "output": "true"}
+]

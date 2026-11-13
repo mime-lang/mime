@@ -4,12 +4,12 @@ from pathlib import Path
 
 from mime import diag, printer, tools
 from mime.__about__ import __version__
-from mime.compiler import ToolError, analyze, domain_word, name_arg, run
-from mime.diag import FatalError
+from mime.compiler import BACKENDS, ToolError, analyze, domain_word, name_arg, run
+from mime.diag import FatalError, Trap
 from mime.lower import lower
 from mime.parser import parse
 
-OK, PROGRAM_ERRORS, USAGE = 0, 1, 2
+OK, PROGRAM_ERRORS, USAGE, TRAPPED = 0, 1, 2, 3
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -26,13 +26,18 @@ def _parser() -> argparse.ArgumentParser:
     p.add_argument('file')
     p.add_argument('--positions', action='store_true', help=positions)
 
-    p = sub.add_parser('run', help='run one function of a program on one decimal integer per input')
+    p = sub.add_parser('run', help='run an exported function of a program on one value per input')
     p.add_argument('file')
     p.add_argument('--positions', action='store_true', help=positions)
-    # The word is optional to argparse so that a word the shell expanded away gets a hint, not a bare usage error.
-    p.add_argument('word', nargs='?', help='the function to run, written as in the source: @same')
-    p.add_argument('inputs', nargs='*', help='one decimal integer per input, in the order of the type')
+    # The symbol is optional to argparse so that a missing one gets a hint, not a bare usage error.
+    p.add_argument('symbol', nargs='?', help='the symbol the function is exported under: clamp')
+    p.add_argument(
+        'inputs', nargs='*', help='one decimal integer, or true or false, per input, in the order of the type'
+    )
     p.add_argument('--timeout', type=float, default=10.0, help='stop a run after this many seconds (default: 10)')
+    p.add_argument(
+        '--backend', choices=BACKENDS, default=BACKENDS[0], help='interp runs at once; llvm builds with clang'
+    )
 
     word = 'the word, written as in the source: @number'
     p = sub.add_parser('show', help='print the entry for a word, exactly as written')
@@ -58,13 +63,13 @@ def _parser() -> argparse.ArgumentParser:
     return parser
 
 
-def _check_run_args(word: str | None) -> None:
-    """Explain a missing word."""
-    if word is None or word == '':
-        msg = 'mime run needs a word: mime run FILE @WORD INPUT...'
+def _check_run_args(symbol: str | None) -> None:
+    """Explain a missing symbol."""
+    if symbol is None or symbol == '':
+        msg = 'mime run needs a symbol: mime run FILE SYMBOL INPUT...'
         raise ToolError(msg)
-    if word.lstrip('-').isdigit():
-        msg = f'`{word}` looks like an input, so the word is missing: mime run FILE @WORD INPUT...'
+    if symbol.lstrip('-').isdigit():
+        msg = f'`{symbol}` looks like an input, so the symbol is missing: mime run FILE SYMBOL INPUT...'
         raise ToolError(msg)
 
 
@@ -105,6 +110,7 @@ def _query(args: argparse.Namespace) -> int:
 
 def _form(args: argparse.Namespace) -> int:
     """`fmt`, `canon` and `rename`, which need only a program that parses (design/step-5.md)."""
+    old = new = ''
     if args.command == 'rename':
         if not args.word or not args.new:
             msg = 'mime rename needs the old and the new name: mime rename FILE @OLD @NEW'
@@ -160,7 +166,7 @@ def main(argv: list[str] | None = None) -> int:
         if args.command in ('fmt', 'canon', 'rename'):
             return _form(args)
         if args.command == 'run':
-            _check_run_args(args.word)
+            _check_run_args(args.symbol)
         program, diagnostics = analyze(_read(args.file))
         if args.command == 'check':
             sys.stdout.write(diag.to_json(diagnostics, positions=args.positions))
@@ -171,7 +177,10 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == 'llvm':
             sys.stdout.write(lower(program))
         else:
-            sys.stdout.write(run(program, args.word, args.inputs, args.timeout))
+            sys.stdout.write(run(program, args.symbol, args.inputs, args.timeout, args.backend))
+    except Trap as e:
+        sys.stderr.write(diag.trap_json(e.diagnostic, positions=args.positions))
+        return TRAPPED
     except ToolError as e:
         sys.stderr.write(f'mime: {e}\n')
         return USAGE

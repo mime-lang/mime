@@ -10,6 +10,7 @@ define @exit {@n} -> i64 {
   ret %result
 }
 abstract = "the first value of @n doubled again and again that is at least 10"
+symbol = "leave"
 
 define @chain {@n} -> i64 {
   %a = add i64 @n, 1
@@ -20,6 +21,7 @@ define @chain {@n} -> i64 {
   ret %y
 }
 abstract = "one more than @n, passed through two blocks"
+symbol = "chain"
 
 define @invariant {@n} -> i64 {
   %step = add i64 @n, 1
@@ -32,6 +34,7 @@ define @invariant {@n} -> i64 {
   ret %total
 }
 abstract = "the first multiple of one more than @n that is above 100"
+symbol = "invariant"
 
 define @differ {@n} -> i64 {
   %zero = icmp eq i64 @n, 0
@@ -42,3 +45,4 @@ define @differ {@n} -> i64 {
   ret %v
 }
 abstract = "@n plus one when @n is zero, otherwise @n minus one"
+symbol = "differ"
