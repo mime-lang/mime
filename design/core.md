@@ -4,6 +4,9 @@
 > oymo's struct style (`{key = value}`, `let … in …`), with mime's `$` rule applied. This doc sets the direction.
 > Each part is settled for real by its step in the [roadmap](roadmap.md).
 >
+> **[backends.md](backends.md)** sets how meaning is defined across backends: by the spec, with partial operations
+> that trap and never undefined behavior.
+>
 > **[step-6.md](step-6.md) changes the sigils:** words are `@word` and locals `%local`, replacing the single `$`
 > class of §1. The examples below still use `$`.
 >

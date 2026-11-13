@@ -20,7 +20,7 @@ RETIRED = {
 }
 # LLVM words a model may bring along, with the mime form.
 LLVM_HABITS = {
-    'phi': 'use block parameters; they arrive in step 8',
+    'phi': 'use block parameters; they arrive with branches',
     'nsw': 'overflow always wraps, so there is no flag',
     'nuw': 'overflow always wraps, so there is no flag',
     'label': "write the block's word",

@@ -53,7 +53,7 @@ fields, and for a definition `type` (its head), `body`, or `abstract`.
 | Where | Rule | Kind |
 |---|---|---|
 | declaration | keys are `type`, `abstract`, in that order, each once | `unknown-key`, `missing-key`, `key-order`, `duplicate-key` |
-| declaration | `type` is `i64` | `bad-value` (a struct gets "arrives in step 10", a word gets "a type is a primitive such as `i64`") |
+| declaration | `type` is `i64` | `bad-value` (a struct gets "arrives with structs", a word gets "a type is a primitive such as `i64`") |
 | declaration | `abstract` is a non-empty string; its references name earlier entries only (step 2) | `bad-value`, the step 2 kinds |
 | any | a word has one declaration or one definition | `duplicate-word` |
 | definition | each input is an earlier data word, listed once | `undeclared-word`, `forward-reference`, `bad-value`, `duplicate-word` |
@@ -81,7 +81,7 @@ it, because guessing what a typo means depends on spelling; see step-5.md sectio
 | `input` | the inputs are the words of the type, such as `$number` |
 | `define $f($a)`, `define i64 @f(…)` | write the type: `define $f {$a} -> $r` |
 | `%x`, `@f` | words are written `$x` |
-| `phi` | use block parameters (step 8) |
+| `phi` | use block parameters (with branches) |
 | `nsw`, `nuw` | overflow always wraps |
 | `ret i64 $x` | the type comes from the definition |
 | `=>`, `→`, `:` in a type | write `->` |

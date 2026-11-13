@@ -92,7 +92,7 @@ def _body_locals(d: Definition) -> list[Value]:
 def local_numbers(d: Definition) -> dict[str, str]:
     """The body's locals numbered `0`, `1`, … in order of first appearance (design/step-6.md section 5).
 
-    Blocks arrive in step 8, and with them the rule that a pass-through parameter keeps its value's number.
+    Blocks arrive with branches, and with them the rule that a pass-through parameter keeps its value's number.
     """
     numbers: dict[str, str] = {}
     for v in _body_locals(d):

@@ -21,7 +21,7 @@ abstract = "three times the @number it is given, plus one"
 | Written | Is | Has | Renameable |
 |---|---|---|---|
 | `@word` | a word with an entry: a data word or a function | a type and an abstract | yes |
-| `%local` | a value bound in one body: a result (later, block parameters; the form of labels is decided in step 8) | nothing but its line | yes |
+| `%local` | a value bound in one body: a result (later, block parameters; the form of labels is decided with branches) | nothing but its line | yes |
 | bare `name` | a language word | its meaning in the spec | no |
 
 The lexer alone tells the three apart, so renaming stays a purely lexical rule. A reader sees at once which words
@@ -89,7 +89,7 @@ abstract = "three times the @number it is given, plus one"
   as `%0`, `%1`, … with no leading zeros, so a writer never has to count.
 - **One counter per body.** The first local in a body is `%0`, and the count continues through every block, in order
   of first appearance, so each number means one value everywhere in its function.
-- **A pass-through keeps its number.** Once blocks arrive (step 8), a block parameter that receives the same value
+- **A pass-through keeps its number.** Once blocks arrive (with branches), a block parameter that receives the same value
   on every jump into its block, or that value and itself on a loop's back edge, is the value a dominance rule would
   have let the block read directly. Canon gives such a parameter the number of that value, so the name never
   changes inside the function, and a reader has less to re-map at block boundaries. A parameter that receives
@@ -134,7 +134,7 @@ A function is mangled as `@"mime.affine"`. A `.` cannot appear in a C symbol, so
 runner's own symbols, and the word's `@` is left out because an ELF linker reads an `@` inside a symbol as a
 version. Its parameters are
 `%"@number"`. A local keeps its sigil inside quotes, `%"%0"` or `%"%double"`, because a bare `%0` is an unnamed
-value in LLVM, which LLVM requires to be numbered in its own order. Link names are decided with modules in step 12.
+value in LLVM, which LLVM requires to be numbered in its own order. Link names are decided with modules.
 
 ## 9. Workflow
 

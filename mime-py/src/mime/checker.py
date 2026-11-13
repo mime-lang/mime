@@ -150,7 +150,7 @@ class _Checker:
                 self.report('bad-value', 'an abstract cannot be empty', v.span, 'say what the word means', **at)
             return
         if isinstance(v, Struct):
-            self.report('bad-value', 'struct types arrive in step 10', v.span, 'the only type is `i64`', **at)
+            self.report('bad-value', 'struct types arrive with structs', v.span, 'the only type is `i64`', **at)
         elif v.kind == Tok.NAME and v.text in TYPES:
             return
         elif v.kind == Tok.NAME and v.text in LATER_TYPES:

@@ -80,11 +80,17 @@ Renaming `@number` to `@w0` and `@affine` to `@w1` everywhere gives the same pro
 ## Architecture (planned)
 
 ```
-mime text ──parse──▶ AST ──check──▶ checked module ──lower──▶ LLVM IR (.ll) ──clang──▶ native
+mime text ──parse──▶ module ──check──▶ checked form ──┬─▶ LLVM IR ──clang──▶ native
+                                                       ├─▶ interpreter
+                                                       ├─▶ JavaScript
+                                                       └─▶ JVM bytecode
 ```
 
+LLVM is the only backend today. The others are planned, and every backend must give the same answer for every
+program: the spec defines what a program means, never one backend ([design/backends.md](design/backends.md)).
+
 - **Checker:** enforces declare-before-use, definition order, types, and the renaming invariant.
-- **Backend:** emits textual LLVM IR. `clang` turns that into object files and executables.
+- **Backends:** LLVM today, which emits textual LLVM IR for `clang` to turn into executables. A reference interpreter, JavaScript and the JVM follow, and later an interpreter written in mime.
 - **Diagnostics:** structured (JSON) error messages written for agents, so an agent can repair its code in a loop.
 
 ## Testing the bet

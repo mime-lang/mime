@@ -44,7 +44,7 @@
     "entry": "@pair",
     "key": "type",
     "text": "{@first, @second}",
-    "message": "struct types arrive in step 10",
+    "message": "struct types arrive with structs",
     "hint": "the only type is `i64`"
   },
   {

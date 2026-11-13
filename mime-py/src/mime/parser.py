@@ -323,7 +323,7 @@ class _Parser:
             raise self.fail(r, f'expected a line or `ret`, found {_show(r)}', LINE_HINT)
         eq = self.take()
         if eq.kind == Tok.COLON:
-            raise self.fail(eq, 'blocks arrive in step 8', 'until then a body is one list of lines ending in `ret`')
+            raise self.fail(eq, 'blocks arrive with branches', 'until then a body is one list of lines ending in `ret`')
         if eq.kind != Tok.EQUALS:
             raise self.fail(eq, f'expected `=` after `%{r.text}`, found {_show(eq)}', LINE_HINT)
         op = self.take()
