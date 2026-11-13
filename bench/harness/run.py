@@ -54,7 +54,14 @@ class Job:
         if reason := execute.available(self.lang):
             return reason
         if self.lang == 'mime':
-            return 'no mime reference or compiler'
+            if not self.spec.mime_ready():
+                return 'a list has no mime type yet'
+            if self.track == 'generate' and self.task is not None and self.task.ref('mime') is None:
+                return 'no mime reference yet'
+            if self.track == 'names' and self.task is not None and self.task.variants[self.style].lib('mime') is None:
+                return 'no mime library yet'
+            if self.track == 'edit' and self.edit is not None and self.edit.before('mime') is None:
+                return 'no before.mime yet'
         return None
 
 
@@ -180,7 +187,7 @@ def build_jobs(args: argparse.Namespace, chosen_models: list[dict]) -> tuple[lis
     notes: list[str] = []
     for track in args.track:
         if track not in RUNNABLE_TRACKS:
-            notes.append(f'track {track}: unavailable (needs the mime compiler)')
+            notes.append(f'track {track}: unavailable (the harness does not run it yet)')
             continue
         items: list[tuple[str, str | None, Spec, int | None, Task | None, EditCase | None]] = []
         if track == 'generate':

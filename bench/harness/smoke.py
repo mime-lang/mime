@@ -248,7 +248,7 @@ def main(argv: list[str] | None = None) -> int:
 
     with tempfile.TemporaryDirectory(prefix='mime-bench-smoke-') as tmp:
         out = Path(tmp) / 'smoke-mock'
-        code = run.main(['--mock', '--samples', '6', '--lang', *langs, '--out', str(out)])
+        code = run.main(['--mock', '--samples', '6', '--lang', *langs, 'mime', '--out', str(out)])
         check(code == 0, f'run.py exited {code}', errors)
         rows = [json.loads(line) for line in (out / 'scores.jsonl').read_text().splitlines()]
         cells: dict[tuple, list[dict]] = defaultdict(list)
@@ -309,6 +309,27 @@ def main(argv: list[str] | None = None) -> int:
                     errors,
                 )
 
+        # mime: only the cells whose task has a mime reference run (design/step-12.md section 1).
+        check(
+            rate(track='generate', lang='mime', model='mock-reference') == 1.0,
+            'generate/mime: mock-reference must always pass',
+            errors,
+        )
+        check(
+            rate(track='generate', lang='mime', model='mock-constant') == 0.0,
+            'generate/mime: mock-constant must always fail',
+            errors,
+        )
+        check(
+            rate(track='generate', lang='mime', model='mock-flaky', mode='self-repair') == 1.0,
+            'generate/mime: mock-flaky must pass after self-repair',
+            errors,
+        )
+        mime_items = {r['task'] for r in rows if r['lang'] == 'mime'}
+        check(mime_items == {'t1-002-clamp'}, f'mime cells must run only for clamp, ran {sorted(mime_items)}', errors)
+        broken = [r for r in rows if r['lang'] == 'mime' and r['status'] == 'compile_error']
+        check(bool(broken), 'some mime sample must end as a compile_error', errors)
+
         flaky = [r for r in rows if r['model'] == 'mock-flaky' and r['mode'] == 'self-repair' and r['attempts'] == 2]
         check(bool(flaky), 'some mock-flaky self-repair sample must need 2 attempts', errors)
         for r in flaky:
@@ -349,7 +370,7 @@ def main(argv: list[str] | None = None) -> int:
 
     for e in errors:
         print(f'error: {e}')
-    print(f'{"FAIL" if errors else "OK"}: smoke test, languages {", ".join(langs)}; {sandbox_note}')
+    print(f'{"FAIL" if errors else "OK"}: smoke test, languages {", ".join([*langs, "mime"])}; {sandbox_note}')
     return 1 if errors else 0
 
 

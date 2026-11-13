@@ -37,30 +37,13 @@ when it does, core.md is updated in the same step.
 | 9 | calls by word, recursion, `declare`, running out of stack as a machine limit | [step-9.md](step-9.md) |
 | 10 | loops with one way in: reducible control flow, `irreducible-loop` | [step-10.md](step-10.md) |
 | 11 | canonical order: data words and `declare`s above their first `define`, `unused-word`, `canon --keep-words` | [step-11.md](step-11.md) |
+| 12 | first benchmark run: mime cells in the harness, `clamp`'s `ref.mime`, the mime signature skeleton | [step-12.md](step-12.md) |
 
 Along the way: [diagnostics.md](diagnostics.md) (JSON only, `entry`/`key`/`text`), [tools.md](tools.md)
 (`show`, which prints a function after the words in its type, and `uses`), and what an abstract says
 ([layout.md](layout.md) section 4.1: the result, not the steps; `unmentioned-input`).
 
 ## Next steps, in order
-
-### First benchmark run
-
-- **New:** the mime reference for `clamp` (`bench/tasks/t1-002-clamp/ref.mime`, in place of `ref.mime.todo`), and
-  mime cells in the harness: a task with a mime reference runs through `mime check` and `mime run`, and only a task
-  without one stays `unavailable`. The scrambled-words cell is the `mime canon` of a solution, and the plain cell its
-  `mime canon --keep-words` ([step-11.md](step-11.md) section 5). [bench/README.md](../bench/README.md) stops
-  saying there is no compiler and no skill file.
-- **Decide:** how the harness finds the `mime` command without depending on Python outside `bench/`, and how a
-  mime cell reports a diagnostic, a trap, and running out of time or stack.
-- **Why here:** `clamp` needs only `icmp` and `br`, so it can be written today. Several choices already wait on a
-  measurement: whether models confuse neighbouring numbered locals ([step-6.md](step-6.md) section 10), whether
-  abstracts that state the result help where the words say nothing ([layout.md](layout.md) section 4.1), and
-  whether placing words above their first user helps ([step-11.md](step-11.md)). One task is little evidence, but it
-  runs the whole loop, from the harness through a model to `mime run`, so every later task only needs its reference.
-
-**Milestone: first benchmark run, on `clamp`.** Its mime cells stop being `unavailable`, and the scrambled-words
-ablation runs on it.
 
 ### Division and remainder
 
@@ -73,7 +56,8 @@ ablation runs on it.
   first trap a program can reach, its report on every backend ([step-8.md](step-8.md) section 4), and a guard in
   every backend where the target's own division differs. Design the trap first.
 
-**Milestone: integer programs.** gcd and the other integer programs can be written, and join the benchmark run.
+**Milestone: integer programs.** gcd and the other integer programs can be written. An integer task such as gcd
+can join the benchmark, whose mime cells run since step 12.
 
 ### Lists
 
@@ -84,7 +68,10 @@ ablation runs on it.
 - **Why here:** four of the benchmark's five tasks take or return a list (`sum-list`, `is-sorted`,
   `merge-sorted`, `shortest-k-distinct`), and two return a boolean, which `i1` covers.
 
-**Milestone: the whole benchmark runs.** Every task can be written in mime.
+**Milestone: the whole benchmark runs.** Every task can be written in mime. The two `names`-track tasks
+(`sum-list`, `is-sorted`) take lists, so this is also where the scrambled-words ablation first runs: a mime
+library's `none` style is its `mime canon`, and its `honest` style its `mime canon --keep-words`
+([step-12.md](step-12.md) section 5).
 
 ### Structs
 

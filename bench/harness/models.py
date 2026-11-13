@@ -15,7 +15,10 @@ from count_tokens import approx_tokens, messages_tokens
 from taskset import Spec
 
 FENCE = {'python': 'python', 'typescript': 'typescript', 'mime': 'mime'}
-DEFAULT = {'i64': {'python': '0', 'typescript': '0'}, 'bool': {'python': 'False', 'typescript': 'false'}}
+DEFAULT = {
+    'i64': {'python': '0', 'typescript': '0', 'mime': '0'},
+    'bool': {'python': 'False', 'typescript': 'false', 'mime': 'false'},
+}
 DEFAULT['list<i64>'] = {'python': '[]', 'typescript': '[]'}
 
 # What the manifest records about sampling, per provider.
@@ -68,6 +71,8 @@ def constant(spec: Spec, lang: str) -> str:
     sig = spec.native_signature(lang)
     if lang == 'python':
         return f'{sig}:\n    return {value}\n'
+    if lang == 'mime':  # the skeleton, filled in; its inputs go unread, so it fails `mime check`
+        return sig.replace('  …', f'  ret {value}').replace('"…"', '"x"') + '\n'
     return f'{sig} {{\n  return {value};\n}}\n'
 
 

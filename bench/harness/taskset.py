@@ -28,6 +28,7 @@ EXT = {'python': 'py', 'typescript': 'ts', 'mime': 'mime'}
 STYLES = ('honest', 'none', 'misleading')
 
 PY_TYPE = {'i64': 'int', 'bool': 'bool', 'list<i64>': 'list[int]'}
+MIME_TYPE = {'i64': 'i64', 'bool': 'i1'}  # a list has no mime type yet
 TS_TYPE = {'i64': 'number', 'bool': 'boolean', 'list<i64>': 'number[]'}
 
 
@@ -59,7 +60,17 @@ class Spec:
         if lang == 'typescript':
             ps = ', '.join(f'{n}: {TS_TYPE[t]}' for n, t in zip(names, self.params))
             return f'export function {self.entry}({ps}): {TS_TYPE[self.returns]}'
+        if lang == 'mime' and self.mime_ready():
+            # A mime function takes data words and is called by its symbol (design/step-12.md section 4).
+            words = ''.join(f'@{n} = {{type = {MIME_TYPE[t]}, abstract = "…"}}\n' for n, t in zip(names, self.params))
+            inputs = ', '.join(f'@{n}' for n in names)
+            body = f'define @{self.entry} {{{inputs}}} -> {MIME_TYPE[self.returns]} {{\n  …\n}}'
+            return f'{words}\n{body}\nabstract = "…"\nsymbol = "{self.entry}"'
         return self.neutral_signature()
+
+    def mime_ready(self) -> bool:
+        """Whether mime has a type for every parameter and the result."""
+        return all(t in MIME_TYPE for t in (*self.params, self.returns))
 
     def examples(self) -> list[dict]:
         return [c for c in self.cases if c.get('example')]

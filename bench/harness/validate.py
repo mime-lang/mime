@@ -39,7 +39,7 @@ class Checker:
         self.errors.append(f'{where}: {msg}')
 
     def langs(self) -> list[str]:
-        """Baseline languages to execute here."""
+        """Languages whose references to execute here: the baselines, and mime."""
         out = ['python']
         reason = execute.available('typescript')
         if reason is None:
@@ -49,6 +49,11 @@ class Checker:
         elif 'node: skipped' not in self.notes:
             self.notes.append('node: skipped')
             self.notes.append(f'TypeScript references were NOT run ({reason}); CI runs them with --require-node')
+        reason = execute.available('mime')
+        if reason is None:
+            out.append('mime')
+        else:
+            self.err('mime', reason)
         return out
 
 
@@ -226,7 +231,7 @@ def check_edits(c: Checker) -> None:
 def check_repairs(c: Checker, mime_bin: str | None) -> None:
     cases = sorted(p for p in taskset.REPAIRS.iterdir() if p.is_dir())
     if not cases:
-        c.notes.append('repair: no cases yet (they need the mime compiler)')
+        c.notes.append('repair: no cases yet')
         return
     if not mime_bin:
         c.err(

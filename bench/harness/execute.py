@@ -1,4 +1,4 @@
-"""Run a candidate program against test cases, in Python, TypeScript or (later) mime.
+"""Run a candidate program against test cases, in Python, TypeScript or mime.
 
 The program never sees expected values: only the arguments go to the subprocess, and the
 harness compares the results.
@@ -13,6 +13,7 @@ Both get the same resource limits: CPU time, file size, memory, and a wall-clock
 
 from __future__ import annotations
 
+import atexit
 import functools
 import json
 import os
@@ -23,6 +24,7 @@ import stat
 import subprocess
 import sys
 import tempfile
+import zipfile
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -83,6 +85,85 @@ try {
 writeFileSync(outPath, JSON.stringify(out));
 """
 
+MIME_DRIVER = """\
+import json, subprocess, sys
+
+def main():
+    mime, solution, cases_path, entry, out_path, timeout = sys.argv[1:7]
+    cmd = [sys.executable, '-I', mime] if mime.endswith('.pyz') else ['./' + mime]
+    out = {}
+    check = subprocess.run(cmd + ['check', solution], capture_output=True, text=True)
+    if check.returncode != 0:
+        try:
+            d = json.loads(check.stdout)[0]
+            out['compile_error'] = f"{d['kind']}: {d['message']}"
+        except (ValueError, LookupError, TypeError):
+            out['compile_error'] = (check.stdout + check.stderr).strip()[:500] or f'exit code {check.returncode}'
+    else:
+        with open(cases_path) as f:
+            cases = json.load(f)
+        results = []
+        for args in cases:
+            words = [('true' if a else 'false') if isinstance(a, bool) else str(a) for a in args]
+            run = cmd + ['run', '--backend', 'interp', '--timeout', timeout, solution, entry, *words]
+            r = subprocess.run(run, capture_output=True, text=True)
+            text = r.stdout.strip()
+            if r.returncode != 0:
+                results.append({'error': r.stderr.strip()[:500] or f'exit code {r.returncode}'})
+            elif text in ('true', 'false'):
+                results.append({'value': text == 'true'})
+            else:
+                try:
+                    results.append({'value': int(text)})
+                except ValueError:
+                    results.append({'error': f'mime printed {text[:100]!r}'})
+        out['results'] = results
+    with open(out_path, 'w') as f:
+        json.dump(out, f)
+
+main()
+"""
+
+# The bootstrap toolchain, packed into a zipapp when MIME_BIN does not name a mime command
+# (design/step-12.md section 2). This is the one place bench/ knows where it lives.
+MIME_SRC = Path(__file__).resolve().parents[2] / 'mime-py' / 'src' / 'mime'
+
+
+@functools.cache
+def mime_command() -> tuple[Path | None, str]:
+    """The mime command as one self-contained file (a native program or a .pyz), or None and the reason."""
+    if env := os.environ.get('MIME_BIN'):
+        p = Path(env)
+        if not p.is_file():
+            return None, f'MIME_BIN={env} is not a file'
+        return p, ''
+    if not (MIME_SRC / 'cli.py').is_file():
+        return None, f'no mime toolchain at {MIME_SRC}; set MIME_BIN to a mime command'
+    out = Path(tempfile.mkdtemp(prefix='mime-bench-toolchain-'))
+    atexit.register(shutil.rmtree, out, True)
+    pyz = out / 'mime.pyz'
+    with zipfile.ZipFile(pyz, 'w', zipfile.ZIP_DEFLATED) as z:
+        z.writestr('__main__.py', 'from mime.cli import main\n\nraise SystemExit(main())\n')
+        for f in sorted(MIME_SRC.rglob('*.py')):
+            z.write(f, Path('mime') / f.relative_to(MIME_SRC))
+    return pyz, ''
+
+
+def _mime_argv(cmd: Path) -> list[str]:
+    return [sys.executable, '-I', str(cmd)] if cmd.suffix == '.pyz' else [str(cmd)]
+
+
+@functools.cache
+def mime_version() -> str | None:
+    cmd, _ = mime_command()
+    if cmd is None:
+        return None
+    try:
+        out = subprocess.run(_mime_argv(cmd) + ['--version'], check=False, capture_output=True, text=True, timeout=30)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    return out.stdout.strip() or None
+
 
 @dataclass
 class Result:
@@ -127,7 +208,7 @@ def node_version() -> tuple[int, ...] | None:
 
 def runtime_versions() -> dict:
     nv = node_version()
-    return {'python': sys.version.split()[0], 'node': '.'.join(map(str, nv)) if nv else None, 'mime': None}
+    return {'python': sys.version.split()[0], 'node': '.'.join(map(str, nv)) if nv else None, 'mime': mime_version()}
 
 
 def available(lang: str) -> str | None:
@@ -142,7 +223,8 @@ def available(lang: str) -> str | None:
             return f'node {".".join(map(str, nv))} is too old; type stripping needs 22.6+'
         return None
     if lang == 'mime':
-        return 'the mime compiler does not exist yet'
+        cmd, reason = mime_command()
+        return None if cmd is not None else reason
     return f'unknown language {lang}'
 
 
@@ -202,8 +284,9 @@ def sandbox_info(name: str) -> dict:
 
 
 def _runtime(lang: str) -> tuple[str, list[str]]:
-    """The interpreter's real path, and the directories it needs read-only."""
-    if lang == 'python':
+    """The interpreter's real path, and the directories it needs read-only. A mime cell's driver runs on Python, and so
+    does a zipapp toolchain."""
+    if lang in ('python', 'mime'):
         exe = os.path.realpath(sys.executable)
         roots = {sys.base_prefix, os.path.dirname(os.path.dirname(exe))}
     else:
@@ -235,7 +318,7 @@ def _limits(cpu_seconds: int, lang: str):
         resource.setrlimit(resource.RLIMIT_CPU, (cpu_seconds, cpu_seconds))
         resource.setrlimit(resource.RLIMIT_FSIZE, (MAX_FILE_BYTES, MAX_FILE_BYTES))
         resource.setrlimit(resource.RLIMIT_CORE, (0, 0))
-        if lang == 'python':
+        if lang in ('python', 'mime'):
             resource.setrlimit(resource.RLIMIT_AS, (MAX_PY_ADDRESS_SPACE, MAX_PY_ADDRESS_SPACE))
 
     return apply
@@ -276,6 +359,15 @@ def run(source: str, lang: str, spec: Spec, timeout: float = 10.0, sandbox: str 
             (t / 'solution.py').write_text(source)
             (t / 'driver.py').write_text(PY_DRIVER)
             cmd = [exe, '-I', 'driver.py', 'solution.py', 'cases.json', spec.entry, 'out.json']
+        elif lang == 'mime':
+            mime, reason = mime_command()
+            if mime is None:
+                return Result('unavailable', reason, 0, total)
+            name = 'mime.pyz' if mime.suffix == '.pyz' else 'mime'
+            shutil.copy(mime, t / name)
+            (t / 'solution.mime').write_text(source)
+            (t / 'driver.py').write_text(MIME_DRIVER)
+            cmd = [exe, '-I', 'driver.py', name, 'solution.mime', 'cases.json', spec.entry, 'out.json', f'{timeout:g}']
         else:
             (t / 'package.json').write_text('{"type": "module"}\n')
             (t / 'solution.ts').write_text(source)
@@ -309,6 +401,8 @@ def run(source: str, lang: str, spec: Spec, timeout: float = 10.0, sandbox: str 
             kind = 'compile_error' if any('SyntaxError' in line for line in err) else 'runtime_error'
             return Result(kind, '\n'.join(err[-5:]) or f'no valid result (exit code {proc.returncode})', 0, total)
     results = out.get('results')
+    if 'compile_error' in out:
+        return Result('compile_error', str(out['compile_error'])[:500], 0, total)
     if 'load_error' not in out and (
         not isinstance(results, list) or len(results) != total or not all(isinstance(r, dict) for r in results)
     ):

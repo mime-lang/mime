@@ -1,0 +1,19 @@
+@x = {type = i64, abstract = "a whole number"}
+@lo = {type = i64, abstract = "the smallest @x allowed"}
+@hi = {type = i64, abstract = "the largest @x allowed"}
+
+define @clamp {@x, @lo, @hi} -> i64 {
+  %below = icmp slt i64 @x, @lo
+  br %below, ^low{}, ^check{}
+^check{}:
+  %above = icmp sgt i64 @x, @hi
+  br %above, ^high{}, ^keep{}
+^low{}:
+  ret @lo
+^high{}:
+  ret @hi
+^keep{}:
+  ret @x
+}
+abstract = "@x, moved into the range from @lo to @hi"
+symbol = "solve"
