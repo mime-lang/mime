@@ -11,12 +11,12 @@ define @w1 {@w0} -> i64 {
   %v3 = add i64 %v2, @w0
   ret %v3
 }
-abstract = "the sum of the numbers from 0 to @w0, by recursion"
+abstract = "the sum of the numbers from 0 to @w0; it recurses @w0 times"
 symbol = "sum"
 
 define @w2 {@w0} -> i64 {
   %v0 = call @w2 {@w0 = @w0}
   ret %v0
 }
-abstract = "never returns: it calls itself with the same @w0"
+abstract = "never returns, whatever @w0 is: it recurses without end"
 symbol = "forever"

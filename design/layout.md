@@ -102,6 +102,40 @@ abstract = "the greatest common divisor of a $first and a $second"
 `$a -> $b`, without braces, gets "the inputs are a struct: write `{$a} -> $b`". `$a -> $b -> $c` gets "a function
 returns one value". `=>`, `→` and `:` get "write `->`". Source stays ASCII.
 
+### 4.1 What an abstract says
+
+An abstract says **what** a function gives back, never **how** it computes it. It stands in for the definition
+wherever the body is not in view (section 2), and the reader there is a caller, who needs the contract. Where the
+body is in view, the body already says how.
+
+- **The result, in terms of the inputs,** as a noun phrase, naming every input with `@`: `"the greatest common
+  divisor of @first and @second"`. For an `i1` output, `"whether @n is even"`.
+- **The edges a caller must know:** the inputs it does not handle (`"never returns when @n is zero or less"`), a
+  result that wraps where a caller would not expect it (`"the smallest i64 stays negative"`), and, once operations
+  can trap, when it traps. Overflow wraps everywhere ([step-3.md](step-3.md)), so an abstract does not say so for
+  every `add`.
+- **"How" only where a caller can observe it.** Today that is recursion depth, since a deep recursion runs out of
+  stack ([step-9.md](step-9.md) section 5): `"…; it recurses @n times"`. Which blocks a body has, which helpers it
+  calls, and in what order it does its steps are not in the abstract: they are in the body, and they change when the
+  body is rewritten while the result stays the same.
+- **Not the type.** The type is written once, in the head. A data word's abstract says what its values mean
+  (`"the largest @x allowed"`), not that they are `i64`.
+- A reference to another function is fine when it states the result, `"the opposite of @even"`, and not when it
+  states the steps, `"by @odd"`.
+
+| Writes | Instead of | Why |
+|---|---|---|
+| `"@x, moved into the range from @lo to @hi"` | `"compares @x with @lo, then with @hi"` | the steps, not the result |
+| `"whether @n is even; it recurses @n times"` | `"whether @n is even, by @odd"` | a helper, not the contract |
+| `"one more than @n"` | `"one more than @n, passed through two blocks"` | the blocks |
+| `"four times @count, minus ten"` | `"an i64 computed from @count"` | the type, and no result |
+
+*Easy for a model:* it is the first line of a docstring, which models write constantly: Go's "Foo returns …",
+Python's "Return the …". *How mistakes surface:* they do not, since the English is never checked. An abstract that
+describes steps reads fine until the body changes, and then it is wrong without a diagnostic. The benchmark's
+scrambled-words cell, where the abstract is all that is left of a word's meaning, measures whether this guidance
+pays.
+
 ## 5. Bodies
 
 The body follows LLVM IR, the low-level code models know best, with five deliberate differences (section 6).

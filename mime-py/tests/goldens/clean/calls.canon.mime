@@ -37,7 +37,7 @@ define @w9 {@w8} -> @w0 {
   %v3 = call @w4 {@w2 = %v1, @w3 = %v2}
   ret %v3
 }
-abstract = "four times @w8, minus the ten of @w5, by @w1 and @w4"
+abstract = "four times @w8, minus ten"
 symbol = "quadruple"
 
 define @w10 {@w0} -> @w0 {
@@ -49,5 +49,5 @@ define @w10 {@w0} -> @w0 {
 ^b1{}:
   ret @w0
 }
-abstract = "a @w0 without its sign, by @w7 and @w4"
+abstract = "a @w0 without its sign; the smallest i64 stays negative"
 symbol = "magnitude"

@@ -11,12 +11,12 @@ define @sum {@n} -> i64 {
   %t = add i64 %s, @n
   ret %t
 }
-abstract = "the sum of the numbers from 0 to @n, by recursion"
+abstract = "the sum of the numbers from 0 to @n; it recurses @n times"
 symbol = "sum"
 
 define @forever {@n} -> i64 {
   %r = call @forever {@n = @n}
   ret %r
 }
-abstract = "never returns: it calls itself with the same @n"
+abstract = "never returns, whatever @n is: it recurses without end"
 symbol = "forever"

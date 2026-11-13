@@ -9,7 +9,7 @@ define @w1 {@w0} -> i64 {
 ^b1{%v0}:
   ret %v0
 }
-abstract = "the first value of @w0 doubled again and again that is at least 10"
+abstract = "the first value of @w0 doubled again and again that is at least 10; never returns when @w0 is zero or less"
 symbol = "leave"
 
 define @w2 {@w0} -> i64 {
@@ -20,7 +20,7 @@ define @w2 {@w0} -> i64 {
 ^b1{%v0}:
   ret %v0
 }
-abstract = "one more than @w0, passed through two blocks"
+abstract = "one more than @w0"
 symbol = "chain"
 
 define @w3 {@w0} -> i64 {
@@ -33,7 +33,7 @@ define @w3 {@w0} -> i64 {
 ^b1{%v1}:
   ret %v1
 }
-abstract = "the first multiple of one more than @w0 that is above 100"
+abstract = "the first multiple of one more than @w0 that is above 100, when @w0 is zero or more"
 symbol = "invariant"
 
 define @w4 {@w0} -> i64 {

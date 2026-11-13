@@ -34,7 +34,7 @@ define @quadruple {@count} -> @number {
   %r = call @difference {@first = %b, @second = %t}
   ret %r
 }
-abstract = "four times @count, minus the ten of @ten, by @double and @difference"
+abstract = "four times @count, minus ten"
 symbol = "quadruple"
 
 define @magnitude {@number} -> @number {
@@ -46,5 +46,5 @@ define @magnitude {@number} -> @number {
 ^keep{}:
   ret @number
 }
-abstract = "a @number without its sign, by @negative and @difference"
+abstract = "a @number without its sign; the smallest i64 stays negative"
 symbol = "magnitude"

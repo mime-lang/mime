@@ -9,7 +9,7 @@ define @exit {@n} -> i64 {
 ^end{%result}:
   ret %result
 }
-abstract = "the first value of @n doubled again and again that is at least 10"
+abstract = "the first value of @n doubled again and again that is at least 10; never returns when @n is zero or less"
 symbol = "leave"
 
 define @chain {@n} -> i64 {
@@ -20,7 +20,7 @@ define @chain {@n} -> i64 {
 ^second{%y}:
   ret %y
 }
-abstract = "one more than @n, passed through two blocks"
+abstract = "one more than @n"
 symbol = "chain"
 
 define @invariant {@n} -> i64 {
@@ -33,7 +33,7 @@ define @invariant {@n} -> i64 {
 ^end{%total}:
   ret %total
 }
-abstract = "the first multiple of one more than @n that is above 100"
+abstract = "the first multiple of one more than @n that is above 100, when @n is zero or more"
 symbol = "invariant"
 
 define @differ {@n} -> i64 {

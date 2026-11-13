@@ -13,7 +13,7 @@ define @w3 {@w0} -> @w1 {
   %v2 = call @w2 {@w0 = %v1}
   ret %v2
 }
-abstract = "whether @w0 is even, by @w2"
+abstract = "whether @w0 is even; it recurses @w0 times"
 symbol = "even"
 
 define @w2 {@w0} -> @w1 {
@@ -26,5 +26,5 @@ define @w2 {@w0} -> @w1 {
   %v2 = call @w3 {@w0 = %v1}
   ret %v2
 }
-abstract = "whether @w0 is odd, the opposite of @w3"
+abstract = "whether @w0 is odd, the opposite of @w3; it recurses @w0 times"
 symbol = "odd"

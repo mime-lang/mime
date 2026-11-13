@@ -13,7 +13,7 @@ define @even {@n} -> @flag {
   %o = call @odd {@n = %m}
   ret %o
 }
-abstract = "whether @n is even, by @odd"
+abstract = "whether @n is even; it recurses @n times"
 symbol = "even"
 
 define @odd {@n} -> @flag {
@@ -26,5 +26,5 @@ define @odd {@n} -> @flag {
   %e = call @even {@n = %m}
   ret %e
 }
-abstract = "whether @n is odd, the opposite of @even"
+abstract = "whether @n is odd, the opposite of @even; it recurses @n times"
 symbol = "odd"

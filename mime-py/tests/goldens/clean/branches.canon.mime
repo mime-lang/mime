@@ -10,7 +10,7 @@ define @w1 {@w0} -> i64 {
 ^b1{%v1}:
   ret %v1
 }
-abstract = "the sum of the numbers from 0 to @w0"
+abstract = "the sum of the numbers from 0 to @w0, or 0 when @w0 is below zero"
 symbol = "sum"
 
 @w2 = {type = i1, abstract = "a truth value"}

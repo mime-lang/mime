@@ -11,7 +11,7 @@ define @sum {@n} -> i64 {
 ^end{%result}:
   ret %result
 }
-abstract = "the sum of the numbers from 0 to @n"
+abstract = "the sum of the numbers from 0 to @n, or 0 when @n is below zero"
 symbol = "sum"
 
 define @positive {@n} -> @flag {
