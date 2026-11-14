@@ -2,8 +2,7 @@
 
 > Status: draft for review. The first of two sub-steps of the structs step in the [roadmap](roadmap.md). It adds
 > LLVM's first-class aggregates: a data word whose type is a list of field words, `extractvalue` and `insertvalue`
-> to read and set a field, and `poison` to start from. Types are compared by their fields, as LLVM compares
-> literal structs. **Structs B**, the next sub-step, makes them nominal, as LLVM's identified structs are. The note
+> to read and set a field, and `poison` to start from. Types are compared by their field words. **Structs B**, the next sub-step, makes them nominal, as LLVM's identified structs are. The note
 > is renamed `step-N.md` when the sub-step is done.
 
 ```
@@ -69,10 +68,12 @@ The one thing mime does differently is how a line names a field: **by its word, 
   value, because it would be infinitely large; data that refers to itself needs memory, which is put off until it is
   needed.
 
-**Types are compared by their fields in this sub-step**, as LLVM compares literal structs: two struct words with the
-same field list are the same type. [layout.md](layout.md) section 3 promises nominal types, so that `@point` and
-`@vector` differ even with the same fields; Structs B builds that, and until it lands the checker does not tell them
-apart.
+**Types are compared by their field words in this sub-step:** two struct words that list the same fields, in the
+same order, are the same type. This is stricter than LLVM's literal structs, which compare only the field types:
+`{@x, @y}` and `{@a, @b}` both lower to `{ i64, i64 }`, but in mime they are different types, since their words
+differ. [layout.md](layout.md) section 3 promises nominal types, so that `@point` and `@vector` differ even with the
+same fields; Structs B builds that, and until it lands the checker does not tell those two apart. So no golden or
+SKILL.md example passes one where the other belongs, and nothing written for A breaks when B lands.
 
 ## 3. The lines
 
@@ -145,7 +146,12 @@ A field that is still `poison` is LLVM's poison: reading it gives a poison scala
   `extractvalue`.
   - An exported function that takes or returns a struct uses LLVM's own way of passing aggregates, which is not the
     C calling convention clang uses for a C struct. Calling a mime function from C is a later concern (modules).
-- **JavaScript and the JVM,** later: a struct is a frozen array or an object, and `insertvalue` makes a copy.
+  - **Large structs are slow by value.** LLVM's performance tips for frontend authors warn that large first-class
+    aggregates, passed, returned and merged through `phi`, make poor code. Small structs such as `@point` are fine.
+    The usual answer is memory, which mime does not have yet; it is left to the step that adds memory.
+- **JavaScript and the JVM,** later: a struct is a frozen array or an object, and `insertvalue` makes a copy. Filling
+  an n-field struct one `insertvalue` at a time then copies O(n²) fields, unless the backend fuses a chain of
+  `insertvalue`s from `poison` into one object; that is the backend's to do.
 
 ## 7. Hints for other habits
 
@@ -181,5 +187,8 @@ A field that is still `poison` is LLVM's poison: reading it gives a poison scala
 - [spec/SKILL.md](../spec/SKILL.md): struct words, the two lines, `poison`, the set-before-read rule, and run I/O.
 - Goldens: a clean `structs` golden (building, reading, replacing, nesting, a struct through a loop's block
   parameter, structs as inputs and outputs) with run cases, and a mistakes golden for section 7 and `unset-field`.
+- [tools.md](tools.md): `mime show` prints a struct word's field words too, after the struct words in a function's
+  type, so `extractvalue @point @from, @x` can be read without the module. `mime uses @x` finds it in every struct
+  type that lists it and every line that names it.
 - `mime canon` and `rename` need nothing new: field words are words. Canonical order already pulls a struct's field
   words above it, since its type refers to them.
