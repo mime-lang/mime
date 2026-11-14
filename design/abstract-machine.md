@@ -7,6 +7,19 @@
 
 ## 1. The rule
 
+**mime is a subset of LLVM.** Every mime program lowers to an LLVM program with the same meaning; mime only takes
+things away. Its checker rejects more programs than LLVM's verifier does, and checked mode rejects more runs than
+LLVM does, trapping where LLVM would reach poison or undefined behavior. A program mime accepts and a run it
+completes give exactly the result LLVM gives. mime never gives a different one.
+
+- **A subset of meaning, not of text.** mime is spelled its own way: inputs are `@` words, blocks take parameters
+  instead of `phi`, and abstracts sit beside the code. Each of these lowers one to one, so the subset is of the
+  programs LLVM can express, through that lowering.
+- **Running out of stack or time is not covered**: it is the machine's limit, not the program's meaning
+  ([step-9.md](step-9.md)), and LLVM has it too.
+- **A test for every step:** a feature that would let mime accept what LLVM rejects, or give a different result,
+  breaks the rule.
+
 **An operation means what LangRef says.** mime spells its operations as LLVM does (`add`, `sdiv`, `icmp`, `br`,
 `phi`-like block parameters, `call`, `ret`), and each one keeps LLVM's meaning exactly. mime adds no meaning of its
 own and picks no total definition where LLVM leaves a case open.
@@ -37,8 +50,8 @@ LLVM lets poison flow: it becomes undefined behavior only when it reaches a bran
 division's divisor, a call that needs a defined value, and so on. Checked mode traps one step earlier, at the line
 that **makes** the poison.
 
-- **It stays inside LLVM's meaning.** A program clean under this rule never makes poison, so LLVM's meaning holds
-  for it unchanged. Checked mode only rejects more runs than LLVM does, never gives a different value.
+- **It keeps mime a subset of LLVM** (section 1). A program clean under this rule never makes poison, so LLVM's
+  meaning holds for it unchanged.
 - **It points at the cause.** The trap names the line a model must fix, not a later line the poison happened to
   reach. Tracking poison as it flows would report the use, far from the mistake.
 - **It is simple for every backend:** one guard per line that can make poison, with no shadow state.
