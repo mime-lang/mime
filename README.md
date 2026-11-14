@@ -125,3 +125,9 @@ hatch run mime --version
 ## License
 
 `SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception`. See [LICENSE](LICENSE).
+
+This is the license of the [LLVM project](https://llvm.org/docs/DeveloperPolicy.html#new-llvm-project-license-framework)
+itself (LLVM, Clang, LLD), and of [Wasmtime](https://github.com/bytecodealliance/wasmtime) and Cranelift. It is the
+Apache License 2.0 with two additions. If you compile a program with mime and parts of mime end up inside the
+result, you can ship that result without Apache's notice and attribution conditions. And the code may also be
+combined with GPLv2-only code, which plain Apache 2.0 does not allow.
